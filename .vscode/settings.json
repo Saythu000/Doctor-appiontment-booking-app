@@ -1,0 +1,9 @@
+{
+  "dart.flutterSdkPath": "/home/mi/flutter",
+  "dart.analysisExcludedFolders": [
+    "flutter/",
+    "**/.pub-cache",
+    "**/build",
+    "**/lib/flutter"
+  ]
+}
