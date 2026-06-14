@@ -1,9 +1,9 @@
-# PHIA - Personal Health Insight Assistant
+# DrGodly - Doctor Appointment Booking & Health Tracker
 
 <div align="center">
-  <img src="assets/app_logo.jpeg" alt="PHIA Logo" width="120" height="120" style="border-radius: 24px;" />
-  <h3>Personal Health Insight Assistant & Specialist Booking Flow</h3>
-  <p>A high-performance, mobile-only Flutter application styled with a premium desaturated cyberpunk aesthetic, integrated with native hardware sensors and synced live to a local FHIR Server.</p>
+  <img src="assets/app_logo.jpeg" alt="DrGodly Logo" width="120" height="120" style="border-radius: 24px;" />
+  <h3>Doctor Appointment Booking & Personal Health Tracking Application</h3>
+  <p>A high-performance, mobile-only Flutter application styled with a clean, professional blue and white medical aesthetic, integrated with native hardware sensors and synced live to a local FHIR Server.</p>
 </div>
 
 ---
@@ -97,4 +97,4 @@ flutter run
 ---
 
 ## 🔒 Licenses & Guidelines
-This project is built under modern, strict mobile-only guidelines. High-fidelity medical tracking interfaces are proprietary to PHIA systems.
+This project is built under modern, strict mobile-only guidelines. High-fidelity medical tracking interfaces are proprietary to DrGodly systems.
