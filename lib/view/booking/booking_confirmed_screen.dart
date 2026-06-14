@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../core/widgets/image_helper.dart';
+import '../../core/utils/language_helper.dart';
 
 class BookingConfirmedScreen extends StatefulWidget {
   const BookingConfirmedScreen({super.key});
@@ -22,15 +25,9 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
   late AnimationController _scanController;
   late Animation<double> _scanAnimation;
 
-  // Static telemetry values
-  late final String _confCode;
-
   @override
   void initState() {
     super.initState();
-
-    // Generate random confirmation number
-    _confCode = '#CONF-${(1000 + Random().nextInt(9000))}';
 
     // Initialize looped 4-second linear scanline animation
     _scanController = AnimationController(
@@ -73,18 +70,31 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
     final String specialistName = args['name'] as String;
     final String date = args['date'] as String; // "OCTOBER 07, 2023"
     final String time = args['time'] as String; // "08:00"
+    final Map<String, dynamic>? result = args['result'] as Map<String, dynamic>?;
+
+    final String confCode = result != null
+        ? '#APPT-${result['appointment_id']}'
+        : '#CONF-${(1000 + Random().nextInt(9000))}';
 
     // Dynamic session type deducer mapped from specialist names
-    String sessionType = 'HYPER-ENDURANCE';
+    String sessionType = 'CLINICAL_CONSULTATION';
     final String nameUpper = specialistName.toUpperCase();
     if (nameUpper.contains('MARCUS')) {
-      sessionType = 'HYPER-ENDURANCE';
+      sessionType = 'PRIMARY_CARE_WELLNESS';
     } else if (nameUpper.contains('ELENA')) {
-      sessionType = 'RECOVERY_CALIBRATION';
+      sessionType = 'CARDIAC_ASSESSMENT';
     } else if (nameUpper.contains('DAVID')) {
-      sessionType = 'METABOLIC_INTEGRATION';
+      sessionType = 'ENDOCRINE_METABOLIC_EVAL';
     } else if (nameUpper.contains('SARAH')) {
-      sessionType = 'NEURO-MECHANICAL_SYNC';
+      sessionType = 'NEUROLOGICAL_EXAMINATION';
+    } else if (nameUpper.contains('KAELEN')) {
+      sessionType = 'PULMONARY_SLEEP_STUDY';
+    } else if (nameUpper.contains('ARIA')) {
+      sessionType = 'DERMATOLOGICAL_SCREENING';
+    } else if (nameUpper.contains('LOGAN')) {
+      sessionType = 'ORTHOPEDIC_CONSULTATION';
+    } else if (nameUpper.contains('EVELYN')) {
+      sessionType = 'PEDIATRIC_WELLNESS_CHECK';
     }
 
     // Dynamic date parser to KINETIC confirmation format (e.g. "OCT 07.2023")
@@ -147,7 +157,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                         icon: const Icon(Icons.menu, color: Colors.white, size: 24),
                       ),
                       Text(
-                        'KINETIC',
+                        'DRGODLY',
                         style: GoogleFonts.bebasNeue(
                           fontSize: 26,
                           letterSpacing: 4.0,
@@ -155,24 +165,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                         ),
                       ),
                       // Desaturated circular athlete avatar profile
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
-                          image: const DecorationImage(
-                            image: NetworkImage('https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=100'),
-                            fit: BoxFit.cover,
-                            colorFilter: ColorFilter.matrix(<double>[
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0,      0,      0,      1, 0,
-                            ]),
-                          ),
-                        ),
-                      ),
+                      const UserHeaderAvatar(),
                     ],
                   ),
                 ),
@@ -243,7 +236,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                                         child: Column(
                                           children: [
                                             Text(
-                                              'MISSION SCHEDULED',
+                                              AppLanguageHelper.translate(context, 'booking_confirmed', defaultText: 'BOOKING CONFIRMED'),
                                               style: GoogleFonts.bebasNeue(
                                                 fontSize: 32,
                                                 color: Colors.white,
@@ -420,7 +413,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                                           ],
                                         ),
                                         Text(
-                                          _confCode,
+                                          confCode,
                                           style: GoogleFonts.inter(
                                             fontSize: 9,
                                             fontWeight: FontWeight.bold,
@@ -430,7 +423,8 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                                       ],
                                     ),
                                   ),
-                                ],
+
+                                  ],
                               ),
                             ),
                           ],
@@ -444,7 +438,58 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                         children: [
                           // ADD TO CALENDAR (Solid White Button)
                           ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              try {
+                                // 1. Normalize and parse the date string (e.g., "OCTOBER 07, 2023")
+                                final cleanDate = date.replaceAll(',', '');
+                                final dateParts = cleanDate.split(' ');
+                                if (dateParts.length >= 3) {
+                                  final String monthStr = dateParts[0].toUpperCase();
+                                  final int day = int.tryParse(dateParts[1]) ?? 7;
+                                  final int year = int.tryParse(dateParts[2]) ?? 2023;
+
+                                  const monthsMap = {
+                                    'JANUARY': 1, 'JAN': 1,
+                                    'FEBRUARY': 2, 'FEB': 2,
+                                    'MARCH': 3, 'MAR': 3,
+                                    'APRIL': 4, 'APR': 4,
+                                    'MAY': 5,
+                                    'JUNE': 6, 'JUN': 6,
+                                    'JULY': 7, 'JUL': 7,
+                                    'AUGUST': 8, 'AUG': 8,
+                                    'SEPTEMBER': 9, 'SEP': 9, 'SEPT': 9,
+                                    'OCTOBER': 10, 'OCT': 10,
+                                    'NOVEMBER': 11, 'NOV': 11,
+                                    'DECEMBER': 12, 'DEC': 12,
+                                  };
+                                  final int month = monthsMap[monthStr] ?? 10;
+
+                                  // 2. Parse the time string (e.g., "08:00" or "13:15")
+                                  final timeParts = time.split(':');
+                                  final int hour = int.tryParse(timeParts[0]) ?? 8;
+                                  final int minute = int.tryParse(timeParts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+                                  final startDateTime = DateTime(year, month, day, hour, minute);
+                                  final endDateTime = startDateTime.add(const Duration(minutes: 30));
+
+                                  const platform = MethodChannel('com.example.phia_flutter/calendar');
+                                  platform.invokeMethod('addToCalendar', {
+                                    'title': 'Appointment: $specialistName',
+                                    'description': 'Consultation Session ($sessionType)\nConfirmation Code: $confCode',
+                                    'location': 'DrGodly Telehealth / Clinic Platform',
+                                    'beginTime': startDateTime.millisecondsSinceEpoch,
+                                    'endTime': endDateTime.millisecondsSinceEpoch,
+                                  });
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to add to calendar: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.black,
@@ -504,49 +549,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
                             ),
                           ),
                         ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // 6. FOOTER TELEMETRY DECOR
-                      Opacity(
-                        opacity: 0.2,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'DATA_LATENCY: 12MS',
-                                  style: GoogleFonts.inter(fontSize: 8, letterSpacing: -0.2),
-                                ),
-                                Text(
-                                  'AUTH_STATUS: VERIFIED',
-                                  style: GoogleFonts.inter(fontSize: 8, letterSpacing: -0.2),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              width: 32,
-                              height: 1,
-                              color: Colors.white,
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'ENCRYPTION: AES-256',
-                                  style: GoogleFonts.inter(fontSize: 8, letterSpacing: -0.2),
-                                ),
-                                Text(
-                                  'KINETIC_OS_V2.0',
-                                  style: GoogleFonts.inter(fontSize: 8, letterSpacing: -0.2),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
                       ),
 
                       const SizedBox(height: 32),

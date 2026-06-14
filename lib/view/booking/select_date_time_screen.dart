@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../core/widgets/image_helper.dart';
+import '../../viewmodel/booking_viewmodel.dart';
+import '../../domain/model/booking_models.dart';
+import '../../core/utils/language_helper.dart';
 
 class SelectDateTimeScreen extends StatefulWidget {
   const SelectDateTimeScreen({super.key});
@@ -11,52 +17,123 @@ class SelectDateTimeScreen extends StatefulWidget {
 }
 
 class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
-  int _selectedDay = 7; // October 7th is selected in the mockup
-  int _selectedSlotIndex = 0; // Morning Session (08:00) is selected
+  late DateTime _selectedDate;
+  String? _selectedTimeSlot;
+  bool _isVirtualMode = true; // Default virtual mode
+  PractitionerRoleBooking? _specialist;
+  bool _initialized = false;
 
-  // Grid offsets for October 2023 starting on Friday: 
-  // 4 empty days representing Mon, Tue, Wed, Thu, followed by 1 to 14.
-  final List<int?> _calendarDays = [
-    null, null, null, null, 1, 2, 3,
-    4, 5, 6, 7, 8, 9, 10,
-    11, 12, 13, 14
-  ];
+  final Map<int, String> _weekdayNames = {
+    DateTime.monday: 'mon',
+    DateTime.tuesday: 'tue',
+    DateTime.wednesday: 'wed',
+    DateTime.thursday: 'thu',
+    DateTime.friday: 'fri',
+    DateTime.saturday: 'sat',
+    DateTime.sunday: 'sun',
+  };
 
-  final List<Map<String, String>> _slots = [
-    {
-      'title': 'MORNING SESSION',
-      'time': '08:00',
-      'duration': '90 MIN',
-      'type': 'bolt',
-    },
-    {
-      'title': 'MIDDAY FLOW',
-      'time': '10:30',
-      'duration': '60 MIN',
-      'type': 'bolt',
-    },
-    {
-      'title': 'POWER HOUR',
-      'time': '13:15',
-      'duration': '45 MIN',
-      'type': 'bolt',
-    },
-    {
-      'title': 'EVENING BURN',
-      'time': '18:00',
-      'duration': 'BOOKED',
-      'type': 'lock',
-    },
-  ];
+  late List<DateTime> _thirtyDays;
 
   @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = now;
+    _generateThirtyDays();
+  }
+
+  void _generateThirtyDays() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _thirtyDays = List.generate(30, (index) => today.add(Duration(days: index)));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      _specialist = args['specialist'] as PractitionerRoleBooking?;
+      
+      // Auto-fetch booked slots for the initial date
+      _fetchSlotsForDate(_selectedDate);
+      _initialized = true;
+    }
+  }
+
+
+
+  void _fetchSlotsForDate(DateTime date) {
+    if (_specialist != null) {
+      final pId = _specialist!.practitionerRefId ?? _specialist!.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Provider.of<BookingViewModel>(context, listen: false).fetchBookedSlots(pId, date);
+      });
+    }
+  }
+
+
+  /// Generate timeslots based on doctor's schedule times
+  List<String> _generateTimeSlots() {
+    if (_specialist == null || _specialist!.availability.isEmpty) {
+      return ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
+    }
+
+    final currentDayName = _weekdayNames[_selectedDate.weekday];
+    final slots = <String>[];
+
+    for (var av in _specialist!.availability) {
+      for (var time in av.availableTimes) {
+        if (time.daysOfWeek.map((d) => d.toLowerCase()).contains(currentDayName)) {
+          final startStr = time.availableStartTime ?? '09:00:00';
+          final endStr = time.availableEndTime ?? '17:00:00';
+
+          final startParts = startStr.split(':');
+          final endParts = endStr.split(':');
+
+          int startHour = int.parse(startParts[0]);
+          int startMinute = int.parse(startParts[1]);
+          int endHour = int.parse(endParts[0]);
+          int endMinute = int.parse(endParts[1]);
+
+          var current = DateTime(2000, 1, 1, startHour, startMinute);
+          final end = DateTime(2000, 1, 1, endHour, endMinute);
+
+          while (current.isBefore(end)) {
+            final hour = current.hour.toString().padLeft(2, '0');
+            final minute = current.minute.toString().padLeft(2, '0');
+            slots.add('$hour:$minute');
+            current = current.add(const Duration(minutes: 30));
+          }
+        }
+      }
+    }
+
+    if (slots.isEmpty) {
+      return ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
+    }
+    return slots;
+  }  @override
   Widget build(BuildContext context) {
-    // Retrieve specialist details passed from previous SelectSpecialistScreen
     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final String specialistName = args['name'] as String;
     final String specialistRole = args['role'] as String;
     final Color accentColor = args['accentColor'] as Color;
     final String specialistImageUrl = args['imageUrl'] as String;
+    final timeSlots = _generateTimeSlots();
+
+    String doctorBio = 'Attending clinical specialist at the DRGODLY Clinical Wellness Center, dedicated to high-fidelity diagnostic evaluations and personalized patient care plans.';
+    final nameLower = specialistName.toLowerCase();
+    if (nameLower.contains('aurelius')) {
+      doctorBio = 'Dr. Marcus Aurelius is a dedicated Primary Care Physician specializing in comprehensive family medicine and preventative care protocols. He focuses on longitudinal patient wellness and metabolic health tracking.';
+    } else if (nameLower.contains('vance')) {
+      doctorBio = 'Dr. Elena Vance is a leading Cardiovascular Specialist with over 12 years of clinical research and practice in advanced heart failure management, non-invasive imaging, and cardiac rehabilitation.';
+    } else if (nameLower.contains('chen')) {
+      doctorBio = 'Dr. David Chen is a Board Certified Endocrinologist dedicated to advanced diabetes management, thyroid therapeutics, and metabolic health mapping.';
+    } else if (nameLower.contains('jenkins')) {
+      doctorBio = 'Dr. Sarah Jenkins is an experienced Clinical Neurologist specializing in cognitive health tracking, neuro-diagnostics, and autonomic system assessments.';
+    }
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
@@ -80,35 +157,17 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
                       ),
                       Text(
-                        'KINETIC',
+                        'DRGODLY',
                         style: GoogleFonts.bebasNeue(
                           fontSize: 26,
                           letterSpacing: 4.0,
                           color: Colors.white,
                         ),
                       ),
-                      // Desaturated circular athlete avatar profile
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
-                          image: const DecorationImage(
-                            image: NetworkImage('https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=100'),
-                            fit: BoxFit.cover,
-                            colorFilter: ColorFilter.matrix(<double>[
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0,      0,      0,      1, 0,
-                            ]),
-                          ),
-                        ),
-                      ),
+                      const UserHeaderAvatar(),
                     ],
                   ),
                 ),
@@ -130,7 +189,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'SESSION PLANNER',
+                            'CLINICAL SCHEDULER',
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -142,7 +201,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'SELECT DATE & TIME',
+                        AppLanguageHelper.translate(context, 'select_date_time', defaultText: 'SELECT DATE & TIME'),
                         style: GoogleFonts.bebasNeue(
                           fontSize: 32,
                           color: Colors.white,
@@ -150,117 +209,315 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
-                      // 3. CALENDAR BENTO BOX CONTAINER
+                      // Doctor Profile Card
                       Container(
-                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.transparent,
+                          color: PhiaColors.surface,
                           border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Calendar Header (OCTOBER 2023 and arrows)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'OCTOBER 2023',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {},
-                                      child: const Icon(Icons.chevron_left, color: Colors.white, size: 18),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    GestureDetector(
-                                      onTap: () {},
-                                      child: const Icon(Icons.chevron_right, color: Colors.white, size: 18),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 24),
-
-                            // Weekday Labels Row
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) {
-                                return Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      day,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white.withValues(alpha: 0.35),
-                                        letterSpacing: 0.5,
+                            // Segment 1: Header Profile Row
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Grayscale portrait
+                                  Container(
+                                    width: 60,
+                                    height: 75,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                      image: DecorationImage(
+                                        image: getImageProvider(specialistImageUrl, fallback: 'assets/doctors/doctor_1.png'),
+                                        fit: BoxFit.cover,
+                                        colorFilter: const ColorFilter.matrix(<double>[
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0,      0,      0,      1, 0,
+                                        ]),
                                       ),
                                     ),
                                   ),
-                                );
-                              }).toList(),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          specialistRole.toUpperCase(),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: accentColor,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          specialistName.toUpperCase(),
+                                          style: GoogleFonts.bebasNeue(
+                                            fontSize: 22,
+                                            color: Colors.white,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.star, color: Colors.amber, size: 12),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '4.9 (120 REVIEWS)',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white70,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              '•',
+                                              style: TextStyle(color: Colors.white38),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '12 YRS EXP',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white70,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'DRGODLY CLINICAL WELLNESS CENTER',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            color: Colors.white38,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Segment Divider Line
+                            Container(
+                              height: 1,
+                              color: Colors.white.withValues(alpha: 0.08),
                             ),
 
-                            const SizedBox(height: 16),
-
-                            // October Days Grid Layout
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 7,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 8,
-                                childAspectRatio: 1.0,
+                            // Segment 2: Biography details
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ABOUT THE PRACTITIONER',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white38,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    doctorBio,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: Colors.white54,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              itemCount: _calendarDays.length,
-                              itemBuilder: (context, index) {
-                                final int? day = _calendarDays[index];
-                                if (day == null) {
-                                  return const SizedBox.shrink();
-                                }
+                            ),
+                          ],
+                        ),
+                      ),
 
-                                bool isSelected = _selectedDay == day;
+                      const SizedBox(height: 20),
+
+                      // Mode Selector (Virtual vs In-Person)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isVirtualMode = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: _isVirtualMode ? Colors.white : Colors.transparent,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'VIRTUAL CONSULTATION',
+                                      style: GoogleFonts.bebasNeue(
+                                        fontSize: 12,
+                                        color: _isVirtualMode ? Colors.black : Colors.white60,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isVirtualMode = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: !_isVirtualMode ? Colors.white : Colors.transparent,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'IN-PERSON VISIT',
+                                      style: GoogleFonts.bebasNeue(
+                                        fontSize: 12,
+                                        color: !_isVirtualMode ? Colors.black : Colors.white60,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // 3. COMPACT HORIZONTAL DATE SELECTOR
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'SELECT DATE',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white.withValues(alpha: 0.38),
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                DateFormat('MMMM yyyy').format(_selectedDate).toUpperCase(),
+                                style: GoogleFonts.bebasNeue(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 80,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _thirtyDays.length,
+                              itemBuilder: (context, index) {
+                                final DateTime day = _thirtyDays[index];
+                                final bool isSelected = _selectedDate.day == day.day &&
+                                                      _selectedDate.month == day.month &&
+                                                      _selectedDate.year == day.year;
+
+                                final String weekday = _weekdayNames[day.weekday] ?? 'mon';
+                                final String dayNumber = day.day.toString().padLeft(2, '0');
+                                final String monthAbbr = DateFormat('MMM').format(day).toUpperCase();
 
                                 return GestureDetector(
                                   onTap: () {
                                     setState(() {
-                                      _selectedDay = day;
+                                      _selectedDate = day;
+                                      _selectedTimeSlot = null; // Reset slot
                                     });
+                                    _fetchSlotsForDate(day);
                                   },
                                   child: Container(
-                                    alignment: Alignment.center,
+                                    width: 60,
+                                    margin: const EdgeInsets.only(right: 8),
                                     decoration: BoxDecoration(
-                                      border: isSelected
-                                          ? Border.all(color: Colors.white, width: 1.0)
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      day.toString().padLeft(2, '0'),
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                                      color: isSelected ? Colors.transparent : PhiaColors.surface,
+                                      border: Border.all(
+                                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+                                        width: isSelected ? 1.5 : 1.0,
                                       ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          weekday.toUpperCase(),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected ? Colors.white : Colors.white30,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          dayNumber,
+                                          style: GoogleFonts.bebasNeue(
+                                            fontSize: 20,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          monthAbbr,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w500,
+                                            color: isSelected ? Colors.white60 : Colors.white30,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 );
                               },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 28),
@@ -292,141 +549,204 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       const SizedBox(height: 16),
 
                       // Time Slot Bento Cards List
-                      Column(
-                        children: List.generate(_slots.length, (index) {
-                          final slot = _slots[index];
-                          bool isSelected = _selectedSlotIndex == index;
-                          bool isBooked = slot['type'] == 'lock';
+                      Consumer<BookingViewModel>(
+                        builder: (context, vm, child) {
+                          if (vm.isSlotsLoading) {
+                            return _buildSlotsLoader();
+                          }
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: GestureDetector(
-                              onTap: isBooked
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _selectedSlotIndex = index;
-                                      });
-                                    },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(
-                                    color: isBooked
-                                        ? Colors.white.withValues(alpha: 0.05)
-                                        : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.12)),
-                                    width: isSelected ? 1.5 : 1.0,
+                          return Column(
+                            children: List.generate(timeSlots.length, (index) {
+                              final String slotTime = timeSlots[index];
+                              bool isSelected = _selectedTimeSlot == slotTime;
+                              bool isBooked = vm.bookedSlots.contains(slotTime);
+
+                              // Assign custom titles for visual variety
+                              String title = 'MIDDAY CLINICAL FLOW';
+                              final hour = int.parse(slotTime.split(':')[0]);
+                              if (hour < 12) {
+                                title = 'MORNING APPOINTMENT FLOW';
+                              } else if (hour >= 16) {
+                                title = 'EVENING CONSULTATION FLOW';
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: GestureDetector(
+                                  onTap: isBooked
+                                      ? null
+                                      : () {
+                                          setState(() {
+                                            _selectedTimeSlot = slotTime;
+                                          });
+                                        },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: isBooked ? Colors.white.withValues(alpha: 0.01) : Colors.transparent,
+                                      border: Border.all(
+                                        color: isBooked
+                                            ? Colors.white.withValues(alpha: 0.05)
+                                            : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.12)),
+                                        width: isSelected ? 1.5 : 1.0,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              title,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: isBooked
+                                                    ? Colors.white.withValues(alpha: 0.15)
+                                                    : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35)),
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              slotTime,
+                                              style: GoogleFonts.bebasNeue(
+                                                fontSize: 26,
+                                                color: isBooked
+                                                    ? Colors.white.withValues(alpha: 0.15)
+                                                    : Colors.white,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              isBooked ? 'OCCUPIED' : '30 MIN',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: isBooked
+                                                    ? Colors.white.withValues(alpha: 0.15)
+                                                    : Colors.white.withValues(alpha: 0.6),
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Icon(
+                                              isBooked ? Icons.lock_outline : Icons.access_time_outlined,
+                                              color: isBooked
+                                                  ? Colors.white.withValues(alpha: 0.15)
+                                                  : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35)),
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          slot['title']!,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            color: isBooked
-                                                ? Colors.white.withValues(alpha: 0.15)
-                                                : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35)),
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          slot['time']!,
-                                          style: GoogleFonts.bebasNeue(
-                                            fontSize: 26,
-                                            color: isBooked
-                                                ? Colors.white.withValues(alpha: 0.15)
-                                                : Colors.white,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          slot['duration']!,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: isBooked
-                                                ? Colors.white.withValues(alpha: 0.15)
-                                                : Colors.white.withValues(alpha: 0.6),
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Icon(
-                                          isBooked ? Icons.lock_outline : Icons.bolt,
-                                          color: isBooked
-                                              ? Colors.white.withValues(alpha: 0.15)
-                                              : (isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35)),
-                                          size: 16,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 5. CONTINUE TO PAYMENT CTA (Solid White Block Button)
-                      ElevatedButton(
-                        onPressed: () {
-                          // Assemble booking arguments to pass to review screen
-                          final String selectedDateStr = 'OCTOBER ${_selectedDay.toString().padLeft(2, '0')}, 2023';
-                          final String selectedTimeStr = _slots[_selectedSlotIndex]['time']!;
-
-                          Navigator.pushNamed(
-                            context,
-                            '/booking_review',
-                            arguments: {
-                              'name': specialistName,
-                              'role': specialistRole,
-                              'accentColor': accentColor,
-                              'date': selectedDateStr,
-                              'time': selectedTimeStr,
-                              'imageUrl': specialistImageUrl,
-                            },
+                              );
+                            }),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'CONTINUE TO PAYMENT',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
                       ),
 
-                      const SizedBox(height: 32),
                     ],
+                  ),
+                ),
+
+                // Pinned Continue Button outside the scrollable view
+                Container(
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: PhiaColors.background,
+                    border: Border(
+                      top: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                    ),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _selectedTimeSlot == null
+                        ? null
+                        : () {
+                            final String formattedDate = DateFormat('MMMM d, yyyy').format(_selectedDate);
+
+                            Navigator.pushNamed(
+                              context,
+                              '/booking_review',
+                              arguments: {
+                                'specialist': _specialist,
+                                'name': specialistName,
+                                'role': specialistRole,
+                                'accentColor': accentColor,
+                                'date': formattedDate,
+                                'date_raw': _selectedDate,
+                                'time': _selectedTimeSlot,
+                                'isVirtual': _isVirtualMode,
+                                'imageUrl': specialistImageUrl,
+                              },
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+                      disabledForegroundColor: Colors.white.withValues(alpha: 0.2),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'CONTINUE TO REVIEW',
+                      style: GoogleFonts.bebasNeue(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSlotsLoader() {
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'RETRIEVING LIVE RESERVATION INDEX...',
+              style: GoogleFonts.bebasNeue(
+                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.38),
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

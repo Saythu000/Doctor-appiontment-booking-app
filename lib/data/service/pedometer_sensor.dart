@@ -16,8 +16,8 @@ class PedometerSensor implements ISensorService {
   // Accelerometer fallback fields
   double _lastMagnitude = 0.0;
   DateTime _lastStepTime = DateTime.now();
-  static const double _stepThreshold = 1.8; // Peak threshold for user accelerometer
-  static const Duration _stepRefractory = Duration(milliseconds: 350);
+  static const double _stepThreshold = 5.0; // Balanced at 5.0 to detect steps with arm dampening while avoiding hand tilts
+  static const Duration _stepRefractory = Duration(milliseconds: 380); // Balanced at 380ms to capture brisk walking without double counting
 
   @override
   Stream<int> get dataStream => _controller.stream;
@@ -27,16 +27,8 @@ class PedometerSensor implements ISensorService {
     _startSteps = -1;
     _sessionSteps = 0;
 
-    try {
-      // Try initializing native pedometer hardware
-      _pedometerSubscription = Pedometer.stepCountStream.listen(
-        _onStepCount,
-        onError: _onPedometerError,
-      );
-    } catch (e) {
-      // Fallback to accelerometer
-      _startAccelerometerFallback();
-    }
+    // Bypassing native pedometer batch-buffering to force the calibrated Accelerometer stream
+    _startAccelerometerFallback();
   }
 
   void _onStepCount(StepCount event) {
@@ -88,4 +80,6 @@ class PedometerSensor implements ISensorService {
     await _accelerometerSubscription?.cancel();
     _accelerometerSubscription = null;
   }
+
+  bool get isUsingAccelerometer => _accelerometerSubscription != null;
 }

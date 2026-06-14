@@ -1,8 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../core/widgets/image_helper.dart';
+import '../../viewmodel/booking_viewmodel.dart';
+import '../../domain/model/booking_models.dart';
+import '../../core/utils/language_helper.dart';
 
 class ReviewBookingScreen extends StatelessWidget {
   const ReviewBookingScreen({super.key});
@@ -11,17 +15,20 @@ class ReviewBookingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Retrieve booking details passed from select_date_time_screen.dart
     final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final PractitionerRoleBooking? specialist = args['specialist'] as PractitionerRoleBooking?;
     final String specialistName = args['name'] as String;
     final String specialistRole = args['role'] as String;
     final Color accentColor = args['accentColor'] as Color;
-    final String date = args['date'] as String; // "OCTOBER 07, 2023"
+    final String date = args['date'] as String; // e.g. "October 7, 2026"
+    final DateTime dateRaw = args['date_raw'] as DateTime;
     final String time = args['time'] as String; // "08:00"
     final String imageUrl = args['imageUrl'] as String;
+    final bool isVirtual = args['isVirtual'] as bool? ?? true;
 
-    // Parse the date parameter (e.g. "OCTOBER 07, 2023" -> day "07", month "OCT")
+    // Parse the date parameter (e.g. "October 7, 2026" -> day "07", month "OCT")
     String dayNum = '07';
     String monthAbbr = 'OCT';
-    String dayCycle = 'SATURDAY_CY23';
+    String dayCycle = 'SATURDAY_CY26';
     
     try {
       final cleanDate = date.replaceAll(',', '');
@@ -32,22 +39,10 @@ class ReviewBookingScreen extends StatelessWidget {
         monthAbbr = fullMonth.length > 3 ? fullMonth.substring(0, 3).toUpperCase() : fullMonth.toUpperCase();
       }
       
-      // Deduce the weekday cycle dynamically
-      if (parts.length >= 3) {
-        final year = parts[2];
-        final cleanYear = year.substring(max(0, year.length - 2));
-        final monthsMap = {
-          'JANUARY': 1, 'FEBRUARY': 2, 'MARCH': 3, 'APRIL': 4, 'MAY': 5, 'JUNE': 6,
-          'JULY': 7, 'AUGUST': 8, 'SEPTEMBER': 9, 'OCTOBER': 10, 'NOVEMBER': 11, 'DECEMBER': 12
-        };
-        final mInt = monthsMap[parts[0].toUpperCase()] ?? 10;
-        final dInt = int.tryParse(parts[1]) ?? 7;
-        final yInt = int.tryParse(parts[2]) ?? 2023;
-        final parsedDate = DateTime(yInt, mInt, dInt);
-        final weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-        final weekdayName = weekdays[parsedDate.weekday - 1];
-        dayCycle = '${weekdayName}_CY$cleanYear';
-      }
+      final cleanYear = dateRaw.year.toString().substring(2);
+      final weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+      final weekdayName = weekdays[dateRaw.weekday - 1];
+      dayCycle = '${weekdayName}_CY$cleanYear';
     } catch (e) {
       // Swallowed safely, fallbacks stand
     }
@@ -74,35 +69,17 @@ class ReviewBookingScreen extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
                       ),
                       Text(
-                        'KINETIC',
+                        'DRGODLY',
                         style: GoogleFonts.bebasNeue(
                           fontSize: 26,
                           letterSpacing: 4.0,
                           color: Colors.white,
                         ),
                       ),
-                      // Desaturated circular athlete avatar profile
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
-                          image: const DecorationImage(
-                            image: NetworkImage('https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=100'),
-                            fit: BoxFit.cover,
-                            colorFilter: ColorFilter.matrix(<double>[
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0.2126, 0.7152, 0.0722, 0, -20,
-                              0,      0,      0,      1, 0,
-                            ]),
-                          ),
-                        ),
-                      ),
+                      const UserHeaderAvatar(),
                     ],
                   ),
                 ),
@@ -113,96 +90,37 @@ class ReviewBookingScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     children: [
                       const SizedBox(height: 12),
-
-                      // Reference Protocol Info Row
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'REFERENCE_PROTOCOL',
-                                style: GoogleFonts.inter(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'SESSION_ID: BK-772',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
+                          Container(
+                            width: 14,
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.38),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'STATUS',
-                                style: GoogleFonts.inter(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // Outlined Status Badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white, width: 1.0),
-                                ),
-                                child: Text(
-                                  'PENDING_CONFIRMATION',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Title Area (REVIEW SESSION with custom bottom horizontal rule)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                          const SizedBox(width: 6),
                           Text(
-                            'REVIEW SESSION',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 32,
-                              color: Colors.white,
-                              letterSpacing: 1.5,
+                            'CLINICAL ENCOUNTER',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white.withValues(alpha: 0.38),
+                              letterSpacing: 1.0,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: 1.5,
-                            width: 60,
-                            color: Colors.white,
-                          ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Text(
+                        AppLanguageHelper.translate(context, 'review_booking', defaultText: 'REVIEW BOOKING'),
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 32,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-                      const SizedBox(height: 28),
-
-                      // 3. SEGMENTED BENTO REVIEW CARD CONTAINER
+                      // 3. BOOKING BILL OVERVIEW BENTO BOX
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.transparent,
@@ -211,69 +129,55 @@ class ReviewBookingScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // SEGMENT A: LEAD SPECIALIST
+                            // SEGMENT A: PATIENT/SPECIALIST INFRASTRUCTURE MAPPING
                             Padding(
                               padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    'LEAD SPECIALIST',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white.withValues(alpha: 0.4),
-                                      letterSpacing: 1.0,
+                                  // desaturated doctor image
+                                  Container(
+                                    width: 50,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                      image: DecorationImage(
+                                        image: getImageProvider(imageUrl, fallback: 'assets/doctors/doctor_1.png'),
+                                        fit: BoxFit.cover,
+                                        colorFilter: const ColorFilter.matrix(<double>[
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0.2126, 0.7152, 0.0722, 0, -20,
+                                          0,      0,      0,      1, 0,
+                                        ]),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      // Square grayscale specialist photo inside a thin white box
-                                      Container(
-                                        width: 58,
-                                        height: 58,
-                                        decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.white, width: 1.0),
-                                          image: DecorationImage(
-                                            image: NetworkImage(imageUrl),
-                                            fit: BoxFit.cover,
-                                            colorFilter: const ColorFilter.matrix(<double>[
-                                              0.2126, 0.7152, 0.0722, 0, -20,
-                                              0.2126, 0.7152, 0.0722, 0, -20,
-                                              0.2126, 0.7152, 0.0722, 0, -20,
-                                              0,      0,      0,      1, 0,
-                                            ]),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          specialistRole.toUpperCase(),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold,
+                                            color: accentColor,
+                                            letterSpacing: 0.8,
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              specialistName.toUpperCase(),
-                                              style: GoogleFonts.bebasNeue(
-                                                fontSize: 22,
-                                                color: Colors.white,
-                                                letterSpacing: 1.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              specialistRole,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white.withValues(alpha: 0.4),
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          specialistName.toUpperCase(),
+                                          style: GoogleFonts.bebasNeue(
+                                            fontSize: 20,
+                                            color: Colors.white,
+                                            letterSpacing: 1.0,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        // Removed Practitioner FHIR ID label for cleaner UI
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -281,18 +185,17 @@ class ReviewBookingScreen extends StatelessWidget {
 
                             _buildHorizontalDivider(),
 
-                            // SEGMENT B: DATE & TIME SPLIT GRID
+                            // SEGMENT B: CALENDAR DATETIME BLOCKS
                             Row(
                               children: [
-                                // Date Column (Left)
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'DATE',
+                                          'CALENDAR MAPPING',
                                           style: GoogleFonts.inter(
                                             fontSize: 8,
                                             fontWeight: FontWeight.bold,
@@ -301,40 +204,54 @@ class ReviewBookingScreen extends StatelessWidget {
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        Text(
-                                          '$dayNum $monthAbbr',
-                                          style: GoogleFonts.bebasNeue(
-                                            fontSize: 26,
-                                            color: Colors.white,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          dayCycle,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white.withValues(alpha: 0.35),
-                                            letterSpacing: 0.5,
-                                          ),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              dayNum,
+                                              style: GoogleFonts.bebasNeue(
+                                                fontSize: 32,
+                                                color: Colors.white,
+                                                height: 0.8,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  monthAbbr,
+                                                  style: GoogleFonts.bebasNeue(
+                                                    fontSize: 14,
+                                                    color: Colors.white,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  dayCycle,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 7,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white.withValues(alpha: 0.35),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
                                 ),
-
                                 _buildVerticalDivider(),
-
-                                // Time Column (Right)
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'TIME',
+                                          'WINDOW TIMINGS',
                                           style: GoogleFonts.inter(
                                             fontSize: 8,
                                             fontWeight: FontWeight.bold,
@@ -353,7 +270,7 @@ class ReviewBookingScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          'GMT +01:00',
+                                          'LOCAL DEVICE TIME',
                                           style: GoogleFonts.inter(
                                             fontSize: 8,
                                             fontWeight: FontWeight.bold,
@@ -377,7 +294,7 @@ class ReviewBookingScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'SESSION TYPE',
+                                    'APPOINTMENT TYPE',
                                     style: GoogleFonts.inter(
                                       fontSize: 8,
                                       fontWeight: FontWeight.bold,
@@ -390,19 +307,21 @@ class ReviewBookingScreen extends StatelessWidget {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'ELITE CALIBRATION',
+                                        isVirtual ? 'VIRTUAL CLINICAL CONSULTATION' : 'IN-PERSON CLINICAL VISIT',
                                         style: GoogleFonts.bebasNeue(
-                                          fontSize: 20,
+                                          fontSize: 18,
                                           color: Colors.white,
                                           letterSpacing: 1.0,
                                         ),
                                       ),
-                                      const Icon(Icons.bolt, color: Colors.white, size: 16),
+                                      Icon(isVirtual ? Icons.computer : Icons.location_on, color: Colors.white, size: 16),
                                     ],
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Full-body biometric sync and neural pathway stimulation for peak performance recovery.',
+                                    isVirtual
+                                        ? 'Secure clinical tele-consultation enabled with dynamic HD video channels and automated telemetry logs synced directly to your secure health record.'
+                                        : 'In-person ambulatory diagnostic visit scheduled at the DRGODLY Clinical Wellness Center.',
                                     style: GoogleFonts.inter(
                                       fontSize: 11,
                                       color: Colors.white.withValues(alpha: 0.38),
@@ -422,7 +341,7 @@ class ReviewBookingScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
-                          'By confirming, you authorize KINETIC to synchronize biometric data during the session. Cancellation protocol requires 24h notice for credit reclamation.',
+                          'By confirming, you authorize DRGODLY to dynamically write planned Encounter and booked Appointment resources to your secure health record.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 10,
@@ -434,43 +353,109 @@ class ReviewBookingScreen extends StatelessWidget {
 
                       const SizedBox(height: 32),
 
-                      // 5. CONFIRM BOOKING CTA (Solid White Block Button with Right Arrow)
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/booking_confirmed',
-                            (route) => route.settings.name == '/dashboard',
-                            arguments: {
-                              'name': specialistName,
-                              'date': date,
-                              'time': time,
-                              'accentColor': accentColor,
-                            },
+                      // 5. CONFIRM BOOKING CTA with Consumer overlay
+                      Consumer<BookingViewModel>(
+                        builder: (context, vm, child) {
+                          return ElevatedButton(
+                            onPressed: vm.isBookingExecuting
+                                ? null
+                                : () {
+                                    final pId = specialist?.practitionerRefId ?? specialist?.id;
+                                    if (pId == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          backgroundColor: PhiaColors.pulseRed,
+                                          content: Text('Error: Specialist details are invalid.'),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    final navigator = Navigator.of(context);
+                                    final messenger = ScaffoldMessenger.of(context);
+
+                                    vm.executeBooking(
+                                      practitionerId: pId,
+                                      practitionerName: specialistName,
+                                      practitionerRole: specialistRole,
+                                      practitionerImage: imageUrl,
+                                      date: dateRaw,
+                                      timeString: time,
+                                      isVirtual: isVirtual,
+                                      note: 'Clinical Specialist Consultation',
+                                    ).then((result) {
+                                      navigator.pushNamedAndRemoveUntil(
+                                        '/booking_confirmed',
+                                        (route) => route.settings.name == '/dashboard',
+                                        arguments: {
+                                          'name': specialistName,
+                                          'date': date,
+                                          'time': time,
+                                          'accentColor': accentColor,
+                                          'result': result,
+                                        },
+                                      );
+                                    }).catchError((err) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: PhiaColors.pulseRed,
+                                          content: Text(
+                                            'TRANSACTION ERROR: ${err.toString().replaceAll('Exception: ', '')}',
+                                            style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      );
+                                    });
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+                              disabledForegroundColor: Colors.white.withValues(alpha: 0.2),
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                              elevation: 0,
+                            ),
+                            child: vm.isBookingExecuting
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'CONFIRMING APPOINTMENT...',
+                                        style: GoogleFonts.bebasNeue(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'CONFIRM BOOKING',
+                                        style: GoogleFonts.bebasNeue(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.arrow_forward, color: Colors.black, size: 16),
+                                    ],
+                                  ),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                          elevation: 0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'CONFIRM BOOKING',
-                              style: GoogleFonts.bebasNeue(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward, color: Colors.black, size: 16),
-                          ],
-                        ),
                       ),
 
                       const SizedBox(height: 32),

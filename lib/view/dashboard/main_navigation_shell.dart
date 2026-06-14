@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodel/activity_viewmodel.dart';
 import 'dashboard_screen.dart';
 import '../booking/select_specialist_screen.dart';
-import '../workout/workout_library_screen.dart';
 import '../profile/profile_screen.dart';
 
 class MainNavigationShell extends StatefulWidget {
@@ -16,6 +17,16 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<ActivityViewModel>(context, listen: false).requestHardwarePermissions();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screens = [
       DashboardScreen(
@@ -26,7 +37,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         },
       ),
       const SelectSpecialistScreen(isTab: true),
-      const WorkoutLibraryScreen(),
       const ProfileScreen(isTab: true),
     ];
 
@@ -36,29 +46,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         index: _currentIndex,
         children: screens,
       ),
-      floatingActionButton: (_currentIndex == 0 || _currentIndex == 3)
-          ? Container(
-              margin: const EdgeInsets.only(bottom: 8, right: 8),
-              width: 58,
-              height: 58,
-              child: FloatingActionButton(
-                onPressed: () => Navigator.pushNamed(context, '/assistant'),
-                backgroundColor: Colors.black,
-                elevation: 4,
-                shape: CircleBorder(
-                  side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    width: 1.5,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.psychology_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            )
-          : null,
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: const BoxDecoration(
@@ -84,10 +71,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.bolt_outlined,
-              ),
-              _buildNavItem(
-                index: 3,
                 icon: Icons.person_outline,
               ),
             ],

@@ -74,5 +74,7 @@
 	<string>This app requires location access in the background to continuously record workout routes.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>This app requires motion sensor access to count your steps using the built-in pedometer.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app requires contacts access to autocomplete location suggestions when adding calendar invites.</string>
 </dict>
 </plist>

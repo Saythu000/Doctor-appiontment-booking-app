@@ -11,43 +11,41 @@ class GoalsScreen extends StatefulWidget {
 }
 
 class _GoalsScreenState extends State<GoalsScreen> {
-  int _selectedMissionIndex = -1;
+  final Set<int> _selectedMissionIndices = {};
 
   final List<Map<String, dynamic>> _missions = [
     {
       'id': '01',
-      'title': 'BUILD STRENGTH',
-      'desc': 'Prioritize hypertrophy and functional power.',
-      'icon': Icons.fitness_center,
+      'title': 'BOOK APPOINTMENTS',
+      'desc': 'Schedule and manage appointments with certified doctors.',
+      'icon': Icons.calendar_today_outlined,
     },
     {
       'id': '02',
-      'title': 'INCREASE ENDURANCE',
-      'desc': 'Optimize cardiovascular health and stamina.',
-      'icon': Icons.speed,
+      'title': 'TRACK VITALS',
+      'desc': 'Monitor daily activity, height, weight, and steps.',
+      'icon': Icons.favorite_outline,
     },
     {
       'id': '03',
-      'title': 'OPTIMIZE RECOVERY',
-      'desc': 'Focus on mobility, sleep, and longevity.',
-      'icon': Icons.self_improvement,
-    },
-    {
-      'id': '04',
-      'title': 'ELITE PERFORMANCE',
-      'desc': 'Push the limits of human biometric potential.',
-      'icon': Icons.trending_up,
+      'title': 'CONSULT SPECIALISTS',
+      'desc': 'Connect instantly with online medical professionals.',
+      'icon': Icons.chat_bubble_outline,
     },
   ];
 
   Widget _buildMissionCard(int index) {
     final mission = _missions[index];
-    final isSelected = _selectedMissionIndex == index;
+    final isSelected = _selectedMissionIndices.contains(index);
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedMissionIndex = index;
+          if (_selectedMissionIndices.contains(index)) {
+            _selectedMissionIndices.remove(index);
+          } else {
+            _selectedMissionIndices.add(index);
+          }
         });
       },
       child: Container(
@@ -130,21 +128,49 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.bolt, color: Colors.white, size: 24),
-                      onPressed: () {},
+                    Row(
+                      children: [
+                        const Icon(Icons.local_hospital, color: Colors.white, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          'DRGODLY',
+                          style: GoogleFonts.bebasNeue(
+                            fontSize: 24,
+                            letterSpacing: 3.0,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'PHIA',
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 24,
-                        letterSpacing: 3.0,
-                        color: Colors.white,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none, color: Colors.white),
-                      onPressed: () {},
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -167,7 +193,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Text(
-                      'STEP 01 / 04',
+                      'STEP 03 / 04',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -180,7 +206,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
                   // Title Text
                   Text(
-                    'WHAT IS YOUR MISSION?',
+                    'YOUR CLINICAL GOALS',
                     style: GoogleFonts.bebasNeue(
                       fontSize: 36,
                       color: Colors.white,

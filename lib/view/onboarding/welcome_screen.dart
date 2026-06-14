@@ -49,13 +49,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                 0.2126 * 0.4, 0.7152 * 0.4, 0.0722 * 0.4, 0, 0,
                 0,            0,            0,            1, 0,
               ]),
-              child: Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuA5mZURGJxSO32Ypsr7S3o8c2cojisp0sbAzQtuhY2iF3XvdGQcuPwr2dnMwaTB7faiB4DjnjJg2jsgTOJOb4BXGykCADAwp__4EhMKyDp3eIXHMT2uu81y-cKMCrRhJNYexGwU89LQogAD6d-jp3C6GaHu-YxWc9qDep83A4F-BzNWLRwTJc0v4rt6I_JV5guTWe1cvROxx8NvTIcuSQrX36UiTvK1JhlOgcovpIIBHgzHH0ldWNDmXXy-gN__L7yclh39nRTs_pvo',
+              child: Image.asset(
+                'assets/medical_onboarding_bg.png',
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(color: Colors.black);
-                },
                 errorBuilder: (context, error, stackTrace) => Container(color: Colors.black),
               ),
             ),
@@ -105,10 +101,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.bolt, color: Colors.white, size: 24),
+                                const Icon(Icons.local_hospital, color: Colors.white, size: 24),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'KINETIC',
+                                  'DRGODLY',
                                   style: GoogleFonts.bebasNeue(
                                     fontSize: 24,
                                     letterSpacing: 4.0,
@@ -117,10 +113,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                                 ),
                               ],
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.notifications_none, color: Colors.white70),
-                              onPressed: () {},
-                            )
                           ],
                         ),
                       ),
@@ -133,43 +125,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Technical Capsule Badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                                  borderRadius: BorderRadius.circular(30),
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'MISSION V.1.0',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 2.0,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
+                              // Technical Capsule Badge Removed
 
                               // Hero Title Text in massive condensed typography
                               Text(
-                                'PRECISION',
+                                'DOCTOR',
                                 style: GoogleFonts.bebasNeue(
                                   fontSize: 64,
                                   height: 0.9,
@@ -178,7 +138,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                                 ),
                               ),
                               Text(
-                                'ENGINEERING',
+                                'APPOINTMENTS',
                                 style: GoogleFonts.bebasNeue(
                                   fontSize: 64,
                                   height: 0.9,
@@ -188,7 +148,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'FOR ATHLETES. START YOUR MISSION.',
+                                'EXPERT HEALTHCARE. AT YOUR FINGERTIPS.',
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -218,7 +178,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                                   elevation: 0,
                                 ),
                                 onPressed: () {
-                                  Navigator.pushNamed(context, '/profile_setup');
+                                  Navigator.pushNamed(context, '/login');
                                 },
                                 child: Text(
                                   'GET STARTED',
@@ -233,7 +193,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
 
                               // Description Paragraph below the button
                               Text(
-                                'Join the elite circle of data-driven performance. Kinetic transforms biological feedback into athletic superiority.',
+                                'Connect with certified medical specialists instantly. Book consults, manage clinical appointments, and sync your health records securely.',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   color: Colors.white54,

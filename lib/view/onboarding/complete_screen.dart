@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/activity_viewmodel.dart';
 
 class CompleteScreen extends StatefulWidget {
   const CompleteScreen({super.key});
@@ -83,6 +86,21 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final profileVM = Provider.of<ProfileViewModel>(context);
+    final activityVM = Provider.of<ActivityViewModel>(context);
+    
+    // Extract dynamic patient info
+    final String givenName = profileVM.currentProfile?.name?.firstOrNull?.givenName ?? '';
+    final String familyName = profileVM.currentProfile?.name?.firstOrNull?.familyName ?? '';
+    final String displayName = (givenName.isEmpty && familyName.isEmpty)
+        ? 'PATIENT'
+        : '${givenName} ${familyName}'.trim();
+    
+    final String gender = profileVM.currentProfile?.gender ?? 'MALE';
+    final String heightStr = '${activityVM.userHeight.toStringAsFixed(0)} CM';
+    final String weightStr = '${activityVM.userWeight.toStringAsFixed(1)} KG';
+    final String ageStr = '${activityVM.userAge} YRS';
+
     return Scaffold(
       backgroundColor: PhiaColors.background,
       body: Stack(
@@ -110,10 +128,10 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.bolt, color: Colors.white, size: 24),
+                        const Icon(Icons.local_hospital, color: Colors.white, size: 24),
                         const SizedBox(width: 8),
                         Text(
-                          'KINETIC',
+                          'DRGODLY',
                           style: GoogleFonts.bebasNeue(
                             fontSize: 24,
                             letterSpacing: 4.0,
@@ -121,15 +139,6 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                           ),
                         ),
                       ],
-                    ),
-                    Text(
-                      'SESSION: 0xFF12',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        color: Colors.white38,
-                      ),
                     ),
                   ],
                 ),
@@ -206,7 +215,7 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                   // Mission success labels
                   Center(
                     child: Text(
-                      'MISSION READY',
+                      'PATIENT READY',
                       style: GoogleFonts.bebasNeue(
                         fontSize: 36,
                         color: Colors.white,
@@ -218,7 +227,7 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      'AUTHENTICATION COMPLETE. SYSTEM CALIBRATED TO ATHLETE PROFILE.',
+                      'REGISTRATION COMPLETE. CLINICAL INTAKE SYNCHRONIZED SECURELY.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 11,
@@ -274,27 +283,14 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'BIOMETRIC SUMMARY',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2.0,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                  Text(
-                                    'V2.0.48',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white38,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'PATIENT SUMMARY',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2.0,
+                                  color: Colors.white70,
+                                ),
                               ),
                               const Divider(color: Colors.white10, height: 24, thickness: 1.0),
                               const SizedBox(height: 8),
@@ -308,35 +304,10 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                                 children: [
-                                  _buildSummaryItem('VO2 Estimate', '58.4 ml/kg'),
-                                  _buildSummaryItem('Resting HR', '52 BPM'),
-                                  _buildSummaryItem('Intensity Goal', 'ELITE'),
-                                  _buildSummaryItem('Weekly Target', '420 MIN'),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Bottom Sync logs
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'SYNC STATUS: STABLE',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
+                                  _buildSummaryItem('Name', displayName),
+                                  _buildSummaryItem('Gender', gender),
+                                  _buildSummaryItem('Height', heightStr),
+                                  _buildSummaryItem('Weight', weightStr),
                                 ],
                               ),
                             ],
@@ -365,7 +336,7 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'ENTER DASHBOARD',
+                          'CONTINUE',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2.0,
@@ -377,93 +348,8 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                      minimumSize: const Size(double.infinity, 54),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                    ),
-                    onPressed: () {},
-                    child: Text(
-                      'EXPORT CONFIG',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
                 ],
-              ),
-            ),
-          ),
-
-          // 4. Fixed Bottom Decorative Footer (LOC / TIME)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.3,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                color: Colors.transparent,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'LOC: 51.5074° N, 0.1278° W',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'TIME: 12:44:09 UTC',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'PROTO: KINETIC_OS_V1',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'STATUS: DEPLOYED',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

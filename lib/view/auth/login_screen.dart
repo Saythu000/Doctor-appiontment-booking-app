@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../viewmodel/auth_viewmodel.dart';
+import '../../viewmodel/profile_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,26 +14,33 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
+  final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
   
+  bool _isNameFocused = false;
   bool _isEmailFocused = false;
   bool _isPasswordFocused = false;
+  bool _isLoginMode = true;
 
   @override
   void initState() {
     super.initState();
+    _nameFocus.addListener(() => setState(() => _isNameFocused = _nameFocus.hasFocus));
     _emailFocus.addListener(() => setState(() => _isEmailFocused = _emailFocus.hasFocus));
     _passwordFocus.addListener(() => setState(() => _isPasswordFocused = _passwordFocus.hasFocus));
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _nameFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -38,6 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authVM = context.watch<AuthViewModel>();
+
     return Scaffold(
       backgroundColor: PhiaColors.background,
       body: Stack(
@@ -57,10 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 24),
                   
                   // Brand Identity Title
-                  const Icon(Icons.bolt, color: Colors.white, size: 48),
+                  const Icon(Icons.medical_services_outlined, color: Colors.white, size: 48),
                   const SizedBox(height: 8),
                   Text(
-                    'PHIA',
+                    'DRGODLY',
                     style: GoogleFonts.bebasNeue(
                       fontSize: 48,
                       letterSpacing: 8.0,
@@ -75,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(0xFF0D0E0F),
                     ),
                     child: Text(
-                      'PERFORMANCE INSTRUMENT V2.0',
+                      'PATIENT PORTAL V2.0',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -85,12 +97,47 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 60),
 
                   // Login Form Section
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Full Name Field (Sign-up mode only)
+                      if (!_isLoginMode) ...[
+                        Text(
+                          'Full Name'.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 2.0,
+                            color: Colors.white60,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: _isNameFocused ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
+                            border: Border.all(
+                              color: _isNameFocused ? Colors.white : Colors.white.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _nameController,
+                            focusNode: _nameFocus,
+                            style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              hintText: 'JOHN DOE',
+                              hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
                       // Identification / Email Field
                       Text(
                         'Identification / Email'.toUpperCase(),
@@ -116,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            hintText: 'USER@PHIA.SYS',
+                            hintText: 'USER@DRGODLY.COM',
                             hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
                             border: InputBorder.none,
                           ),
@@ -138,14 +185,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white60,
                             ),
                           ),
-                          Text(
-                            'Forgot?'.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white38,
+                          if (_isLoginMode)
+                            Text(
+                              'Forgot?'.toUpperCase(),
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white38,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -172,7 +220,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Action Login Button
+                      // Error message banner
+                      if (authVM.errorMessage != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E0C0C),
+                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  authVM.errorMessage!.toUpperCase(),
+                                  style: GoogleFonts.inter(
+                                    color: Colors.redAccent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Action Login/Signup Button
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -183,17 +262,75 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           elevation: 0,
                         ),
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/welcome');
-                        },
-                        child: Text(
-                          'LOGIN',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 22,
-                            letterSpacing: 3.0,
-                            color: Colors.black,
-                          ),
-                        ),
+                        onPressed: authVM.isLoading
+                            ? null
+                            : () async {
+                                final email = _emailController.text.trim();
+                                final password = _passwordController.text;
+                                final name = _nameController.text.trim();
+                                final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+                                final navigator = Navigator.of(context);
+                                final messenger = ScaffoldMessenger.of(context);
+
+                                if (email.isEmpty || password.isEmpty) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Please fill all fields'.toUpperCase()),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                bool success;
+                                if (_isLoginMode) {
+                                  success = await authVM.login(email, password);
+                                } else {
+                                  if (name.isEmpty) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('Please enter your name'.toUpperCase()),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  success = await authVM.register(name, email, password);
+                                }
+
+                                if (success) {
+                                  await profileVM.fetchOrInitProfile();
+                                  
+                                  final profile = profileVM.currentProfile;
+                                  final bool hasProfile = profile != null &&
+                                      profile.name != null &&
+                                      profile.name!.isNotEmpty &&
+                                      profile.name!.first.givenName.isNotEmpty;
+
+                                  if (hasProfile) {
+                                    navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
+                                  } else {
+                                    navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
+                                  }
+                                }
+                              },
+                        child: authVM.isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : Text(
+                                _isLoginMode ? 'LOGIN' : 'CREATE ACCOUNT',
+                                style: GoogleFonts.bebasNeue(
+                                  fontSize: 22,
+                                  letterSpacing: 3.0,
+                                  color: Colors.black,
+                                ),
+                              ),
                       ),
                     ],
                   ),
@@ -205,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'NEW OPERATOR?  ',
+                        _isLoginMode ? 'NEW PATIENT?  ' : 'ALREADY A PATIENT?  ',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -213,9 +350,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: () {
+                          setState(() {
+                            _isLoginMode = !_isLoginMode;
+                            _nameController.clear();
+                            _emailController.clear();
+                            _passwordController.clear();
+                            authVM.signOut(); // Clear previous auth state and errors
+                          });
+                        },
                         child: Text(
-                          'CREATE ACCOUNT',
+                          _isLoginMode ? 'CREATE ACCOUNT' : 'SIGN IN',
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -286,18 +431,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'System encryption active: AES-256-GCM\nBuild ID: PHIA-8822-PROD',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.0,
-                            color: Colors.white24,
-                            height: 1.4,
-                          ),
-                        ),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),

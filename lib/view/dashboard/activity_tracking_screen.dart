@@ -1,14 +1,73 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
+import '../../core/widgets/notification_center_modal.dart';
+import '../../viewmodel/activity_viewmodel.dart';
+
+import '../../viewmodel/settings_viewmodel.dart';
 
 class ActivityTrackingScreen extends StatelessWidget {
   const ActivityTrackingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final activityVM = context.watch<ActivityViewModel>();
+    final settingsVM = context.watch<SettingsViewModel>();
+
+    // Dynamic metrics calculation
+    int activeMins = activityVM.currentActiveMins;
+    int calories = activityVM.currentCalories;
+    int steps = activityVM.currentSteps;
+
+    String totalTimeStr = activeMins > 60 
+        ? '${(activeMins / 60.0).toStringAsFixed(1)}H' 
+        : '$activeMins MIN';
+
+    String caloriesStr = calories.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+
+    String stepsStr = steps.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+
+    // Dynamic units conversion
+    double displayWeight = activityVM.userWeight;
+    String weightUnitLabel = 'KG';
+    if (settingsVM.weightUnit == 'lbs') {
+      displayWeight = activityVM.userWeight * 2.20462;
+      weightUnitLabel = 'LBS';
+    }
+
+    double displayHeight = activityVM.userHeight;
+    String heightUnitLabel = 'CM';
+    if (settingsVM.heightUnit == 'in.') {
+      displayHeight = activityVM.userHeight * 0.393701;
+      heightUnitLabel = 'IN';
+    }
+
+    // BMI Calculations
+    double bmi = 0.0;
+    String bmiClassification = 'N/A';
+    if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
+      double heightM = activityVM.userHeight / 100.0;
+      bmi = activityVM.userWeight / (heightM * heightM);
+      if (bmi < 18.5) {
+        bmiClassification = 'UNDERWEIGHT';
+      } else if (bmi < 25.0) {
+        bmiClassification = 'NORMAL';
+      } else if (bmi < 30.0) {
+        bmiClassification = 'OVERWEIGHT';
+      } else {
+        bmiClassification = 'OBESE';
+      }
+    }
+
     return Scaffold(
       backgroundColor: PhiaColors.background,
       body: Stack(
@@ -22,7 +81,7 @@ class ActivityTrackingScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top Header (◎ KINETIC and Notification Bell)
+                // Top Header (◎ DRGODLY and Notification Bell)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                   child: Row(
@@ -30,10 +89,10 @@ class ActivityTrackingScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.radio_button_checked, color: Colors.white, size: 20),
+                          const Icon(Icons.local_hospital, color: Colors.white, size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'KINETIC',
+                            'DRGODLY',
                             style: GoogleFonts.bebasNeue(
                               fontSize: 24,
                               letterSpacing: 4.0,
@@ -43,7 +102,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                         ],
                       ),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () => showNotificationCenter(context),
                         icon: const Icon(Icons.notifications_none, color: Colors.white, size: 24),
                       ),
                     ],
@@ -58,7 +117,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       // Title block
                       Text(
-                        'ACTIVITY OVERVIEW',
+                        'CLINICAL TELEMETRY',
                         style: GoogleFonts.bebasNeue(
                           fontSize: 32,
                           color: Colors.white,
@@ -67,7 +126,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'LAST 30 DAYS PERFORMANCE',
+                        'PATIENT VITALS & STATS',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.38),
@@ -87,24 +146,24 @@ class ActivityTrackingScreen extends StatelessWidget {
                         childAspectRatio: 1.25,
                         children: [
                           _buildStatBentoCard(
-                            icon: Icons.timer_outlined,
-                            value: '42.5H',
-                            label: 'TOTAL TIME',
+                            icon: Icons.health_and_safety_outlined,
+                            value: bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A',
+                            label: 'BMI ($bmiClassification)',
                           ),
                           _buildStatBentoCard(
-                            icon: Icons.local_fire_department_outlined,
-                            value: '18,240',
-                            label: 'KCAL BURNED',
+                            icon: Icons.monitor_weight_outlined,
+                            value: '${displayWeight.toStringAsFixed(0)} $weightUnitLabel / ${displayHeight.toStringAsFixed(0)} $heightUnitLabel',
+                            label: 'WEIGHT / HEIGHT',
                           ),
                           _buildStatBentoCard(
-                            icon: Icons.fitness_center_outlined,
-                            value: '24',
-                            label: 'WORKOUTS',
+                            icon: Icons.directions_walk_outlined,
+                            value: stepsStr,
+                            label: 'DAILY MOBILITY',
                           ),
                           _buildStatBentoCard(
-                            icon: Icons.speed_outlined,
-                            value: '72%',
-                            label: 'INTENSITY',
+                            icon: Icons.favorite_border_outlined,
+                            value: activityVM.dashboardHrv > 0 ? '${activityVM.dashboardHrv.toStringAsFixed(0)} MS' : '55 MS',
+                            label: 'HR VARIABILITY',
                           ),
                         ],
                       ),
@@ -125,7 +184,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'WEIGHT TRACKING (KG)',
+                                  'WEIGHT TRACKING ($weightUnitLabel)',
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -140,7 +199,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                                     border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                                   ),
                                   child: Text(
-                                    '-2.4kg this month',
+                                    settingsVM.weightUnit == 'lbs' ? '-5.3lbs this month' : '-2.4kg this month',
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -156,7 +215,16 @@ class ActivityTrackingScreen extends StatelessWidget {
                               height: 120,
                               child: CustomPaint(
                                 painter: WeightTrackingBarPainter(
-                                  weights: const [79.8, 79.5, 80.2, 79.1, 78.8, 78.5, 78.2, 77.4],
+                                  weights: [
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 5.3 : 2.4),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 4.6 : 2.1),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 4.0 : 1.8),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 3.3 : 1.5),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 2.6 : 1.2),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 2.0 : 0.9),
+                                    displayWeight + (settingsVM.weightUnit == 'lbs' ? 1.1 : 0.5),
+                                    displayWeight,
+                                  ],
                                 ),
                               ),
                             ),
@@ -176,14 +244,34 @@ class ActivityTrackingScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'AVG HEART RATE',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.4),
-                                letterSpacing: 1.0,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'PULSE & ECG TELEMETRY',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.05),
+                                    border: Border.all(color: Colors.white12),
+                                  ),
+                                  child: Text(
+                                    'STATUS: SINUS RHYTHM',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: PhiaColors.stepGreen,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Row(
@@ -191,7 +279,9 @@ class ActivityTrackingScreen extends StatelessWidget {
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  '142',
+                                  activityVM.dashboardHr > 0 
+                                      ? activityVM.dashboardHr.toStringAsFixed(0) 
+                                      : '72',
                                   style: GoogleFonts.bebasNeue(
                                     fontSize: 28,
                                     color: Colors.white,
@@ -219,129 +309,6 @@ class ActivityTrackingScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Streak Status Card
-                      Container(
-                        height: 140,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                        ),
-                        child: Stack(
-                          children: [
-                            // Grayscale Cover Image
-                            Positioned.fill(
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: PhiaColors.surface,
-                                  image: DecorationImage(
-                                    image: NetworkImage('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=600'),
-                                    fit: BoxFit.cover,
-                                    colorFilter: ColorFilter.matrix(<double>[
-                                      0.2126, 0.7152, 0.0722, 0, -35,
-                                      0.2126, 0.7152, 0.0722, 0, -35,
-                                      0.2126, 0.7152, 0.0722, 0, -35,
-                                      0,      0,      0,      1, 0,
-                                    ]),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Black gradient mask for high typography readability
-                            Positioned.fill(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.black.withValues(alpha: 0.8),
-                                    ],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Details overlay
-                            Positioned(
-                              left: 20,
-                              bottom: 20,
-                              right: 20,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'STREAK STATUS',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white.withValues(alpha: 0.4),
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '7 DAYS STRONG',
-                                    style: GoogleFonts.bebasNeue(
-                                      fontSize: 26,
-                                      color: Colors.white,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'KEEP PUSHING TO HIT 14!',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: Colors.white.withValues(alpha: 0.5),
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // RECENT ACHIEVEMENTS Section Title
-                      Text(
-                        'RECENT ACHIEVEMENTS',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2.0,
-                          color: Colors.white.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Achievements list bento panel
-                      _buildAchievementCard(
-                        icon: Icons.directions_walk_outlined,
-                        title: '10K STEPS BADGE',
-                        date: 'Unlocked May 12, 2024',
-                        isCompleted: true,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildAchievementCard(
-                        icon: Icons.gps_fixed_outlined,
-                        title: '7-DAY STREAK',
-                        date: 'Personal Best Milestone',
-                        isCompleted: false,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildAchievementCard(
-                        icon: Icons.star_border_outlined,
-                        title: 'ENDURANCE MASTER',
-                        date: 'Completed 60min HIIT session',
-                        isCompleted: true,
-                        customNumberIcon: '10',
                       ),
 
                       const SizedBox(height: 32),
@@ -401,93 +368,6 @@ class ActivityTrackingScreen extends StatelessWidget {
     );
   }
 
-  // Achievements list row card builder
-  Widget _buildAchievementCard({
-    required IconData icon,
-    required String title,
-    required String date,
-    required bool isCompleted,
-    String? customNumberIcon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          // Left Circle Icon frame
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            ),
-            child: Center(
-              child: customNumberIcon != null
-                  ? Text(
-                      customNumberIcon,
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Icon(icon, color: Colors.white, size: 18),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Center Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 18,
-                    color: Colors.white,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  date,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.38),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Right checkbox / checkmark circle status
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isCompleted ? Colors.white : Colors.transparent,
-              border: Border.all(
-                color: isCompleted ? Colors.white : Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: isCompleted
-                ? const Center(
-                    child: Icon(
-                      Icons.check,
-                      color: Colors.black,
-                      size: 12,
-                    ),
-                  )
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // Custom Painter representing an 8-column Weight tracking grid
@@ -499,8 +379,9 @@ class WeightTrackingBarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double maxVal = 82.0;
-    final double minVal = 76.0;
+    if (weights.isEmpty) return;
+    final double minVal = weights.reduce(min) - 1.0;
+    final double maxVal = weights.reduce(max) + 1.0;
     final double chartHeight = size.height;
     final double chartWidth = size.width;
 

@@ -19,8 +19,9 @@ class SqfliteDatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 4,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -48,9 +49,120 @@ class SqfliteDatabaseHelper {
       )
     ''');
 
+    // 3. Table for general app settings (units, language, start week)
+    await db.execute('''
+      CREATE TABLE app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+
+    // 4. Table for vitals & medication reminders
+    await db.execute('''
+      CREATE TABLE reminders (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        time TEXT NOT NULL,
+        days TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+
+    // 5. Table for vitals warning thresholds
+    await db.execute('''
+      CREATE TABLE vitals_thresholds (
+        metric TEXT PRIMARY KEY,
+        min_value REAL,
+        max_value REAL
+      )
+    ''');
+
+    // 6. Table for scheduled patient appointments (upcoming & history)
+    await db.execute('''
+      CREATE TABLE appointments (
+        id TEXT PRIMARY KEY,
+        practitioner_name TEXT NOT NULL,
+        practitioner_role TEXT NOT NULL,
+        practitioner_image TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        type TEXT NOT NULL,
+        is_virtual INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+
+    // 7. Table for in-app notification logs
+    await db.execute('''
+      CREATE TABLE in_app_notifications (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        type TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
     // Index optimizations for lightning-fast queries
     await db.execute('CREATE INDEX idx_metrics_type_time ON health_metrics (type, timestamp DESC)');
     await db.execute('CREATE INDEX idx_route_points_workout ON workout_route_points (workout_id)');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE reminders (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL,
+          time TEXT NOT NULL,
+          days TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE vitals_thresholds (
+          metric TEXT PRIMARY KEY,
+          min_value REAL,
+          max_value REAL
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE appointments (
+          id TEXT PRIMARY KEY,
+          practitioner_name TEXT NOT NULL,
+          practitioner_role TEXT NOT NULL,
+          practitioner_image TEXT NOT NULL,
+          start_time TEXT NOT NULL,
+          type TEXT NOT NULL,
+          is_virtual INTEGER NOT NULL DEFAULT 1
+        )
+      ''');
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE in_app_notifications (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          type TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          is_read INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
   }
 
   Future<void> close() async {

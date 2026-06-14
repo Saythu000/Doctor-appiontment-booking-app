@@ -3,45 +3,285 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/dot_matrix.dart';
-import '../../viewmodel/health_viewmodel.dart';
+import '../../core/widgets/notification_center_modal.dart';
+import '../../viewmodel/activity_viewmodel.dart';
+import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/booking_viewmodel.dart';
+import '../../core/utils/language_helper.dart';
+import 'package:intl/intl.dart';
+import '../../core/widgets/image_helper.dart';
+
 
 class DashboardScreen extends StatelessWidget {
   final Function(int)? onTabSelected;
   const DashboardScreen({super.key, this.onTabSelected});
-
-  Widget _buildVitalCapsule(IconData icon, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 14),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 14,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final healthVM = context.watch<HealthViewModel>();
+    final activityVM = context.watch<ActivityViewModel>();
+    final profileVM = context.watch<ProfileViewModel>();
+    final bookingVM = context.watch<BookingViewModel>();
+
+    // Get nearest upcoming appointment
+    Map<String, dynamic>? nearestUpcoming;
+    final now = DateTime.now();
+    for (var appt in bookingVM.appointmentsList) {
+      try {
+        final startStr = appt['start_time'] as String;
+        final start = DateTime.parse(startStr).toLocal();
+        if (start.isAfter(now)) {
+          if (nearestUpcoming == null) {
+            nearestUpcoming = appt;
+          } else {
+            final currentNearestStart = DateTime.parse(nearestUpcoming['start_time'] as String).toLocal();
+            if (start.isBefore(currentNearestStart)) {
+              nearestUpcoming = appt;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    void showCancelConfirmation(BuildContext context, String id, String doctorName) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: Colors.black,
+            shape: const Border(
+              top: BorderSide(color: Colors.redAccent, width: 2.0),
+            ),
+            title: Text(
+              'CANCEL APPOINTMENT',
+              style: GoogleFonts.bebasNeue(
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 2.0,
+              ),
+            ),
+            content: Text(
+              'Are you sure you want to cancel your scheduled appointment with $doctorName?',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.white70,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'KEEP IT',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                ),
+                onPressed: () {
+                  context.read<BookingViewModel>().cancelAppointment(id);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Appointment with $doctorName cancelled.')),
+                  );
+                },
+                child: Text(
+                  'CANCEL',
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 12,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    void showAppointmentDetails(Map<String, dynamic> appt) {
+      final id = appt['id'] as String;
+      final name = appt['practitioner_name'] as String;
+      final role = appt['practitioner_role'] as String;
+      final image = appt['practitioner_image'] as String;
+      final startStr = appt['start_time'] as String;
+      final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
+
+      String dateFormatted = '';
+      String timeFormatted = '';
+      try {
+        final dateTime = DateTime.parse(startStr).toLocal();
+        dateFormatted = DateFormat('EEEE, MMMM d, yyyy').format(dateTime).toUpperCase();
+        timeFormatted = DateFormat('hh:mm a').format(dateTime);
+      } catch (_) {
+        dateFormatted = startStr;
+      }
+
+      final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
+      final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: Colors.black,
+            shape: const Border(
+              top: BorderSide(color: PhiaColors.skyBlue, width: 2.0),
+            ),
+            title: Text(
+              'APPOINTMENT DETAILS',
+              style: GoogleFonts.bebasNeue(
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 2.0,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        image: DecorationImage(
+                          image: getImageProvider(imageUrl, fallback: 'assets/doctors/doctor_1.png'),
+                          fit: BoxFit.cover,
+                          colorFilter: const ColorFilter.matrix(<double>[
+                            0.2126, 0.7152, 0.0722, 0, -20,
+                            0.2126, 0.7152, 0.0722, 0, -20,
+                            0.2126, 0.7152, 0.0722, 0, -20,
+                            0,      0,      0,      1, 0,
+                          ]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isVirtual ? 'VIRTUAL CLINICAL CONSULTATION' : 'IN-PERSON CLINICAL VISIT',
+                            style: GoogleFonts.inter(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: PhiaColors.skyBlue,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            name.toUpperCase(),
+                            style: GoogleFonts.bebasNeue(
+                              fontSize: 18,
+                              color: Colors.white,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          Text(
+                            role.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              color: Colors.white38,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 12),
+                Text(
+                  'DATE',
+                  style: GoogleFonts.inter(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white38,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dateFormatted,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'TIME',
+                  style: GoogleFonts.inter(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white38,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  timeFormatted,
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 18,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'CLOSE',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                ),
+                onPressed: () {
+                  Navigator.pop(context); // Close details dialog
+                  showCancelConfirmation(context, id, name);
+                },
+                child: Text(
+                  'CANCEL',
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 12,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
 
     // Dynamic metrics calculation
-    int steps = healthVM.liveSteps > 0 ? healthVM.liveSteps : (healthVM.dashboardSteps > 0 ? healthVM.dashboardSteps : 8432);
-    int calories = healthVM.dashboardActiveTimeMins > 0 ? (healthVM.dashboardActiveTimeMins * 10).toInt() : 420;
-    int activeMins = healthVM.dashboardActiveTimeMins > 0 ? healthVM.dashboardActiveTimeMins : 45;
+    int steps = activityVM.currentSteps;
+    int calories = activityVM.currentCalories;
+    int activeMins = activityVM.currentActiveMins;
 
     double progressSteps = (steps / 10000.0).clamp(0.0, 1.0);
     double progressCalories = (calories / 500.0).clamp(0.0, 1.0);
@@ -53,9 +293,48 @@ class DashboardScreen extends StatelessWidget {
       (Match m) => '${m[1]},',
     );
 
-    // Heart rate/Speed formats
-    String heartRateStr = healthVM.dashboardHr > 0 ? '${healthVM.dashboardHr.toStringAsFixed(0)} BPM' : '68 BPM';
-    String speedStr = healthVM.dashboardDistanceKm > 0 ? '${(healthVM.dashboardDistanceKm / (activeMins / 60.0)).toStringAsFixed(1)} KM/H' : '4.2 KM/H';
+    // BMI Calculations
+    double bmi = 0.0;
+    String bmiClassification = 'N/A';
+    Color bmiColor = Colors.white38;
+    if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
+      double heightM = activityVM.userHeight / 100.0;
+      bmi = activityVM.userWeight / (heightM * heightM);
+      if (bmi < 18.5) {
+        bmiClassification = 'UNDERWEIGHT';
+        bmiColor = PhiaColors.pulseRed;
+      } else if (bmi < 25.0) {
+        bmiClassification = 'NORMAL';
+        bmiColor = PhiaColors.stepGreen;
+      } else if (bmi < 30.0) {
+        bmiClassification = 'OVERWEIGHT';
+        bmiColor = Colors.amber;
+      } else {
+        bmiClassification = 'OBESE';
+        bmiColor = PhiaColors.pulseRed;
+      }
+    }
+
+    String formatAppointmentDate(String? isoString) {
+      if (isoString == null || isoString.isEmpty) return 'N/A';
+      try {
+        final dt = DateTime.parse(isoString).toLocal();
+        final List<String> months = [
+          'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+          'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'
+        ];
+        final monthStr = months[dt.month - 1];
+        final dayStr = dt.day.toString().padLeft(2, '0');
+        final yearStr = dt.year.toString();
+        final hourStr = dt.hour.toString().padLeft(2, '0');
+        final minStr = dt.minute.toString().padLeft(2, '0');
+        final period = dt.hour >= 12 ? 'PM' : 'AM';
+        final formattedHour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+        return '$monthStr $dayStr, $yearStr @ ${formattedHour.toString().padLeft(2, '0')}:$minStr $period';
+      } catch (_) {
+        return isoString;
+      }
+    }
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
@@ -79,85 +358,83 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.bolt, color: Colors.white, size: 24),
+                          const Icon(Icons.local_hospital, color: Colors.white, size: 24),
                           const SizedBox(width: 8),
                           Text(
-                            'KINETIC',
+                            AppLanguageHelper.translate(context, 'drgodly', defaultText: 'DRGODLY'),
                             style: GoogleFonts.bebasNeue(
                               fontSize: 24,
                               letterSpacing: 4.0,
                               color: Colors.white,
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          // Cyberpunk neon sensor active badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: activityVM.hasActivityPermission ? Colors.white : Colors.white.withValues(alpha: 0.05),
+                              border: Border.all(
+                                color: activityVM.hasActivityPermission ? Colors.white : Colors.white.withValues(alpha: 0.12),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: activityVM.hasActivityPermission ? PhiaColors.stepGreen : PhiaColors.pulseRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  activityVM.hasActivityPermission
+                                      ? (activityVM.isStepSensorFallback
+                                          ? 'ACCELEROMETER ACTIVE'
+                                          : 'NATIVE SENSOR ACTIVE')
+                                      : 'NO SENSOR ACCESS',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: activityVM.hasActivityPermission ? Colors.black : Colors.white30,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () => showNotificationCenter(context),
                         icon: const Icon(Icons.notifications_none, color: Colors.white),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Profile Welcome Greeting & Streak Block
-                  Row(
+                  // Profile Welcome Greeting Block
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'GOOD MORNING, ALEX',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 28,
-                              letterSpacing: 2.0,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Your energy levels are peaking today.',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.white38,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // 14 Streak badge card
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B1C1C),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      Text(
+                        '${AppLanguageHelper.translate(context, 'hi', defaultText: 'HI')}, ${(profileVM.currentProfile?.name != null && profileVM.currentProfile!.name!.isNotEmpty) ? profileVM.currentProfile!.name!.first.givenName.toUpperCase() : AppLanguageHelper.translate(context, 'patient', defaultText: 'PATIENT')}',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 28,
+                          letterSpacing: 2.0,
+                          color: Colors.white,
                         ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.local_fire_department, color: Colors.white, size: 18),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '14',
-                                  style: GoogleFonts.bebasNeue(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'STREAK',
-                              style: GoogleFonts.inter(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your health portal is active and secure.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white38,
                         ),
                       ),
                     ],
@@ -226,11 +503,11 @@ class DashboardScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildBulletItem('STEPS', stepsStr, Colors.white),
+                              _buildBulletItem(AppLanguageHelper.translate(context, 'steps', defaultText: 'STEPS'), stepsStr, Colors.white),
                               const SizedBox(height: 12),
-                              _buildBulletItem('CALORIES', '$calories', Colors.white70),
+                              _buildBulletItem(AppLanguageHelper.translate(context, 'calories', defaultText: 'CALORIES'), '$calories', Colors.white70),
                               const SizedBox(height: 12),
-                              _buildBulletItem('ACTIVE MINS', '$activeMins', Colors.white30),
+                              _buildBulletItem(AppLanguageHelper.translate(context, 'active_time', defaultText: 'ACTIVE TIME'), '$activeMins', Colors.white30),
                             ],
                           ),
                         ],
@@ -239,7 +516,125 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // WEEKLY PROGRESS Bar Chart card
+                  // UPCOMING CONSULTATIONS Card
+                  GestureDetector(
+                    onTap: nearestUpcoming != null
+                        ? () => showAppointmentDetails(nearestUpcoming!)
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surface,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'UPCOMING CONSULTATIONS',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2.0,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          if (nearestUpcoming != null) ...[
+                            Text(
+                              nearestUpcoming['practitioner_name']?.toString().toUpperCase() ?? 'SPECIALIST',
+                              style: GoogleFonts.bebasNeue(
+                                fontSize: 24,
+                                color: Colors.white,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: Text(
+                                    nearestUpcoming['type']?.toString().toUpperCase() ?? 'CONSULTATION',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    formatAppointmentDate(nearestUpcoming['start_time']?.toString()),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            Text(
+                              'NO UPCOMING APPOINTMENTS',
+                              style: GoogleFonts.bebasNeue(
+                                fontSize: 20,
+                                color: Colors.white30,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Schedule a consultation with our medical specialists.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.white38,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: () => onTabSelected?.call(1),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white24),
+                                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'BOOK APPOINTMENT',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward, size: 14),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // CLINICAL VITALS & BMI Card
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -250,189 +645,132 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'WEEKLY PROGRESS',
+                          'CLINICAL VITALS & BMI',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2.0,
-                            color: Colors.white38,
+                            color: Colors.white70,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '3,200 KCAL',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 24,
-                            color: Colors.white,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Weekly Custom bar chart
-                        SizedBox(
-                          height: 140,
-                          child: CustomPaint(
-                            size: const Size(double.infinity, 140),
-                            painter: WeeklyProgressBarPainter(
-                              values: const [400, 520, 460, 680, 850, 200, 180], // Thursday / Friday = 850 / weekend
-                              highlightedIndex: 4, // index 4 = Friday "NOW"
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // UP NEXT Workout Card Section
-                  Text(
-                    'UP NEXT',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2.5,
-                      color: Colors.white38,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Video workout banner
-                  Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1000',
-                        ),
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black45,
-                          BlendMode.darken,
-                        ),
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Linear bottom gradient
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.2),
-                                  Colors.black.withValues(alpha: 0.85),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Tags & description row overlay
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Row(
-                                children: [
-                                  // Core solid white tag
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'HEIGHT',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white38,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                 Text(
+                                  '${activityVM.userHeight.toStringAsFixed(0)} CM',
+                                  style: GoogleFonts.bebasNeue(
+                                    fontSize: 22,
                                     color: Colors.white,
-                                    child: Text(
-                                      'CORE',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Intermediate outline tag
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.white54),
-                                    ),
-                                    child: Text(
-                                      'INTERMEDIATE',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'WEIGHT',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white38,
+                                    letterSpacing: 1.0,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'HIIT CORE - 20 MINS',
-                                          style: GoogleFonts.bebasNeue(
-                                            fontSize: 24,
-                                            color: Colors.white,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Focus on explosive stability and rotational power.',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${activityVM.userWeight.toStringAsFixed(1)} KG',
+                                  style: GoogleFonts.bebasNeue(
+                                    fontSize: 22,
+                                    color: Colors.white,
                                   ),
-                                  // Solid white play circle button
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white,
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.black,
-                                        size: 24,
-                                      ),
-                                    ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'AGE',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white38,
+                                    letterSpacing: 1.0,
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${activityVM.userAge} YRS',
+                                  style: GoogleFonts.bebasNeue(
+                                    fontSize: 22,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Bottom Quick Stats vital Capsules Row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildVitalCapsule(Icons.favorite_outline, heartRateStr, PhiaColors.pulseRed),
-                        const SizedBox(width: 12),
-                        _buildVitalCapsule(Icons.speed_outlined, speedStr, PhiaColors.skyBlue),
-                        const SizedBox(width: 12),
-                        _buildVitalCapsule(Icons.hotel_outlined, '7H 20M', PhiaColors.warningOrange),
+                        const Divider(color: Colors.white12, height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'BODY MASS INDEX (BMI)',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white38,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A',
+                                  style: GoogleFonts.bebasNeue(
+                                    fontSize: 28,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (bmi > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: bmiColor.withValues(alpha: 0.5)),
+                                  color: bmiColor.withValues(alpha: 0.08),
+                                ),
+                                child: Text(
+                                  bmiClassification,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: bmiColor,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -545,87 +883,3 @@ class ConcentricActivityPainter extends CustomPainter {
   }
 }
 
-// 2. Weekly Bar Painter column, highlighting Friday as solid white labeled "NOW"
-class WeeklyProgressBarPainter extends CustomPainter {
-  final List<int> values;
-  final int highlightedIndex;
-
-  WeeklyProgressBarPainter({
-    required this.values,
-    required this.highlightedIndex,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double bottomHeight = 20.0;
-    final double topHeight = 16.0;
-    final double chartHeight = size.height - bottomHeight - topHeight;
-    final double barWidth = (size.width / 7) * 0.55;
-    final double spacing = (size.width / 7) * 0.45;
-    final int maxVal = 1000;
-
-    final List<String> days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    for (int i = 0; i < 7; i++) {
-      double x = i * (barWidth + spacing) + (spacing / 2);
-      double valPct = (values[i] / maxVal).clamp(0.08, 1.0);
-      double barHeight = valPct * chartHeight;
-      double y = topHeight + chartHeight - barHeight;
-
-      // Determine bar opacity colors
-      Color color = Colors.white.withValues(alpha: 0.25);
-      if (i == highlightedIndex) {
-        color = Colors.white; // Friday "NOW"
-      } else if (i > highlightedIndex) {
-        color = Colors.white.withValues(alpha: 0.08); // Future weekend
-      }
-
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.fill;
-
-      // Render the bar column
-      canvas.drawRect(Rect.fromLTWH(x, y, barWidth, barHeight), paint);
-
-      // Render "NOW" header text above Friday column
-      if (i == highlightedIndex) {
-        final nowPainter = TextPainter(
-          text: const TextSpan(
-            text: 'NOW',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 8,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        nowPainter.paint(canvas, Offset(x + (barWidth - nowPainter.width) / 2, y - 12));
-      }
-
-      // Render the day text at the bottom column
-      final dayPainter = TextPainter(
-        text: TextSpan(
-          text: days[i],
-          style: TextStyle(
-            color: i == highlightedIndex ? Colors.white : Colors.white38,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      dayPainter.paint(
-        canvas,
-        Offset(x + (barWidth - dayPainter.width) / 2, topHeight + chartHeight + 6),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant WeeklyProgressBarPainter oldDelegate) {
-    return oldDelegate.values != values || oldDelegate.highlightedIndex != highlightedIndex;
-  }
-}

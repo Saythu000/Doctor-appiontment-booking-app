@@ -18,13 +18,39 @@ dependencies:
   provider: ^6.1.2
   google_fonts: ^6.2.1
   dio: ^5.7.0
-
+  intl: ^0.20.2
+  permission_handler: ^12.0.2
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
+  image_picker: ^1.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
-  # assets:
-  #   - assets/fonts/
+  assets:
+    - assets/medical_onboarding_bg.png
+    - assets/app_logo.jpeg
+    - assets/avatars/avatar_1.png
+    - assets/avatars/avatar_2.png
+    - assets/avatars/avatar_3.png
+    - assets/avatars/avatar_4.png
+    - assets/doctors/doctor_1.png
+    - assets/doctors/doctor_2.png
+    - assets/doctors/doctor_3.png
+    - assets/doctors/doctor_4.png
+    - assets/doctors/doctor_5.png
+    - assets/doctors/doctor_6.png
+    - assets/doctors/doctor_7.png
+    - assets/doctors/doctor_8.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_logo.jpeg"
+  remove_alpha_ios: true
+
