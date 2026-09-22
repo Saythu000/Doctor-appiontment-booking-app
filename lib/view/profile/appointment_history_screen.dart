@@ -154,7 +154,6 @@ class AppointmentHistoryScreen extends StatelessWidget {
     final role = appt['practitioner_role'] as String;
     final image = appt['practitioner_image'] as String;
     final startTimeStr = appt['start_time'] as String;
-    final type = appt['type'] as String;
     final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
 
     String dateFormatted = '';

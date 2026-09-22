@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 
@@ -48,12 +47,10 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _checkAuthAndRedirect() async {
-    // Start verification in parallel with splash animation
     final authVM = context.read<AuthViewModel>();
     final isAuthenticated = await authVM.checkAutoLogin();
 
-    // Maintain splash screen visibility for at least 5 seconds for visual branding
-    await Future.delayed(const Duration(seconds: 5));
+    await Future.delayed(const Duration(seconds: 4));
 
     if (mounted && !_isRedirecting) {
       _isRedirecting = true;
@@ -89,95 +86,134 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // Dot Matrix Background Grid overlay
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
-          ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
-
-                  // Centered logo container & Brand identity
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.5),
+              // Centered Clinical Card & Brand Identity
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: PhiaColors.borderSubtle, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: PhiaColors.navyAnchor.withOpacity(0.06),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(18),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: PhiaColors.primary,
+                          shape: BoxShape.circle,
                         ),
-                        padding: const EdgeInsets.all(4),
-                        child: Image.asset(
-                          'assets/app_logo.jpeg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: Colors.grey[900],
-                            child: const Icon(Icons.broken_image, color: Colors.white24, size: 48),
+                        child: const Center(
+                          child: Icon(
+                            Icons.medical_services_rounded,
+                            color: Colors.white,
+                            size: 36,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'DRGODLY',
-                        style: GoogleFonts.bebasNeue(
-                          fontSize: 36,
-                          letterSpacing: 6.0,
-                          color: Colors.white,
-                        ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'DRGODLY',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.0,
+                        color: PhiaColors.navyAnchor,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'PERSONAL HEALTH ENCLAVE',
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2.0,
-                          color: Colors.white38,
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'CLINICAL TELEHEALTH & VITALS',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                        color: PhiaColors.textSecondary,
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.activeGreenBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: PhiaColors.activeGreen,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'HIPAA Compliant · FHIR Ready',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF15803D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // Bottom Loader & Status
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(PhiaColors.primary),
+                    ),
                   ),
-
-                  const Spacer(),
-
-                  // Bottom Loader Segment
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        _currentStatus.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white38,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+                  Text(
+                    _currentStatus.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: PhiaColors.textSecondary,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

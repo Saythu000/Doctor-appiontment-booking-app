@@ -94,12 +94,11 @@ class _CompleteScreenState extends State<CompleteScreen> with TickerProviderStat
     final String familyName = profileVM.currentProfile?.name?.firstOrNull?.familyName ?? '';
     final String displayName = (givenName.isEmpty && familyName.isEmpty)
         ? 'PATIENT'
-        : '${givenName} ${familyName}'.trim();
+        : '$givenName $familyName'.trim();
     
     final String gender = profileVM.currentProfile?.gender ?? 'MALE';
     final String heightStr = '${activityVM.userHeight.toStringAsFixed(0)} CM';
     final String weightStr = '${activityVM.userWeight.toStringAsFixed(1)} KG';
-    final String ageStr = '${activityVM.userAge} YRS';
 
     return Scaffold(
       backgroundColor: PhiaColors.background,

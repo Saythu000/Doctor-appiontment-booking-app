@@ -1,609 +1,206 @@
-import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/services.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
-import '../../core/widgets/image_helper.dart';
-import '../../core/utils/language_helper.dart';
 
-class BookingConfirmedScreen extends StatefulWidget {
+class BookingConfirmedScreen extends StatelessWidget {
   const BookingConfirmedScreen({super.key});
 
   @override
-  State<BookingConfirmedScreen> createState() => _BookingConfirmedScreenState();
-}
-
-class _BookingConfirmedScreenState extends State<BookingConfirmedScreen>
-    with SingleTickerProviderStateMixin {
-  // Flicker animation state
-  double _titleOpacity = 1.0;
-  Timer? _flickerTimer;
-
-  // Scanline sweeper animation state
-  late AnimationController _scanController;
-  late Animation<double> _scanAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Initialize looped 4-second linear scanline animation
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
-
-    _scanAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.linear),
-    );
-
-    // Initialize periodic CRT terminal screen-flicker simulator (runs every 100ms)
-    _flickerTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (Random().nextDouble() > 0.98) {
-        setState(() {
-          _titleOpacity = 0.4;
-        });
-        Future.delayed(const Duration(milliseconds: 50), () {
-          if (mounted) {
-            setState(() {
-              _titleOpacity = 1.0;
-            });
-          }
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _scanController.dispose();
-    _flickerTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Retrieve booking details passed from previous ReviewBookingScreen
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    final String specialistName = args['name'] as String;
-    final String date = args['date'] as String; // "OCTOBER 07, 2023"
-    final String time = args['time'] as String; // "08:00"
-    final Map<String, dynamic>? result = args['result'] as Map<String, dynamic>?;
-
-    final String confCode = result != null
-        ? '#APPT-${result['appointment_id']}'
-        : '#CONF-${(1000 + Random().nextInt(9000))}';
-
-    // Dynamic session type deducer mapped from specialist names
-    String sessionType = 'CLINICAL_CONSULTATION';
-    final String nameUpper = specialistName.toUpperCase();
-    if (nameUpper.contains('MARCUS')) {
-      sessionType = 'PRIMARY_CARE_WELLNESS';
-    } else if (nameUpper.contains('ELENA')) {
-      sessionType = 'CARDIAC_ASSESSMENT';
-    } else if (nameUpper.contains('DAVID')) {
-      sessionType = 'ENDOCRINE_METABOLIC_EVAL';
-    } else if (nameUpper.contains('SARAH')) {
-      sessionType = 'NEUROLOGICAL_EXAMINATION';
-    } else if (nameUpper.contains('KAELEN')) {
-      sessionType = 'PULMONARY_SLEEP_STUDY';
-    } else if (nameUpper.contains('ARIA')) {
-      sessionType = 'DERMATOLOGICAL_SCREENING';
-    } else if (nameUpper.contains('LOGAN')) {
-      sessionType = 'ORTHOPEDIC_CONSULTATION';
-    } else if (nameUpper.contains('EVELYN')) {
-      sessionType = 'PEDIATRIC_WELLNESS_CHECK';
-    }
-
-    // Dynamic date parser to KINETIC confirmation format (e.g. "OCT 07.2023")
-    String formattedDate = 'OCT 07.2023';
-    try {
-      final cleanDate = date.replaceAll(',', '');
-      final parts = cleanDate.split(' ');
-      if (parts.length >= 3) {
-        final String month = parts[0].substring(0, max(0, min(3, parts[0].length))).toUpperCase();
-        final String day = parts[1].padLeft(2, '0');
-        final String year = parts[2];
-        formattedDate = '$month $day.$year';
-      }
-    } catch (e) {
-      // safe fallback
-    }
-
-    // Dynamic time formatter (e.g. "08:00" -> "08:00 AM", "13:15" -> "01:15 PM")
-    String formattedTime = time;
-    if (!time.contains('AM') && !time.contains('PM')) {
-      try {
-        final hourParts = time.split(':');
-        final doubleHour = double.tryParse(hourParts.first) ?? 8.0;
-        if (doubleHour >= 12) {
-          final int pmHour = doubleHour > 12 ? (doubleHour - 12).toInt() : 12;
-          final String mins = hourParts.last;
-          formattedTime = '${pmHour.toString().padLeft(2, '0')}:$mins PM';
-        } else {
-          final int amHour = doubleHour.toInt();
-          final String mins = hourParts.last;
-          formattedTime = '${amHour.toString().padLeft(2, '0')}:$mins AM';
-        }
-      } catch (e) {
-        // safe fallback
-      }
-    }
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final doctorName = args?['practitionerName'] as String? ?? 'DrGodly Specialist';
+    final doctorRole = args?['practitionerRole'] as String? ?? 'General Practice';
+    final date = args?['date'] as String? ?? 'Upcoming Date';
+    final time = args?['time'] as String? ?? 'Scheduled Time';
+    final isVirtual = args?['isVirtual'] as bool? ?? true;
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // 1. Ambient Dot Matrix Grid Background
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
-          ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(),
 
-          // 2. Main Scrollable Panel
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Custom Header Row (Menu, Centered KINETIC, desaturated Avatar)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-                      ),
-                      Text(
-                        'DRGODLY',
-                        style: GoogleFonts.bebasNeue(
-                          fontSize: 26,
-                          letterSpacing: 4.0,
+              // Success Icon Circle
+              Center(
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: PhiaColors.activeGreenBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.4), width: 3),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 48,
+                      color: PhiaColors.activeGreen,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Title & Confirmation
+              Text(
+                'Consultation Confirmed!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: PhiaColors.navyAnchor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your visit is confirmed within the DrGodly clinical network. Real-time notifications and reminders are active.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: PhiaColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Appointment Receipt Card (Navy Header Banner)
+              Container(
+                decoration: BoxDecoration(
+                  color: PhiaColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    Container(
+                      color: PhiaColors.navyAnchor,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      width: double.infinity,
+                      child: Text(
+                        'Appointment Confirmation Receipt',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
                       ),
-                      // Desaturated circular athlete avatar profile
-                      const UserHeaderAvatar(),
-                    ],
-                  ),
-                ),
-
-                // Main Content List
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    children: [
-                      const SizedBox(height: 12),
-
-                      // 3. SUCCESS HERO CARD (Square Aspect Ratio)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final double boxWidth = constraints.maxWidth;
-                          return AspectRatio(
-                            aspectRatio: 1.0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Looping animated vertical scanline
-                                  AnimatedBuilder(
-                                    animation: _scanAnimation,
-                                    builder: (context, child) {
-                                      return Positioned(
-                                        top: _scanAnimation.value * boxWidth,
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          height: 2.0,
-                                          color: Colors.white.withValues(alpha: 0.06),
-                                        ),
-                                      );
-                                    },
-                                  ),
-
-                                  // Central Column
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      // Circular success check tick badge
-                                      Container(
-                                        width: 100,
-                                        height: 100,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 1.0),
-                                        ),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.check,
-                                            size: 48,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 24),
-
-                                      // CRT-flickering "MISSION SCHEDULED" Title
-                                      AnimatedOpacity(
-                                        duration: const Duration(milliseconds: 50),
-                                        opacity: _titleOpacity,
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              AppLanguageHelper.translate(context, 'booking_confirmed', defaultText: 'BOOKING CONFIRMED'),
-                                              style: GoogleFonts.bebasNeue(
-                                                fontSize: 32,
-                                                color: Colors.white,
-                                                letterSpacing: 2.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Container(
-                                              height: 1.0,
-                                              width: 90,
-                                              color: Colors.white,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 4. BENTO DETAILS CARD ("SYSTEM OUTPUT: DETAILS_01")
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Card Top banner overlay
-                            Container(
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.02),
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                  ),
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'SYSTEM OUTPUT: DETAILS_01',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-
-                            // Segmented details rows
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  // TYPE row
-                                  _buildDetailRow('TYPE', sessionType.toUpperCase(), isBebas: true),
-                                  const SizedBox(height: 16),
-
-                                  // OPERATIVE row
-                                  _buildDetailRow('OPERATIVE', specialistName.toUpperCase(), isBebas: false),
-                                  const SizedBox(height: 20),
-
-                                  // DATE & TIME Split Grid
-                                  Row(
-                                    children: [
-                                      // Date segment (Left)
-                                      Expanded(
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              right: BorderSide(
-                                                color: Colors.white.withValues(alpha: 0.12),
-                                                width: 1.0,
-                                              ),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'DATE',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white.withValues(alpha: 0.4),
-                                                  letterSpacing: 1.0,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                formattedDate,
-                                                style: GoogleFonts.bebasNeue(
-                                                  fontSize: 22,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1.0,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Time segment (Right)
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(left: 16.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'TIME',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white.withValues(alpha: 0.4),
-                                                  letterSpacing: 1.0,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                formattedTime,
-                                                style: GoogleFonts.bebasNeue(
-                                                  fontSize: 22,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1.0,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 24),
-
-                                  // Zone & Confirmation Code Pill
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.03),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.location_on_outlined,
-                                              color: Colors.white.withValues(alpha: 0.4),
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'ZONE 4 SECTOR B',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Text(
-                                          confCode,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white.withValues(alpha: 0.4),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 5. ACTION MATRIX BUTTONS
-                      Column(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
                         children: [
-                          // ADD TO CALENDAR (Solid White Button)
-                          ElevatedButton(
-                            onPressed: () {
-                              try {
-                                // 1. Normalize and parse the date string (e.g., "OCTOBER 07, 2023")
-                                final cleanDate = date.replaceAll(',', '');
-                                final dateParts = cleanDate.split(' ');
-                                if (dateParts.length >= 3) {
-                                  final String monthStr = dateParts[0].toUpperCase();
-                                  final int day = int.tryParse(dateParts[1]) ?? 7;
-                                  final int year = int.tryParse(dateParts[2]) ?? 2023;
-
-                                  const monthsMap = {
-                                    'JANUARY': 1, 'JAN': 1,
-                                    'FEBRUARY': 2, 'FEB': 2,
-                                    'MARCH': 3, 'MAR': 3,
-                                    'APRIL': 4, 'APR': 4,
-                                    'MAY': 5,
-                                    'JUNE': 6, 'JUN': 6,
-                                    'JULY': 7, 'JUL': 7,
-                                    'AUGUST': 8, 'AUG': 8,
-                                    'SEPTEMBER': 9, 'SEP': 9, 'SEPT': 9,
-                                    'OCTOBER': 10, 'OCT': 10,
-                                    'NOVEMBER': 11, 'NOV': 11,
-                                    'DECEMBER': 12, 'DEC': 12,
-                                  };
-                                  final int month = monthsMap[monthStr] ?? 10;
-
-                                  // 2. Parse the time string (e.g., "08:00" or "13:15")
-                                  final timeParts = time.split(':');
-                                  final int hour = int.tryParse(timeParts[0]) ?? 8;
-                                  final int minute = int.tryParse(timeParts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-
-                                  final startDateTime = DateTime(year, month, day, hour, minute);
-                                  final endDateTime = startDateTime.add(const Duration(minutes: 30));
-
-                                  const platform = MethodChannel('com.example.phia_flutter/calendar');
-                                  platform.invokeMethod('addToCalendar', {
-                                    'title': 'Appointment: $specialistName',
-                                    'description': 'Consultation Session ($sessionType)\nConfirmation Code: $confCode',
-                                    'location': 'DrGodly Telehealth / Clinic Platform',
-                                    'beginTime': startDateTime.millisecondsSinceEpoch,
-                                    'endTime': endDateTime.millisecondsSinceEpoch,
-                                  });
-                                }
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to add to calendar: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                              elevation: 0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.calendar_today_outlined, size: 16),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'ADD TO CALENDAR',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: PhiaColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ],
-                            ),
+                                child: const Icon(Icons.person_rounded, color: PhiaColors.navyAnchor, size: 24),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      doctorName,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: PhiaColors.navyAnchor,
+                                      ),
+                                    ),
+                                    Text(
+                                      doctorRole,
+                                      style: GoogleFonts.inter(fontSize: 12, color: PhiaColors.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-
-                          const SizedBox(height: 12),
-
-                          // RETURN TO DASHBOARD (Outlined Grey Button)
-                          OutlinedButton(
-                            onPressed: () {
-                              // Reset navigation history stack cleanly back to dashboard
-                              Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                '/dashboard',
-                                (route) => false,
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(color: Colors.white.withValues(alpha: 0.24)),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.grid_view_outlined, size: 16),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'RETURN TO DASHBOARD',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(height: 16),
+                          const Divider(color: PhiaColors.borderSubtle, height: 1),
+                          const SizedBox(height: 14),
+                          _buildRow(Icons.calendar_month_rounded, 'Date', date),
+                          const SizedBox(height: 10),
+                          _buildRow(Icons.schedule_rounded, 'Time', time),
+                          const SizedBox(height: 10),
+                          _buildRow(
+                            isVirtual ? Icons.videocam_rounded : Icons.local_hospital_rounded,
+                            'Type',
+                            isVirtual ? 'Standard Video Consultation' : 'In-Clinic Physical Visit',
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
 
-                      const SizedBox(height: 32),
-                    ],
+              const Spacer(),
+
+              // Return to Dashboard CTA
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: PhiaColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: Text(
+                  'Go to Dashboard',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // Segment row helper
-  Widget _buildDetailRow(String label, String value, {required bool isBebas}) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.12),
-            width: 1.0,
+  Widget _buildRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: PhiaColors.primary),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: PhiaColors.navyAnchor,
           ),
         ),
-      ),
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.white.withValues(alpha: 0.4),
-              letterSpacing: 1.0,
-            ),
-          ),
-          Text(
-            value,
-            style: isBebas
-                ? GoogleFonts.bebasNeue(
-                    fontSize: 22,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  )
-                : GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

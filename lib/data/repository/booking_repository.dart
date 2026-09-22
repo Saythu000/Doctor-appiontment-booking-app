@@ -7,14 +7,20 @@ class BookingRepository {
   final FhirApiClient _apiClient = FhirApiClient();
 
   /// Retrieve available specialists directory for booking
-  Future<List<PractitionerRoleBooking>> getActivePractitionerRoles() async {
+  /// Retrieve available specialists directory for booking from /api/v1/practitioner-roles/booking
+  Future<List<PractitionerRoleBooking>> getActivePractitionerRoles({String? orgId}) async {
     try {
+      final queryParams = <String, dynamic>{
+        'active': 'true',
+        'limit': 50,
+      };
+      if (orgId != null && orgId.isNotEmpty) {
+        queryParams['org_id'] = orgId;
+      }
+
       final response = await _apiClient.client.get(
-        '/api/fhir/v1/practitioner-roles/',
-        queryParameters: {
-          'active': 'true',
-          'limit': 50,
-        },
+        '/api/v1/practitioner-roles/booking',
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 200) {
@@ -22,269 +28,245 @@ class BookingRepository {
         final list = data['data'] as List?;
         if (list == null || list.isEmpty) {
           if (kDebugMode) {
-            print('[BookingRepository] Server active directory is empty. Hydrating fallback specialists...');
+            print('[BookingRepository] Server active directory returned empty. Using fallback specialists...');
           }
           return _getFallbackMockSpecialists();
         }
 
         final List<PractitionerRoleBooking> roles = [];
-        final List<Future<PractitionerDetail?>> futures = [];
-
         for (var item in list) {
           if (item is Map<String, dynamic>) {
-            final role = PractitionerRoleBooking.fromJson(item);
-            roles.add(role);
-            if (role.practitionerRefId != null) {
-              futures.add(_fetchPractitionerDetail(role.practitionerRefId!));
-            } else {
-              futures.add(Future.value(null));
-            }
+            roles.add(PractitionerRoleBooking.fromJson(item));
           }
         }
-
-        final details = await Future.wait(futures);
-        
-        final List<PractitionerRoleBooking> enrichedRoles = [];
-        for (int i = 0; i < roles.length; i++) {
-          final role = roles[i];
-          final detail = details[i];
-          
-          enrichedRoles.add(PractitionerRoleBooking(
-            id: role.id,
-            active: role.active,
-            practitionerRefId: role.practitionerRefId,
-            practitionerDisplay: role.practitionerDisplay,
-            organizationDisplay: role.organizationDisplay,
-            availabilityExceptions: role.availabilityExceptions,
-            specialties: role.specialties,
-            availability: role.availability,
-            practitionerDetail: detail ?? role.practitionerDetail,
-            orgId: role.orgId,
-          ));
-        }
-
-        return enrichedRoles;
+        return roles;
       }
       return _getFallbackMockSpecialists();
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingRepository] Failed to fetch practitioner roles: $e');
+        print('[BookingRepository] Failed to fetch practitioner roles from /api/v1/practitioner-roles/booking: $e');
       }
       return _getFallbackMockSpecialists();
     }
   }
 
-  Future<PractitionerDetail?> _fetchPractitionerDetail(int practitionerId) async {
-    try {
-      final response = await _apiClient.client.get('/api/fhir/v1/practitioners/$practitionerId');
-      if (response.statusCode == 200) {
-        return PractitionerDetail.fromJson(response.data as Map<String, dynamic>);
-      }
-      return null;
-    } catch (e) {
-      if (kDebugMode) {
-        print('[BookingRepository] Failed to fetch details for practitioner $practitionerId: $e');
-      }
-      return null;
-    }
-  }
-
-  /// Retrieve user's appointments from the FHIR server
-  Future<List<Map<String, dynamic>>> getUserAppointments({
-    required String userId,
-    required String orgId,
-  }) async {
-    try {
-      final response = await _apiClient.client.get(
-        '/api/fhir/v1/appointments/',
-        queryParameters: {
-          'user_id': userId,
-          'org_id': orgId,
-          'limit': 100,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final list = data['data'] as List?;
-        if (list == null) return [];
-        return List<Map<String, dynamic>>.from(list);
-      }
-      return [];
-    } catch (e) {
-      if (kDebugMode) {
-        print('[BookingRepository] Failed to get user appointments from server: $e');
-      }
-      return [];
-    }
-  }
-
-  /// Retrieve booked slot times for a practitioner on a specific date
-  Future<List<String>> getBookedSlotsForDoctor({
-    required int practitionerId,
+  /// Retrieve available free slots for a doctor on a specific date from /api/v1/slots
+  Future<List<BookingSlot>> getAvailableSlots({
+    required int practitionerRoleId,
     required String dateString, // Format: YYYY-MM-DD
+    String? orgId,
   }) async {
     try {
-      final startOfDay = '${dateString}T00:00:00Z';
-      final endOfDay = '${dateString}T23:59:59Z';
+      final queryParams = <String, dynamic>{
+        'practitioner_role_id': practitionerRoleId,
+        'date': dateString,
+        'status': 'free',
+        'limit': 100,
+      };
+      if (orgId != null && orgId.isNotEmpty) {
+        queryParams['org_id'] = orgId;
+      }
 
       final response = await _apiClient.client.get(
-        '/api/fhir/v1/appointments/',
-        queryParameters: {
-          'start_from': startOfDay,
-          'start_to': endOfDay,
-          'limit': 100,
-        },
+        '/api/v1/slots',
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         final list = data['data'] as List?;
         if (list == null) return [];
-
-        final bookedTimes = <String>[];
-        final practitionerRef = 'Practitioner/$practitionerId';
-
-        for (var appt in list) {
-          if (appt is Map<String, dynamic>) {
-            final status = appt['status']?.toString().toLowerCase();
-            if (status == 'cancelled' || status == 'entered-in-error' || status == 'declined') {
-              continue;
-            }
-
-            final participants = appt['participant'] as List?;
-            bool isDoctorParticipant = false;
-            if (participants != null) {
-              for (var p in participants) {
-                if (p is Map<String, dynamic>) {
-                  final actor = p['actor']?.toString();
-                  if (actor == practitionerRef) {
-                    isDoctorParticipant = true;
-                    break;
-                  }
-                }
-              }
-            }
-
-            if (isDoctorParticipant) {
-              final start = appt['start']?.toString();
-              if (start != null && start.isNotEmpty) {
-                try {
-                  final dateTime = DateTime.parse(start).toLocal();
-                  final hour = dateTime.hour.toString().padLeft(2, '0');
-                  final minute = dateTime.minute.toString().padLeft(2, '0');
-                  bookedTimes.add('$hour:$minute');
-                } catch (e) {
-                  // Swallowed
-                }
-              }
-            }
-          }
-        }
-        return bookedTimes;
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map((s) => BookingSlot.fromJson(s))
+            .toList();
       }
       return [];
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingRepository] Failed to get booked slots from server: $e');
+        print('[BookingRepository] Failed to fetch slots from /api/v1/slots: $e');
       }
       return [];
     }
   }
 
-  /// Create Appointment directly on live FHIR server (skipping encounters)
-  Future<Map<String, dynamic>> createAppointmentWithEncounter({
-    required int patientId,
-    required String patientName,
+  /// Atomic slot booking via POST /api/v1/appointments/book
+  Future<Map<String, dynamic>> bookSlotAtomic({
     required int practitionerId,
-    required String practitionerName,
-    required String startTimeIso,
-    required String endTimeIso,
-    required bool isVirtual,
-    required String userId,
+    required int slotId,
+    required int patientId,
     required String orgId,
-    String? note,
+    required String appointmentTypeDisplay,
+    String? reasonCode,
+    String? comment,
+    required String practitionerName,
+    required String patientName,
   }) async {
     try {
-      final String apptTypeCode = isVirtual ? 'VIRTUAL' : 'INPERSON';
-      final String apptTypeDisplay = isVirtual ? 'Virtual Consultation' : 'In-Person Visit';
-
-      final appointmentPayload = {
-        'status': 'booked',
-        'subject': 'Patient/$patientId',
-        'subject_display': patientName,
-        'start': startTimeIso,
-        'end': endTimeIso,
-        'minutes_duration': 30,
-        'created': DateTime.now().toIso8601String(),
-        'description': note ?? 'Consultation Appointment',
-        'appointment_type_code': apptTypeCode,
-        'appointment_type_display': apptTypeDisplay,
-        'user_id': userId,
-        'org_id': orgId,
-        'participant': [
-          {
-            'reference': 'Patient/$patientId',
-            'reference_display': patientName,
-            'required': true,
-            'status': 'accepted',
-          },
-          {
-            'reference': 'Practitioner/$practitionerId',
-            'reference_display': practitionerName,
-            'types': [
-              {
-                'coding_code': 'ATND',
-                'coding_display': 'attender',
-              }
-            ],
-            'required': true,
-            'status': 'accepted',
-          }
-        ]
+      final payload = {
+        'practitioner_id': practitionerId,
+        'slot_id': slotId,
+        'patient_id': patientId,
+        if (orgId.isNotEmpty) 'org_id': orgId,
+        'appointment_type_display': appointmentTypeDisplay,
+        if (practitionerName.isNotEmpty) 'practitioner_display': practitionerName,
+        if (patientName.isNotEmpty) 'patient_display': patientName,
+        if (reasonCode != null && reasonCode.isNotEmpty) 'reason_code': reasonCode,
+        if (comment != null && comment.isNotEmpty) 'comment': comment,
       };
 
       if (kDebugMode) {
-        print('[BookingRepository] Creating Appointment on server...');
+        print('[BookingRepository] POST /api/v1/appointments/book: $payload');
       }
-      final appointmentResponse = await _apiClient.client.post(
-        '/api/fhir/v1/appointments/',
-        data: appointmentPayload,
+
+      final response = await _apiClient.client.post(
+        '/api/v1/appointments/book',
+        data: payload,
       );
 
-      if (appointmentResponse.statusCode != 200 && appointmentResponse.statusCode != 201) {
-        throw Exception('Appointment creation failed with status ${appointmentResponse.statusCode}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data as Map<String, dynamic>;
+        final appointmentId = data['id'] is int ? data['id'] : int.parse(data['id'].toString());
+        return {
+          'appointment_id': appointmentId,
+          'status': data['status'] ?? 'booked',
+          'start': data['start'],
+          'end': data['end'],
+          'practitioner_name': practitionerName,
+          'patient_name': patientName,
+          'type': appointmentTypeDisplay,
+        };
       }
-
-      final appointmentData = appointmentResponse.data;
-      final int appointmentId = appointmentData['id'] is int 
-          ? appointmentData['id'] 
-          : int.parse(appointmentData['id'].toString());
-
-      return {
-        'encounter_id': 0, // Encounters bypassed
-        'appointment_id': appointmentId,
-        'start': startTimeIso,
-        'end': endTimeIso,
-        'practitioner_name': practitionerName,
-        'patient_name': patientName,
-        'type': apptTypeDisplay,
-      };
+      throw Exception('Booking failed with status ${response.statusCode}');
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingRepository] Appointment creation failed: $e');
+        print('[BookingRepository] POST /api/v1/appointments/book failed: $e');
       }
       rethrow;
     }
   }
 
-  /// Delete/Cancel Appointment on server
+  /// Reschedule appointment via POST /api/v1/appointments/{id}/reschedule
+  Future<Map<String, dynamic>> rescheduleAppointmentServer({
+    required String appointmentId,
+    required int newSlotId,
+  }) async {
+    try {
+      final response = await _apiClient.client.post(
+        '/api/v1/appointments/$appointmentId/reschedule',
+        data: {
+          'new_slot_id': newSlotId,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('Reschedule failed with status ${response.statusCode}');
+    } catch (e) {
+      if (kDebugMode) {
+        print('[BookingRepository] Reschedule failed: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Retrieve user's appointments from GET /api/v1/appointments/me or /api/v1/appointments/
+  Future<List<Map<String, dynamic>>> getUserAppointments({
+    required String userId,
+    required String orgId,
+    int? patientId,
+  }) async {
+    try {
+      final List<Map<String, dynamic>> results = [];
+
+      // 1. First attempt: /api/v1/appointments/me (official scoped endpoint)
+      try {
+        final meResp = await _apiClient.client.get('/api/v1/appointments/me');
+        if (meResp.statusCode == 200) {
+          final data = meResp.data;
+          final list = data['data'] as List?;
+          if (list != null) {
+            for (var item in list) {
+              if (item is Map<String, dynamic>) results.add(item);
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 2. Query /api/v1/appointments/?patient_id= if patientId provided
+      if (patientId != null && patientId > 0) {
+        try {
+          final patResp = await _apiClient.client.get(
+            '/api/v1/appointments/',
+            queryParameters: {
+              'patient_id': patientId,
+              if (orgId.isNotEmpty) 'org_id': orgId,
+              'limit': 100,
+            },
+          );
+          if (patResp.statusCode == 200) {
+            final data = patResp.data;
+            final list = data['data'] as List?;
+            if (list != null) {
+              for (var item in list) {
+                if (item is Map<String, dynamic>) {
+                  final id = item['id'];
+                  if (!results.any((r) => r['id'] == id)) {
+                    results.add(item);
+                  }
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback: /api/v1/appointments/ with user_id
+      if (results.isEmpty) {
+        final response = await _apiClient.client.get(
+          '/api/v1/appointments/',
+          queryParameters: {
+            'user_id': userId,
+            if (orgId.isNotEmpty) 'org_id': orgId,
+            'limit': 100,
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = response.data;
+          final list = data['data'] as List?;
+          if (list != null) {
+            for (var item in list) {
+              if (item is Map<String, dynamic>) {
+                final id = item['id'];
+                if (!results.any((r) => r['id'] == id)) {
+                  results.add(item);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return results;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[BookingRepository] Failed to get user appointments: $e');
+      }
+      return [];
+    }
+  }
+
+  /// Cancel Appointment via PATCH /api/v1/appointments/{id} (status: cancelled)
   Future<void> cancelAppointmentServer(String appointmentId) async {
     try {
-      final response = await _apiClient.client.delete(
-        '/api/fhir/v1/appointments/$appointmentId',
+      final response = await _apiClient.client.patch(
+        '/api/v1/appointments/$appointmentId',
+        data: {
+          'status': 'cancelled',
+        },
       );
-      if (response.statusCode != 204 && response.statusCode != 200) {
+      if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('Appointment cancellation failed with status ${response.statusCode}');
       }
     } catch (e) {

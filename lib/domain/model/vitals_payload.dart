@@ -16,10 +16,13 @@ class VitalsRecord {
   // Vitals
   final int? restingHeartRate;
   final int? heartRate;
+  final int? minHeartRate;
+  final int? maxHeartRate;
   final double? heartRateVariability;
   final int? stressManagementScore;
   final int? bloodPressureSystolic;
   final int? bloodPressureDiastolic;
+  final double? oxygenSaturation;
 
   // Sleep
   final int? sleepMinutes;
@@ -57,10 +60,13 @@ class VitalsRecord {
     this.peakActiveZoneMinutes,
     this.restingHeartRate,
     this.heartRate,
+    this.minHeartRate,
+    this.maxHeartRate,
     this.heartRateVariability,
     this.stressManagementScore,
     this.bloodPressureSystolic,
     this.bloodPressureDiastolic,
+    this.oxygenSaturation,
     this.sleepMinutes,
     this.remSleepMinutes,
     this.deepSleepMinutes,
@@ -94,10 +100,13 @@ class VitalsRecord {
       peakActiveZoneMinutes: json['peak_active_zone_minutes'],
       restingHeartRate: json['resting_heart_rate'],
       heartRate: json['heart_rate'],
+      minHeartRate: json['min_heart_rate'],
+      maxHeartRate: json['max_heart_rate'],
       heartRateVariability: json['heart_rate_variability'] != null ? (json['heart_rate_variability'] as num).toDouble() : null,
       stressManagementScore: json['stress_management_score'],
       bloodPressureSystolic: json['blood_pressure_systolic'],
       bloodPressureDiastolic: json['blood_pressure_diastolic'],
+      oxygenSaturation: json['oxygen_saturation'] != null ? (json['oxygen_saturation'] as num).toDouble() : null,
       sleepMinutes: json['sleep_minutes'],
       remSleepMinutes: json['rem_sleep_minutes'],
       deepSleepMinutes: json['deep_sleep_minutes'],
@@ -132,10 +141,13 @@ class VitalsRecord {
       if (peakActiveZoneMinutes != null) 'peak_active_zone_minutes': peakActiveZoneMinutes,
       if (restingHeartRate != null) 'resting_heart_rate': restingHeartRate,
       if (heartRate != null) 'heart_rate': heartRate,
+      if (minHeartRate != null) 'min_heart_rate': minHeartRate,
+      if (maxHeartRate != null) 'max_heart_rate': maxHeartRate,
       if (heartRateVariability != null) 'heart_rate_variability': heartRateVariability,
       'stress_management_score': stressManagementScore,
       'blood_pressure_systolic': bloodPressureSystolic,
       'blood_pressure_diastolic': bloodPressureDiastolic,
+      if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
       if (sleepMinutes != null) 'sleep_minutes': sleepMinutes,
       if (remSleepMinutes != null) 'rem_sleep_minutes': remSleepMinutes,
       if (deepSleepMinutes != null) 'deep_sleep_minutes': deepSleepMinutes,

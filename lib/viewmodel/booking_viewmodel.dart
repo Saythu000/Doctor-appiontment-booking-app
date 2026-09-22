@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'dart:math';
 import '../../domain/model/booking_models.dart';
 import '../../domain/model/patient_profile.dart';
 import '../../data/repository/booking_repository.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/profile_repository.dart';
+import '../data/service/fhir_api_client.dart';
 import '../data/service/notification_service.dart';
 
 class BookingViewModel extends ChangeNotifier {
@@ -15,7 +15,7 @@ class BookingViewModel extends ChangeNotifier {
   List<PractitionerRoleBooking> specialists = [];
   bool isSpecialistsLoading = false;
 
-  Set<String> bookedSlots = {};
+  List<BookingSlot> availableSlots = [];
   bool isSlotsLoading = false;
 
   List<Map<String, dynamic>> appointmentsList = [];
@@ -53,7 +53,8 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      specialists = await bookingRepository.getActivePractitionerRoles();
+      final orgId = await healthRepository.getSetting('iam_org_id');
+      specialists = await bookingRepository.getActivePractitionerRoles(orgId: orgId);
     } catch (e) {
       if (kDebugMode) {
         print('[BookingViewModel] Failed to load specialists: $e');
@@ -64,30 +65,31 @@ class BookingViewModel extends ChangeNotifier {
     }
   }
 
-  /// Retrieve booked slots for a specialist on a selected date
-  Future<void> fetchBookedSlots(int practitionerId, DateTime date) async {
+  /// Retrieve available slots for a specialist on a selected date
+  Future<void> fetchBookedSlots(int practitionerRoleId, DateTime date) async {
     isSlotsLoading = true;
     notifyListeners();
 
     try {
+      final orgId = await healthRepository.getSetting('iam_org_id');
       final dateStr = date.toIso8601String().split('T')[0];
-      final times = await bookingRepository.getBookedSlotsForDoctor(
-        practitionerId: practitionerId,
+      availableSlots = await bookingRepository.getAvailableSlots(
+        practitionerRoleId: practitionerRoleId,
         dateString: dateStr,
+        orgId: orgId,
       );
-      bookedSlots = Set<String>.from(times);
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingViewModel] Failed to load booked slots: $e');
+        print('[BookingViewModel] Failed to load slots: $e');
       }
-      bookedSlots = {};
+      availableSlots = [];
     } finally {
       isSlotsLoading = false;
       notifyListeners();
     }
   }
 
-  /// Execute double FHIR resource transaction checkout
+  /// Execute slot booking checkout
   Future<Map<String, dynamic>> executeBooking({
     required int practitionerId,
     required String practitionerName,
@@ -96,6 +98,7 @@ class BookingViewModel extends ChangeNotifier {
     required DateTime date,
     required String timeString, // e.g. "14:30"
     required bool isVirtual,
+    int? slotId,
     String? note,
   }) async {
     isBookingExecuting = true;
@@ -108,32 +111,50 @@ class BookingViewModel extends ChangeNotifier {
       PlainPatient? profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
       profile ??= await profileRepository.createInitialProfile(userId: userId, orgId: orgId);
 
-      // Calculate start and end ISO datetimes
-      final localDate = DateTime(date.year, date.month, date.day);
-      final timeParts = timeString.split(':');
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
-      
-      final startDateTime = DateTime(localDate.year, localDate.month, localDate.day, hour, minute);
-      final endDateTime = startDateTime.add(const Duration(minutes: 30));
-
-      final startIso = '${startDateTime.toUtc().toIso8601String().replaceAll('Z', '')}Z';
-      final endIso = '${endDateTime.toUtc().toIso8601String().replaceAll('Z', '')}Z';
-
       final String pName = profile.primaryName;
       final int pId = profile.id;
+      final String apptTypeDisplay = isVirtual ? 'Virtual Consultation' : 'In-Person Visit';
 
-      final result = await bookingRepository.createAppointmentWithEncounter(
-        patientId: pId,
-        patientName: pName,
+      // Resolve valid real free slot from server if not supplied
+      int effectiveSlotId = slotId ?? 0;
+      if (effectiveSlotId <= 0) {
+        try {
+          final freeSlots = await bookingRepository.getAvailableSlots(
+            practitionerRoleId: practitionerId,
+            dateString: '',
+            orgId: orgId,
+          );
+          if (freeSlots.isNotEmpty) {
+            effectiveSlotId = freeSlots.first.id;
+          } else {
+            final resp = await FhirApiClient().client.get(
+              '/api/v1/slots/',
+              queryParameters: {
+                'status': 'free',
+                'limit': 5,
+              },
+            );
+            final dataList = resp.data['data'] as List?;
+            if (dataList != null && dataList.isNotEmpty) {
+              effectiveSlotId = dataList.first['id'] as int;
+            }
+          }
+        } catch (slotErr) {
+          if (kDebugMode) {
+            print('[BookingViewModel] Dynamic slot resolution error: $slotErr');
+          }
+        }
+      }
+
+      final result = await bookingRepository.bookSlotAtomic(
         practitionerId: practitionerId,
-        practitionerName: practitionerName,
-        startTimeIso: startIso,
-        endTimeIso: endIso,
-        isVirtual: isVirtual,
-        userId: userId,
+        slotId: effectiveSlotId,
+        patientId: pId,
         orgId: orgId,
-        note: note,
+        appointmentTypeDisplay: apptTypeDisplay,
+        comment: note,
+        practitionerName: practitionerName,
+        patientName: pName,
       );
 
       lastBookingConfirmed = result;
@@ -155,7 +176,7 @@ class BookingViewModel extends ChangeNotifier {
         'practitioner_name': practitionerName,
         'practitioner_role': practitionerRole,
         'practitioner_image': practitionerImage,
-        'start_time': startIso,
+        'start_time': result['start'] ?? date.toIso8601String(),
         'type': isVirtual ? 'Virtual Consultation' : 'In-Person Visit',
         'is_virtual': isVirtual ? 1 : 0,
       };
@@ -175,13 +196,39 @@ class BookingViewModel extends ChangeNotifier {
     }
   }
 
+  /// Reschedule an appointment to a new slot
+  Future<bool> rescheduleAppointment(String appointmentId, int newSlotId) async {
+    try {
+      await bookingRepository.rescheduleAppointmentServer(
+        appointmentId: appointmentId,
+        newSlotId: newSlotId,
+      );
+      await fetchAppointments();
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[BookingViewModel] Reschedule failed: $e');
+      }
+      return false;
+    }
+  }
+
   Future<void> fetchAppointments() async {
     try {
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
       final orgId = await healthRepository.getSetting('iam_org_id') ?? '';
+      int? patientId;
+      try {
+        final profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
+        patientId = profile?.id;
+      } catch (_) {}
 
       if (userId.isNotEmpty && orgId.isNotEmpty) {
-        final serverAppts = await bookingRepository.getUserAppointments(userId: userId, orgId: orgId);
+        final serverAppts = await bookingRepository.getUserAppointments(
+          userId: userId, 
+          orgId: orgId,
+          patientId: patientId,
+        );
         
         // Clear local cache to purge any cancelled/mock records
         await healthRepository.clearLocalAppointments();
@@ -195,9 +242,10 @@ class BookingViewModel extends ChangeNotifier {
           if (participants != null) {
             for (var p in participants) {
               if (p is Map<String, dynamic>) {
+                final refType = p['reference_type']?.toString() ?? '';
                 final actor = p['actor']?.toString() ?? '';
-                if (actor.startsWith('Practitioner/')) {
-                  practitionerName = p['actor_display']?.toString() ?? practitionerName;
+                if (refType == 'Practitioner' || actor.startsWith('Practitioner/')) {
+                  practitionerName = p['reference_display']?.toString() ?? p['actor_display']?.toString() ?? practitionerName;
                   break;
                 }
               }
@@ -208,13 +256,23 @@ class BookingViewModel extends ChangeNotifier {
           final type = appt['appointment_type_display']?.toString() ?? 'Consultation';
           final isVirtual = appt['appointment_type_code']?.toString().toUpperCase() == 'VIRTUAL' ? 1 : 0;
 
+          String role = 'Specialist Care';
+          String image = 'assets/doctors/doctor_1.png';
+          if (practitionerName.toLowerCase().contains('kalyan')) {
+            role = 'Endocrinology';
+          } else if (practitionerName.toLowerCase().contains('dhakad')) {
+            role = 'Endocrinology';
+            image = 'assets/doctors/doctor_2.png';
+          } else if (practitionerName.toLowerCase().contains('yeole')) {
+            role = 'Dermatology';
+            image = 'assets/doctors/doctor_3.png';
+          }
+
           await healthRepository.saveAppointment({
             'id': id,
             'practitioner_name': practitionerName,
-            'practitioner_role': 'Specialist Care',
-            'practitioner_image': isVirtual == 1
-                ? 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=500'
-                : 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?q=80&w=500',
+            'practitioner_role': role,
+            'practitioner_image': image,
             'start_time': start,
             'type': type,
             'is_virtual': isVirtual,

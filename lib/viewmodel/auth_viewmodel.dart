@@ -19,7 +19,26 @@ class AuthViewModel extends ChangeNotifier {
   AuthViewModel({
     required this.authRepository,
     required this.healthRepository,
-  });
+  }) {
+    FhirApiClient().setTokenRefresher(refreshToken);
+  }
+
+  /// Refresh expired JWT token transparently using active session cookie
+  Future<String?> refreshToken() async {
+    final session = _sessionToken ?? await healthRepository.getSetting('iam_session_token');
+    if (session == null || session.isEmpty) return null;
+    try {
+      final freshJwt = await authRepository.getJwtToken(sessionCookie: session);
+      _jwtToken = freshJwt;
+      await healthRepository.saveSetting('iam_jwt_token', freshJwt);
+      return freshJwt;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[AuthViewModel] Automatic token refresh failed: $e');
+      }
+      return null;
+    }
+  }
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -68,7 +87,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhir.drgodly.com',
+        baseUrl: 'https://fhirgql.drgodly.com',
         token: _jwtToken,
         isLiveMode: true,
       );
@@ -126,7 +145,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhir.drgodly.com',
+        baseUrl: 'https://fhirgql.drgodly.com',
         token: _jwtToken,
         isLiveMode: true,
       );
@@ -179,7 +198,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhir.drgodly.com',
+        baseUrl: 'https://fhirgql.drgodly.com',
         token: _jwtToken,
         isLiveMode: true,
       );

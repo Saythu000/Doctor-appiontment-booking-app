@@ -3,13 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/profile_viewmodel.dart';
-
 import '../../domain/model/patient_profile.dart';
-import '../../core/utils/language_helper.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isTab;
@@ -20,6 +17,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _notificationsEnabled = true;
+  bool _biometricEnabled = true;
+
   @override
   void initState() {
     super.initState();
@@ -31,9 +31,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _showPhotoPickerBottomSheet(BuildContext context, ProfileViewModel profileVM) async {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0D0E0F),
-      shape: const Border(
-        top: BorderSide(color: Colors.white12, width: 1.0),
+      backgroundColor: PhiaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext sheetCtx) {
         return Container(
@@ -43,33 +43,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'PROFILE IMAGE SOURCE',
-                style: GoogleFonts.bebasNeue(
-                  fontSize: 20,
-                  letterSpacing: 2.0,
-                  color: Colors.white,
+                'Change Profile Photo',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: PhiaColors.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildPickerOption(
-                    icon: Icons.camera_alt,
-                    label: 'CAMERA',
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Camera',
                     onTap: () async {
                       Navigator.pop(sheetCtx);
                       final ImagePicker picker = ImagePicker();
-                      final XFile? image = await picker.pickImage(source: ImageSource.camera);
-                      if (image != null) {
-                        await profileVM.saveProfileImagePath(image.path);
+                      final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+                      if (photo != null) {
+                        await profileVM.saveProfileImagePath(photo.path);
                       }
                     },
                   ),
                   _buildPickerOption(
-                    icon: Icons.photo_library,
-                    label: 'GALLERY',
+                    icon: Icons.photo_library_rounded,
+                    label: 'Gallery',
                     onTap: () async {
                       Navigator.pop(sheetCtx);
                       final ImagePicker picker = ImagePicker();
@@ -81,68 +81,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              Text(
-                'PRESET NEURAL AVATARS',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                  color: Colors.white38,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 72,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 4,
-                  itemBuilder: (context, index) {
-                    final avatarPath = 'assets/avatars/avatar_${index + 1}.png';
-                    return GestureDetector(
-                      onTap: () async {
-                        Navigator.pop(sheetCtx);
-                        await profileVM.saveProfileImagePath(avatarPath);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 72,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: profileVM.profileImagePath == avatarPath
-                                ? PhiaColors.skyBlue
-                                : Colors.white.withValues(alpha: 0.12),
-                            width: profileVM.profileImagePath == avatarPath ? 2 : 1,
-                          ),
-                          shape: BoxShape.circle,
-                          image: DecorationImage(
-                            image: AssetImage(avatarPath),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (profileVM.profileImagePath != null) ...[
-                const SizedBox(height: 20),
-                TextButton.icon(
+              const SizedBox(height: 20),
+              if (profileVM.profileImagePath != null)
+                TextButton(
                   onPressed: () async {
                     Navigator.pop(sheetCtx);
                     await profileVM.saveProfileImagePath(null);
                   },
-                  icon: const Icon(Icons.delete_outline, color: PhiaColors.pulseRed, size: 18),
-                  label: Text(
-                    'REMOVE PROFILE PICTURE',
-                    style: GoogleFonts.bebasNeue(
+                  child: Text(
+                    'Remove Photo',
+                    style: GoogleFonts.inter(
                       fontSize: 14,
-                      letterSpacing: 1.0,
+                      fontWeight: FontWeight.w600,
                       color: PhiaColors.pulseRed,
                     ),
                   ),
                 ),
-              ],
             ],
           ),
         );
@@ -157,23 +111,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 100,
-        padding: const EdgeInsets.all(16),
+        width: 110,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          color: const Color(0xFF141517),
+          color: PhiaColors.surfaceSubtle,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: PhiaColors.borderSubtle),
         ),
         child: Column(
           children: [
-            Icon(icon, color: PhiaColors.skyBlue, size: 28),
+            Icon(icon, color: PhiaColors.primary, size: 26),
             const SizedBox(height: 8),
             Text(
               label,
-              style: GoogleFonts.bebasNeue(
-                fontSize: 12,
-                letterSpacing: 1.0,
-                color: Colors.white,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: PhiaColors.textPrimary,
               ),
             ),
           ],
@@ -182,74 +138,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showConnectedDevicesComingSoonDialog(BuildContext context) {
-    showDialog(
+  void _showEditProfileBottomSheet(BuildContext context, PlainPatient? currentProfile) {
+    final givenNameController = TextEditingController(
+      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
+          ? currentProfile.name!.first.givenName
+          : 'Sarah',
+    );
+    final familyNameController = TextEditingController(
+      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
+          ? currentProfile.name!.first.familyName ?? ''
+          : 'Chen',
+    );
+    final emailController = TextEditingController(text: currentProfile?.primaryEmail ?? 'sarah.chen@example.com');
+    final phoneController = TextEditingController(text: currentProfile?.primaryPhone ?? '+1 (555) 234-5678');
+
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext dialogCtx) {
-        return Dialog(
-          backgroundColor: const Color(0xFF0D0E0F),
-          shape: const Border.fromBorderSide(
-            BorderSide(color: Colors.white12, width: 1.0),
+      isScrollControlled: true,
+      backgroundColor: PhiaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24,
+            left: 24,
+            right: 24,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.watch, color: PhiaColors.skyBlue, size: 24),
-                    const SizedBox(width: 12),
                     Text(
-                      'CONNECTED DEVICES',
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 20,
-                        letterSpacing: 2.0,
-                        color: Colors.white,
+                      'Edit Personal Details',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: PhiaColors.navyAnchor,
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'LINKED SMARTWATCHES & SENSORS',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                    color: PhiaColors.skyBlue,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'We are developing integration models for major smartwatches and medical-grade hardware telemetry sensors. Soon, you will be able to synchronize step data, real-time heart rate, SpO2, and other vital stats directly into your DRGODLY personal health ledger offline.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.white70,
-                    height: 1.5,
-                  ),
-                ),
+                _buildCleanInput('FIRST NAME', givenNameController, 'First Name'),
+                const SizedBox(height: 14),
+                _buildCleanInput('LAST NAME', familyNameController, 'Last Name'),
+                const SizedBox(height: 14),
+                _buildCleanInput('EMAIL ADDRESS', emailController, 'sarah.chen@example.com'),
+                const SizedBox(height: 14),
+                _buildCleanInput('PHONE NUMBER', phoneController, '+1 (555) 234-5678'),
                 const SizedBox(height: 24),
-                GestureDetector(
-                  onTap: () => Navigator.pop(dialogCtx),
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white30),
-                      color: Colors.transparent,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'ACKNOWLEDGE',
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 14,
-                        letterSpacing: 1.5,
-                        color: Colors.white,
-                      ),
-                    ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: PhiaColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    'Save Changes',
+                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -258,227 +223,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-
-  void _showEditProfileBottomSheet(BuildContext context, PlainPatient? currentProfile) {
-    final givenNameController = TextEditingController(
-      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
-          ? currentProfile.name!.first.givenName
-          : '',
-    );
-    final familyNameController = TextEditingController(
-      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
-          ? currentProfile.name!.first.familyName ?? ''
-          : '',
-    );
-    final genderController = TextEditingController(text: currentProfile?.gender ?? 'male');
-    final birthDateController = TextEditingController(text: currentProfile?.birthDate ?? '2000-01-01');
-    final emailController = TextEditingController(text: currentProfile?.primaryEmail ?? '');
-    final phoneController = TextEditingController(text: currentProfile?.primaryPhone ?? '');
-
-    // Address extraction
-    String street = '';
-    String city = '';
-    String state = '';
-    String zip = '';
-    String country = '';
-    if (currentProfile?.address != null && currentProfile!.address!.isNotEmpty) {
-      final addr = currentProfile.address!.first;
-      street = addr.line.isNotEmpty ? addr.line.first : '';
-      city = addr.city ?? '';
-      state = addr.state ?? '';
-      zip = addr.postalCode ?? '';
-      country = addr.country ?? '';
-    }
-
-    final streetController = TextEditingController(text: street);
-    final cityController = TextEditingController(text: city);
-    final stateController = TextEditingController(text: state);
-    final zipController = TextEditingController(text: zip);
-    final countryController = TextEditingController(text: country);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const Border(
-        top: BorderSide(color: PhiaColors.skyBlue, width: 2.0),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return AnimatedPadding(
-              padding: MediaQuery.of(context).viewInsets,
-              duration: const Duration(milliseconds: 100),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLanguageHelper.translate(context, 'patient_profile', defaultText: 'PATIENT PROFILE'),
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 24,
-                              color: Colors.white,
-                              letterSpacing: 2.0,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white60),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Name Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInputGroup('GIVEN NAME', givenNameController, 'First Name'),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInputGroup('FAMILY NAME', familyNameController, 'Last Name'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Gender & Birthdate
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInputGroup('GENDER (male|female|other)', genderController, 'male'),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInputGroup('BIRTH DATE (YYYY-MM-DD)', birthDateController, '2000-01-01'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Contact info
-                      _buildInputGroup('EMAIL ADDRESS', emailController, 'operator@domain.sys'),
-                      const SizedBox(height: 16),
-                      _buildInputGroup('CONTACT PHONE', phoneController, '+10000000000'),
-                      const SizedBox(height: 16),
-
-                      // Address Info
-                      _buildInputGroup('STREET RESIDENCE', streetController, 'Street line'),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInputGroup('CITY', cityController, 'City'),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInputGroup('STATE', stateController, 'State'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInputGroup('POSTAL CODE / ZIP', zipController, 'Zip'),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInputGroup('COUNTRY', countryController, 'Country'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                        ),
-                        onPressed: () async {
-                          final profileVM = context.read<ProfileViewModel>();
-                          try {
-                            await profileVM.saveProfileDetails(
-                              givenName: givenNameController.text,
-                              familyName: familyNameController.text,
-                              gender: genderController.text,
-                              birthDate: birthDateController.text,
-                              email: emailController.text,
-                              phone: phoneController.text,
-                              street: streetController.text,
-                              city: cityController.text,
-                              state: stateController.text,
-                              zip: zipController.text,
-                              country: countryController.text,
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Profile updated successfully!')),
-                              );
-                              Navigator.pop(context);
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Sync failed: $e')),
-                              );
-                            }
-                          }
-                        },
-                        child: Text(
-                          AppLanguageHelper.translate(context, 'save_profile', defaultText: 'SAVE PROFILE'),
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 18,
-                            letterSpacing: 2.0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildInputGroup(String label, TextEditingController controller, String placeholder) {
+  Widget _buildCleanInput(String label, TextEditingController controller, String placeholder) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.0,
-            color: Colors.white54,
-          ),
+          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
         ),
         const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-            color: const Color(0xFF0D0E0F),
+            color: PhiaColors.surfaceSubtle,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: PhiaColors.borderSubtle),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: TextField(
             controller: controller,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+            style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
             decoration: InputDecoration(
               hintText: placeholder,
-              hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13),
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
               border: InputBorder.none,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -493,478 +259,638 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final profileVM = context.watch<ProfileViewModel>();
     final profile = profileVM.currentProfile;
+    final patientName = profile?.primaryName ?? 'Sarah J. Chen';
+    final patientId = 'DG987654';
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // Dot Matrix Background Grid overlay
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
+      appBar: AppBar(
+        backgroundColor: PhiaColors.primary,
+        elevation: 0,
+        leading: widget.isTab
+            ? const Icon(Icons.menu_rounded, color: Colors.white)
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+        centerTitle: true,
+        title: Text(
+          'Patient Profile',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
-
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Header (⚡ KINETIC and Notification Bell)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => showNotificationCenter(context),
+            icon: const Icon(Icons.search_rounded, color: Colors.white),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+          children: [
+            // Centered Avatar & Identity Section (matching reference image)
+            Center(
+              child: Column(
+                children: [
+                  Stack(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.local_hospital, color: Colors.white, size: 24),
-                          const SizedBox(width: 8),
-                          Text(
-                            'DRGODLY',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 24,
-                              letterSpacing: 4.0,
-                              color: Colors.white,
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: PhiaColors.navyAnchor.withOpacity(0.12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: SafeNetworkImage(
+                            imageUrl: profileVM.profileImagePath ?? 'assets/avatars/avatar_1.png',
+                            width: 96,
+                            height: 96,
+                            fit: BoxFit.cover,
+                            fallbackIcon: Icons.person,
                           ),
-                        ],
+                        ),
                       ),
-                      IconButton(
-                        onPressed: () => showNotificationCenter(context),
-                        icon: const Icon(Icons.notifications_none, color: Colors.white, size: 24),
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: InkWell(
+                          onTap: () => _showPhotoPickerBottomSheet(context, profileVM),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: PhiaColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    patientName,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: PhiaColors.navyAnchor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Patient ID: $patientId',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: PhiaColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // CARD 1: Personal Information (Navy Header Banner)
+            _buildNavyHeaderCard(
+              title: 'Personal Information',
+              actionIcon: Icons.edit_rounded,
+              onAction: () => _showEditProfileBottomSheet(context, profile),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildInfoGridRow(
+                      leftLabel: 'Full Name',
+                      leftValue: patientName,
+                      rightLabel: 'Date of Birth',
+                      rightValue: profile?.birthDate ?? '1988-03-15',
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 24),
+                    _buildGenderRow(selectedGender: profile?.gender?.toLowerCase() ?? 'female'),
+                    const Divider(color: PhiaColors.borderSubtle, height: 24),
+                    _buildFullWidthInfoRow(
+                      label: 'Address',
+                      value: '123 Medical Center Dr, Suite 400\nBoston, MA 02115',
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 24),
+                    _buildInfoGridRow(
+                      leftLabel: 'Phone Number',
+                      leftValue: profile?.primaryPhone ?? '+1 (555) 234-5678',
+                      rightLabel: 'Email Address',
+                      rightValue: profile?.primaryEmail ?? 'sarah.chen@example.com',
+                    ),
+                  ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                // Main Scrollable Area
-                Expanded(
-                  child: profileVM.isProfileLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: PhiaColors.skyBlue),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          children: [
-                            const SizedBox(height: 16),
-
-                            // 1. AVATAR BLOCK
-                            Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Double circle athlete avatar frame
-                                  Stack(
-                                    clipBehavior: Clip.none,
-                                    alignment: Alignment.bottomCenter,
-                                    children: [
-                                      Container(
-                                        width: 104,
-                                        height: 104,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.12),
-                                            width: 2.0,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.all(4),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            image: DecorationImage(
-                                              image: getImageProvider(
-                                                profileVM.profileImagePath,
-                                                fallback: 'assets/avatars/avatar_1.png',
-                                              ),
-                                              fit: BoxFit.cover,
-                                              colorFilter: const ColorFilter.matrix(<double>[
-                                                0.2126, 0.7152, 0.0722, 0, -20,
-                                                0.2126, 0.7152, 0.0722, 0, -20,
-                                                0.2126, 0.7152, 0.0722, 0, -20,
-                                                0,      0,      0,      1, 0,
-                                              ]),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Edit camera overlay button
-                                      Positioned(
-                                        bottom: 0,
-                                        right: -2,
-                                        child: GestureDetector(
-                                          onTap: () => _showPhotoPickerBottomSheet(context, profileVM),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: PhiaColors.skyBlue,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.black, width: 2),
-                                            ),
-                                            child: const Icon(
-                                              Icons.camera_alt,
-                                              size: 14,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // ELITE Overlaid pill tag at the bottom
-                                      Positioned(
-                                        bottom: -10,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            AppLanguageHelper.translate(context, 'patient', defaultText: 'PATIENT'),
-                                            style: GoogleFonts.inter(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 22),
-                                  // User Name
-                                  Text(
-                                    profile?.primaryName.toUpperCase() ?? 'LOADING PROFILE...',
-                                    style: GoogleFonts.bebasNeue(
-                                      fontSize: 32,
-                                      color: Colors.white,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  // Calibration ID
-                                  Text(
-                                    profile != null ? 'SECURE PROFILE ENABLED' : 'OFFLINE MODE',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: PhiaColors.skyBlue,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // 2. PERFORMANCE STATS CARD (3 Columns)
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              decoration: BoxDecoration(
-                                color: PhiaColors.surface,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                              ),
-                              child: Row(
-                                children: [
-                                  _buildStatItem('GENDER', profile?.gender?.toUpperCase() ?? 'NONE'),
-                                  _buildVerticalDivider(),
-                                  _buildStatItem('BIRTH DATE', profile?.birthDate ?? 'NONE'),
-                                  _buildVerticalDivider(),
-                                  _buildStatItem('CONTACTS', (profile != null && profile.telecom != null && profile.telecom!.isNotEmpty) ? '${profile.telecom!.length} ENTRIES' : '0 ENTRIES'),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // 3. SETTINGS LIST BENTO BOX
-                            Container(
-                              decoration: BoxDecoration(
-                                color: PhiaColors.surface,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildSettingsTile(
-                                    icon: Icons.person_outline,
-                                    title: 'Edit Profile Details',
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'Update name, DOB, email and addresses',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () => _showEditProfileBottomSheet(context, profile),
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.calendar_month_outlined,
-                                    title: 'Appointment History',
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'View upcoming and past consultations',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pushNamed(context, '/appointment_history');
-                                    },
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.alarm_outlined,
-                                    title: AppLanguageHelper.translate(context, 'meds_vitals_reminders', defaultText: 'Meds & Vitals Reminders'),
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'Schedule medication doses and vitals monitoring checks',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pushNamed(context, '/vitals_reminders');
-                                    },
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.trending_up_outlined,
-                                    title: 'Vitals Warning Thresholds',
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'Define safe boundaries for blood pressure & heart rate',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pushNamed(context, '/vitals_thresholds');
-                                    },
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.square_foot_outlined,
-                                    title: 'Clinical Measurement Units',
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'Configure display units (kg/lbs, cm/inches, etc.)',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pushNamed(context, '/clinical_units');
-                                    },
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.settings_applications_outlined,
-                                    title: AppLanguageHelper.translate(context, 'general_app_config', defaultText: 'General App Config'),
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        'Configure language localization and start week preferences',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.pushNamed(context, '/general_settings');
-                                    },
-                                  ),
-                                  _buildHorizontalDivider(),
-                                  _buildSettingsTile(
-                                    icon: Icons.watch_outlined,
-                                    title: AppLanguageHelper.translate(context, 'connected_devices', defaultText: 'Connected Devices'),
-                                    onTap: () => _showConnectedDevicesComingSoonDialog(context),
-                                    subContent: Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Coming Soon: Linked smartwatches and medical sensors',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              color: PhiaColors.skyBlue,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              _buildOutlineChip('STEP SENSOR'),
-                                              const SizedBox(width: 8),
-                                              _buildOutlineChip('LOCATION SERVICES'),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // 4. LOG OUT ACCOUNT OUTLINED BUTTON
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                              },
-                              child: Container(
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'LOG OUT',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 2.0,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-                          ],
-                        ),
+            // CARD 2: Account Settings (Navy Header Banner)
+            _buildNavyHeaderCard(
+              title: 'Account Settings',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  children: [
+                    _buildToggleRow(
+                      title: 'Notifications',
+                      subtitle: 'Receive appointment updates & alerts',
+                      value: _notificationsEnabled,
+                      onChanged: (val) {
+                        setState(() {
+                          _notificationsEnabled = val;
+                        });
+                      },
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildToggleRow(
+                      title: 'App Security',
+                      subtitle: 'Biometric Face ID / Fingerprint login',
+                      value: _biometricEnabled,
+                      onChanged: (val) {
+                        setState(() {
+                          _biometricEnabled = val;
+                        });
+                      },
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildNavActionRow(
+                      title: 'Preferred Language',
+                      value: 'English (US)',
+                      onTap: () => Navigator.pushNamed(context, '/general_settings'),
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildNavActionRow(
+                      title: 'Vitals Reminders & Thresholds',
+                      value: 'Configured',
+                      onTap: () => Navigator.pushNamed(context, '/vitals_reminders'),
+                    ),
+                  ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // CARD 3: Clinical Unit Registrations (Navy Header Banner)
+            _buildNavyHeaderCard(
+              title: 'Clinical Unit Registrations',
+              actionWidget: TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/clinical_units'),
+                child: Text(
+                  'Manage',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          // Unit 1: Neurology Unit (Sky Blue Card)
+                          _buildUnitCard(
+                            unitName: 'Neurology Unit',
+                            doctorName: 'Dr. Michael Chang',
+                            status: 'ACTIVE',
+                            cardBgColor: const Color(0xFF4BAAE5),
+                            textColor: Colors.white,
+                          ),
+                          const SizedBox(width: 12),
+                          // Unit 2: Cardiology Unit (Sky Blue Card)
+                          _buildUnitCard(
+                            unitName: 'Cardiology Unit',
+                            doctorName: 'Dr. Elena Rostova',
+                            status: 'ACTIVE',
+                            cardBgColor: const Color(0xFF4BAAE5),
+                            textColor: Colors.white,
+                          ),
+                          const SizedBox(width: 12),
+                          // Unit 3: Primary Care (Navy Card)
+                          _buildUnitCard(
+                            unitName: 'Primary Care',
+                            doctorName: 'Dr. Sarah Jenkins',
+                            status: 'ACTIVE',
+                            cardBgColor: PhiaColors.navyAnchor,
+                            textColor: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Sign Out / Log Out Button
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                },
+                icon: const Icon(Icons.logout_rounded, color: PhiaColors.pulseRed, size: 18),
+                label: Text(
+                  'Sign Out of Account',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.pulseRed,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGET BUILDERS MATCHING REFERENCE IMAGE ---
+
+  Widget _buildNavyHeaderCard({
+    required String title,
+    required Widget child,
+    IconData? actionIcon,
+    VoidCallback? onAction,
+    Widget? actionWidget,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: PhiaColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Deep Oxford Navy Top Banner Header
+          Container(
+            color: PhiaColors.navyAnchor,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                if (actionWidget != null)
+                  actionWidget
+                else if (actionIcon != null && onAction != null)
+                  InkWell(
+                    onTap: onAction,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Icon(actionIcon, color: Colors.white, size: 18),
+                    ),
+                  ),
               ],
             ),
           ),
+          // White Card Body
+          child,
         ],
       ),
     );
   }
 
-  // Stat item helper
-  Widget _buildStatItem(String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              color: Colors.white.withValues(alpha: 0.4),
-              letterSpacing: 1.0,
-            ),
+  Widget _buildInfoGridRow({
+    required String leftLabel,
+    required String leftValue,
+    required String rightLabel,
+    required String rightValue,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                leftLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: PhiaColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                leftValue,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: PhiaColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 18,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rightLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: PhiaColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                rightValue,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: PhiaColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // Divider helpers
-  Widget _buildVerticalDivider() {
-    return Container(
-      width: 1,
-      height: 28,
-      color: Colors.white.withValues(alpha: 0.08),
+  Widget _buildGenderRow({required String selectedGender}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Gender',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: PhiaColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _buildGenderChip('Female', selectedGender == 'female'),
+            const SizedBox(width: 8),
+            _buildGenderChip('Male', selectedGender == 'male'),
+            const SizedBox(width: 8),
+            _buildGenderChip('Other', selectedGender == 'other'),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildHorizontalDivider() {
+  Widget _buildGenderChip(String label, bool isSelected) {
     return Container(
-      height: 1,
-      color: Colors.white.withValues(alpha: 0.08),
-    );
-  }
-
-  // Outline capsule chip helper
-  Widget _buildOutlineChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        borderRadius: BorderRadius.circular(12),
+        color: isSelected ? const Color(0xFFE1F2FC) : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isSelected ? PhiaColors.primary : PhiaColors.borderSubtle,
+          width: isSelected ? 1.5 : 1,
+        ),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
-          fontSize: 8,
-          fontWeight: FontWeight.bold,
-          color: Colors.white.withValues(alpha: 0.6),
-          letterSpacing: 0.5,
+          fontSize: 13,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          color: isSelected ? PhiaColors.navyAnchor : PhiaColors.textSecondary,
         ),
       ),
     );
   }
 
-  // Premium list settings tile builder
-  Widget _buildSettingsTile({
-    required IconData icon,
+  Widget _buildFullWidthInfoRow({required String label, required String value}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: PhiaColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: PhiaColors.textPrimary,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToggleRow({
     required String title,
-    Widget? subContent,
-    VoidCallback? onTap,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 20),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.textPrimary,
                   ),
-                  if (subContent != null) subContent,
-                ],
-               ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: PhiaColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.white.withValues(alpha: 0.24),
-              size: 18,
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.white,
+            activeTrackColor: PhiaColors.primary,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: PhiaColors.borderSubtle,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavActionRow({
+    required String title,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: PhiaColors.textPrimary,
+              ),
+            ),
+            Row(
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: PhiaColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: PhiaColors.textMuted),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildUnitCard({
+    required String unitName,
+    required String doctorName,
+    required String status,
+    required Color cardBgColor,
+    required Color textColor,
+  }) {
+    return Container(
+      width: 175,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBgColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: cardBgColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  unitName,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  status,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            doctorName,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textColor.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'View Details',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: cardBgColor == PhiaColors.navyAnchor ? PhiaColors.navyAnchor : const Color(0xFF228BCA),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

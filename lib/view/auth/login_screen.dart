@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 
@@ -17,15 +16,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
-  
+
   bool _isNameFocused = false;
   bool _isEmailFocused = false;
   bool _isPasswordFocused = false;
   bool _isLoginMode = true;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -52,394 +52,374 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // Dot Matrix Background Grid overlay
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
-          ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
 
-          // Main scrolling layout
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 24),
-                  
-                  // Brand Identity Title
-                  const Icon(Icons.medical_services_outlined, color: Colors.white, size: 48),
-                  const SizedBox(height: 8),
-                  Text(
-                    'DRGODLY',
-                    style: GoogleFonts.bebasNeue(
-                      fontSize: 48,
-                      letterSpacing: 8.0,
-                      color: Colors.white,
+              // Brand Icon & Header
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.primaryLight,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: PhiaColors.primary.withOpacity(0.3), width: 1.5),
+                      ),
+                      child: const Icon(
+                        Icons.medical_services_rounded,
+                        color: PhiaColors.primary,
+                        size: 32,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                      color: const Color(0xFF0D0E0F),
+                    const SizedBox(height: 14),
+                    Text(
+                      'DRGODLY',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                        color: PhiaColors.navyAnchor,
+                      ),
                     ),
-                    child: Text(
-                      'PATIENT PORTAL V2.0',
+                    const SizedBox(height: 4),
+                    Text(
+                      _isLoginMode ? 'Sign in to access your health portal' : 'Create your clinical patient account',
                       style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        color: Colors.white60,
+                        fontSize: 13,
+                        color: PhiaColors.textSecondary,
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
 
-                  const SizedBox(height: 60),
+              const SizedBox(height: 28),
 
-                  // Login Form Section
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Full Name Field (Sign-up mode only)
-                      if (!_isLoginMode) ...[
-                        Text(
-                          'Full Name'.toUpperCase(),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2.0,
-                            color: Colors.white60,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: _isNameFocused ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
-                            border: Border.all(
-                              color: _isNameFocused ? Colors.white : Colors.white.withValues(alpha: 0.15),
-                            ),
-                          ),
-                          child: TextField(
-                            controller: _nameController,
-                            focusNode: _nameFocus,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
-                            textCapitalization: TextCapitalization.words,
-                            decoration: InputDecoration(
-                              hintText: 'JOHN DOE',
-                              hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // Identification / Email Field
-                      Text(
-                        'Identification / Email'.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2.0,
-                          color: Colors.white60,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: _isEmailFocused ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
-                          border: Border.all(
-                            color: _isEmailFocused ? Colors.white : Colors.white.withValues(alpha: 0.15),
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _emailController,
-                          focusNode: _emailFocus,
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            hintText: 'USER@DRGODLY.COM',
-                            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
-                            border: InputBorder.none,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Password Field
-                      Row(
+              // Form Card (Navy Header Banner pattern matching reference)
+              Container(
+                decoration: BoxDecoration(
+                  color: PhiaColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Deep Oxford Navy Header
+                    Container(
+                      color: PhiaColors.navyAnchor,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Access Key / Password'.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 2.0,
-                              color: Colors.white60,
+                            _isLoginMode ? 'Patient Authentication' : 'Patient Registration',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
                             ),
                           ),
-                          if (_isLoginMode)
-                            Text(
-                              'Forgot?'.toUpperCase(),
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white38,
-                              ),
-                            ),
+                          const Icon(Icons.lock_rounded, color: Colors.white70, size: 16),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: _isPasswordFocused ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
-                          border: Border.all(
-                            color: _isPasswordFocused ? Colors.white : Colors.white.withValues(alpha: 0.15),
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _passwordController,
-                          focusNode: _passwordFocus,
-                          obscureText: true,
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
-                          decoration: InputDecoration(
-                            hintText: '********',
-                            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
-                            border: InputBorder.none,
-                          ),
-                        ),
-                      ),
+                    ),
 
-                      const SizedBox(height: 32),
+                    // Card Body Form Fields
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Full Name (Registration only)
+                          if (!_isLoginMode) ...[
+                            _buildInputLabel('FULL NAME'),
+                            const SizedBox(height: 6),
+                            _buildInputField(
+                              controller: _nameController,
+                              focusNode: _nameFocus,
+                              isFocused: _isNameFocused,
+                              hintText: 'Sarah J. Chen',
+                              icon: Icons.person_outline_rounded,
+                              keyboardType: TextInputType.name,
+                            ),
+                            const SizedBox(height: 18),
+                          ],
 
-                      // Error message banner
-                      if (authVM.errorMessage != null) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E0C0C),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                          // Email / Identifier
+                          _buildInputLabel('EMAIL ADDRESS OR PATIENT ID'),
+                          const SizedBox(height: 6),
+                          _buildInputField(
+                            controller: _emailController,
+                            focusNode: _emailFocus,
+                            isFocused: _isEmailFocused,
+                            hintText: 'sarah.chen@example.com',
+                            icon: Icons.alternate_email_rounded,
+                            keyboardType: TextInputType.emailAddress,
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 18),
+
+                          // Password
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  authVM.errorMessage!.toUpperCase(),
+                              _buildInputLabel('PASSWORD'),
+                              if (_isLoginMode)
+                                Text(
+                                  'Forgot password?',
                                   style: GoogleFonts.inter(
-                                    color: Colors.redAccent,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: PhiaColors.primary,
                                   ),
                                 ),
-                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // Action Login/Signup Button
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size(double.infinity, 60),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: authVM.isLoading
-                            ? null
-                            : () async {
-                                final email = _emailController.text.trim();
-                                final password = _passwordController.text;
-                                final name = _nameController.text.trim();
-                                final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
-                                final navigator = Navigator.of(context);
-                                final messenger = ScaffoldMessenger.of(context);
-
-                                if (email.isEmpty || password.isEmpty) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text('Please fill all fields'.toUpperCase()),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                bool success;
-                                if (_isLoginMode) {
-                                  success = await authVM.login(email, password);
-                                } else {
-                                  if (name.isEmpty) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('Please enter your name'.toUpperCase()),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  success = await authVM.register(name, email, password);
-                                }
-
-                                if (success) {
-                                  await profileVM.fetchOrInitProfile();
-                                  
-                                  final profile = profileVM.currentProfile;
-                                  final bool hasProfile = profile != null &&
-                                      profile.name != null &&
-                                      profile.name!.isNotEmpty &&
-                                      profile.name!.first.givenName.isNotEmpty;
-
-                                  if (hasProfile) {
-                                    navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
-                                  } else {
-                                    navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
-                                  }
-                                }
-                              },
-                        child: authVM.isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.0,
-                                  color: Colors.black,
-                                ),
-                              )
-                            : Text(
-                                _isLoginMode ? 'LOGIN' : 'CREATE ACCOUNT',
-                                style: GoogleFonts.bebasNeue(
-                                  fontSize: 22,
-                                  letterSpacing: 3.0,
-                                  color: Colors.black,
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Create Account Secondary CTA
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _isLoginMode ? 'NEW PATIENT?  ' : 'ALREADY A PATIENT?  ',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white38,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isLoginMode = !_isLoginMode;
-                            _nameController.clear();
-                            _emailController.clear();
-                            _passwordController.clear();
-                            authVM.signOut(); // Clear previous auth state and errors
-                          });
-                        },
-                        child: Text(
-                          _isLoginMode ? 'CREATE ACCOUNT' : 'SIGN IN',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Social Auth Footer
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                      ),
-                    ),
-                    padding: const EdgeInsets.only(top: 24),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Remote Authentication'.toUpperCase(),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
-                            color: Colors.white60,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTap: () {},
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  'G',
-                                  style: GoogleFonts.bebasNeue(
-                                    fontSize: 24,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                          const SizedBox(height: 6),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: PhiaColors.surfaceSubtle,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isPasswordFocused ? PhiaColors.primary : PhiaColors.borderSubtle,
+                                width: _isPasswordFocused ? 1.5 : 1,
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            GestureDetector(
-                              onTap: () {},
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: TextField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              obscureText: _obscurePassword,
+                              style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+                              decoration: InputDecoration(
+                                hintText: '••••••••',
+                                hintStyle: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textMuted),
+                                icon: const Icon(Icons.lock_outline_rounded, color: PhiaColors.primary, size: 20),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                    color: PhiaColors.textMuted,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                 ),
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.mail_outline, color: Colors.white),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+
+                          // Error Banner
+                          if (authVM.errorMessage != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: PhiaColors.pulseRedLight,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: PhiaColors.pulseRed.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline_rounded, color: PhiaColors.pulseRed, size: 18),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      authVM.errorMessage!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: PhiaColors.pulseRed,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
+
+                          const SizedBox(height: 24),
+
+                          // Submit Action Button
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: PhiaColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                            ),
+                            onPressed: authVM.isLoading
+                                ? null
+                                : () async {
+                                    final email = _emailController.text.trim();
+                                    final password = _passwordController.text;
+                                    final name = _nameController.text.trim();
+                                    final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+                                    final navigator = Navigator.of(context);
+                                    final messenger = ScaffoldMessenger.of(context);
+
+                                    if (email.isEmpty || password.isEmpty) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Please fill all required fields'),
+                                          backgroundColor: PhiaColors.pulseRed,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    bool success;
+                                    if (_isLoginMode) {
+                                      success = await authVM.login(email, password);
+                                    } else {
+                                      if (name.isEmpty) {
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Please enter your full name'),
+                                            backgroundColor: PhiaColors.pulseRed,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      success = await authVM.register(name, email, password);
+                                    }
+
+                                    if (success) {
+                                      await profileVM.fetchOrInitProfile();
+                                      final profile = profileVM.currentProfile;
+                                      final bool hasProfile = profile != null &&
+                                          profile.name != null &&
+                                          profile.name!.isNotEmpty &&
+                                          profile.name!.first.givenName.isNotEmpty;
+
+                                      if (hasProfile) {
+                                        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
+                                      } else {
+                                        navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
+                                      }
+                                    }
+                                  },
+                            child: authVM.isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                  )
+                                : Text(
+                                    _isLoginMode ? 'Sign In' : 'Create Account',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Switch Mode Toggle
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoginMode = !_isLoginMode;
+                      _nameController.clear();
+                      _emailController.clear();
+                      _passwordController.clear();
+                      authVM.signOut();
+                    });
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      text: _isLoginMode ? "Don't have an account? " : "Already registered? ",
+                      style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary),
+                      children: [
+                        TextSpan(
+                          text: _isLoginMode ? 'Register Now' : 'Sign In',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: PhiaColors.primary,
+                          ),
                         ),
-                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: PhiaColors.textSecondary,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required bool isFocused,
+    required String hintText,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: PhiaColors.surfaceSubtle,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isFocused ? PhiaColors.primary : PhiaColors.borderSubtle,
+          width: isFocused ? 1.5 : 1,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: keyboardType,
+        style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
+          icon: Icon(icon, color: PhiaColors.primary, size: 20),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
       ),
     );
   }

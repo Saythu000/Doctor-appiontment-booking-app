@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../domain/model/booking_models.dart';
-import '../../core/utils/language_helper.dart';
 
 class SelectSpecialistScreen extends StatefulWidget {
   final bool isTab;
@@ -17,10 +15,12 @@ class SelectSpecialistScreen extends StatefulWidget {
 }
 
 class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
+  String _selectedSpecialty = 'ALL';
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
-    // Fetch specialists from local FHIR server on launch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<BookingViewModel>(context, listen: false).fetchSpecialists();
     });
@@ -28,277 +28,200 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final specialties = ['ALL', 'PRIMARY CARE', 'CARDIOLOGY', 'NEUROLOGY', 'ENDOCRINOLOGY', 'SPORTS'];
+
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // Dot Matrix Background Grid overlay
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
+      appBar: AppBar(
+        backgroundColor: PhiaColors.primary,
+        elevation: 0,
+        leading: widget.isTab
+            ? const Icon(Icons.menu_rounded, color: Colors.white)
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+        centerTitle: true,
+        title: Text(
+          'Find a Specialist',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
-
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Custom Header Row (Menu, Centered KINETIC, Circular Athlete profile)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-                      ),
-                      Text(
-                        'DRGODLY',
-                        style: GoogleFonts.bebasNeue(
-                          fontSize: 26,
-                          letterSpacing: 4.0,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const UserHeaderAvatar(),
-                    ],
-                  ),
-                ),
-
-                // Main Area
-                Expanded(
-                  child: Consumer<BookingViewModel>(
-                    builder: (context, vm, child) {
-                      return RefreshIndicator(
-                        backgroundColor: PhiaColors.surface,
-                        color: Colors.white,
-                        onRefresh: () => vm.fetchSpecialists(),
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            const SizedBox(height: 12),
-
-                            // Title Area (PERFORMANCE NETWORK and SPECIALIST SELECTION)
-                            Row(
-                              children: [
-                                Container(
-                                  width: 14,
-                                  height: 1,
-                                  color: Colors.white.withValues(alpha: 0.38),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'MEDICAL CLINIC NETWORK',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white.withValues(alpha: 0.38),
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              AppLanguageHelper.translate(context, 'specialists_directory', defaultText: 'SPECIALISTS DIRECTORY'),
-                              style: GoogleFonts.bebasNeue(
-                                fontSize: 32,
-                                color: Colors.white,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Select from our certified physicians and clinical specialists to schedule a consultation.',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.38),
-                                height: 1.4,
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Search Box & Filters Button Row
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            'Search specialists...',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              color: Colors.white.withValues(alpha: 0.38),
-                                            ),
-                                          ),
-                                        ),
-                                        Icon(Icons.search, color: Colors.white.withValues(alpha: 0.38), size: 16),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                                  ),
-                                  child: Text(
-                                    'FILTERS',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 28),
-
-                            // Dynamic loading state
-                            if (vm.isSpecialistsLoading) ...[
-                              _buildCyberneticLoader(),
-                            ] else if (vm.specialists.isEmpty) ...[
-                              _buildEmptyState(),
-                            ] else ...[
-                              // Map dynamic specialist items from FHIR server
-                              ...vm.specialists.map((specialist) {
-                                return Column(
-                                  children: [
-                                    _buildDynamicSpecialistCard(context, specialist),
-                                    const SizedBox(height: 24),
-                                  ],
-                                );
-                              }),
-                            ],
-
-                            const SizedBox(height: 12),
-
-                            // Bottom Recommended Panel (DRGODLY Medical Experts)
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: PhiaColors.surface,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Icon(
-                                      Icons.local_hospital,
-                                      color: Colors.white.withValues(alpha: 0.03),
-                                      size: 84,
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        'RECOMMENDED CLINICIAN',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white.withValues(alpha: 0.4),
-                                          letterSpacing: 1.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'DRGODLY MEDICAL EXPERTS',
-                                        style: GoogleFonts.bebasNeue(
-                                          fontSize: 22,
-                                          color: Colors.white,
-                                          letterSpacing: 1.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Consult with our highly qualified medical experts. Specialized in advanced diagnostics, heart care, and patient wellness.',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: Colors.white.withValues(alpha: 0.38),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      ElevatedButton(
-                                        onPressed: () {},
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white,
-                                          foregroundColor: Colors.black,
-                                          padding: const EdgeInsets.symmetric(vertical: 14),
-                                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                                        ),
-                                        child: Text(
-                                          'EXPLORE CLINICAL DIRECTORY',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 32),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.tune_rounded, color: Colors.white),
           ),
         ],
       ),
-    );
-  }
-
-  /// Builds a high-fidelity cyberpunk visual loading state
-  Widget _buildCyberneticLoader() {
-    return Container(
-      height: 150,
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Center(
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
+            const SizedBox(height: 12),
+
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: PhiaColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: PhiaColors.borderSubtle),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: TextField(
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val.toLowerCase();
+                    });
+                  },
+                  style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Search doctor name, specialty, condition...',
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
+                    icon: const Icon(Icons.search, color: PhiaColors.primary, size: 20),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'INITIALIZING CLINIC DIRECTORY MATCH...',
-              style: GoogleFonts.bebasNeue(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.38),
-                letterSpacing: 1.5,
+
+            const SizedBox(height: 12),
+
+            // Specialty Filter Chips
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: specialties.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, idx) {
+                  final s = specialties[idx];
+                  final isSelected = _selectedSpecialty == s;
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedSpecialty = s;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? PhiaColors.navyAnchor : PhiaColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? PhiaColors.navyAnchor : PhiaColors.borderSubtle,
+                        ),
+                      ),
+                      child: Text(
+                        s,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? Colors.white : PhiaColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Doctor List Area
+            Expanded(
+              child: Consumer<BookingViewModel>(
+                builder: (context, vm, child) {
+                  if (vm.isSpecialistsLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: PhiaColors.primary,
+                        strokeWidth: 2.5,
+                      ),
+                    );
+                  }
+
+                  // Filter specialists by query & category
+                  final filtered = vm.specialists.where((sp) {
+                    final name = sp.practitionerDetail?.fullName ?? sp.practitionerDisplay ?? '';
+                    final specialty = sp.specialties.isNotEmpty ? sp.specialties.first : '';
+                    final matchesQuery = _searchQuery.isEmpty ||
+                        name.toLowerCase().contains(_searchQuery) ||
+                        specialty.toLowerCase().contains(_searchQuery);
+
+                    if (!matchesQuery) return false;
+                    if (_selectedSpecialty == 'ALL') return true;
+
+                    final catUpper = specialty.toUpperCase();
+                    if (_selectedSpecialty == 'PRIMARY CARE') {
+                      return catUpper.contains('PRIMARY') || catUpper.contains('FAMILY') || catUpper.contains('GENERAL');
+                    } else if (_selectedSpecialty == 'CARDIOLOGY') {
+                      return catUpper.contains('CARDIO') || catUpper.contains('HEART');
+                    } else if (_selectedSpecialty == 'NEUROLOGY') {
+                      return catUpper.contains('NEURO') || catUpper.contains('BRAIN');
+                    } else if (_selectedSpecialty == 'ENDOCRINOLOGY') {
+                      return catUpper.contains('ENDO') || catUpper.contains('METABOLIC');
+                    } else if (_selectedSpecialty == 'SPORTS') {
+                      return catUpper.contains('SPORT') || catUpper.contains('ORTHO');
+                    }
+                    return true;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off_rounded, size: 48, color: PhiaColors.textMuted.withOpacity(0.5)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No specialists found',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Try selecting a different specialty or search term.',
+                            style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    color: PhiaColors.primary,
+                    onRefresh: () => vm.fetchSpecialists(),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, idx) {
+                        return _buildCleanDoctorCard(context, filtered[idx]);
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -307,238 +230,185 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
     );
   }
 
-  /// Builds a cyberpunk empty state if no specialists are returned
-  Widget _buildEmptyState() {
+  Widget _buildCleanDoctorCard(BuildContext context, PractitionerRoleBooking pr) {
+    final detail = pr.practitionerDetail;
+    final String name = detail?.fullName ?? pr.practitionerDisplay ?? 'Clinical Specialist';
+    final String specialty = pr.specialties.isNotEmpty ? pr.specialties.first : 'General Practitioner';
+    final imageUrl = detail?.photoUrl ?? 'assets/doctors/doctor_1.png';
+
+    // Badge styling based on specialty
+    Color badgeColor = PhiaColors.navyAnchor;
+    Color badgeBg = PhiaColors.primaryLight;
+    if (specialty.toUpperCase().contains('CARDIO')) {
+      badgeColor = PhiaColors.pulseRed;
+      badgeBg = PhiaColors.pulseRedLight;
+    } else if (specialty.toUpperCase().contains('NEURO')) {
+      badgeColor = const Color(0xFF228BCA);
+      badgeBg = PhiaColors.primaryLight;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(24),
-      margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.wifi_off, color: Colors.white30, size: 32),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              'NO ACTIVE PRACTITIONERS FOUND',
-              style: GoogleFonts.bebasNeue(
-                fontSize: 16,
-                color: Colors.white,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Verify connection and ensure clinical directories are initialized.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.38),
-                height: 1.4,
-              ),
-            ),
+        color: PhiaColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: PhiaColors.borderSubtle),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-    );
-  }
-
-  /// Builds a dynamic specialist card mapping FHIR data into visual layouts
-  Widget _buildDynamicSpecialistCard(BuildContext context, PractitionerRoleBooking pr) {
-    final detail = pr.practitionerDetail;
-    final String name = detail?.fullName ?? pr.practitionerDisplay ?? 'Elite Specialist';
-    final String specialty = pr.specialties.isNotEmpty ? pr.specialties.first : 'Unknown Specialty';
-
-    // Assign categories and custom cyberpunk colors based on specialties
-    String category = specialty.toUpperCase();
-    Color accentColor = PhiaColors.stepGreen;
-    String defaultImageUrl = 'assets/doctors/doctor_1.png'; // fall back
- 
-    if (category.contains('FAMILY') || category.contains('PRIMARY') || category.contains('MEDICINE') || category.contains('PRACTITIONER') || category.contains('GENERAL')) {
-      category = 'PRIMARY CARE';
-      accentColor = PhiaColors.stepGreen;
-      defaultImageUrl = 'assets/doctors/doctor_1.png';
-    } else if (category.contains('CARDIOLOGY') || category.contains('CARDIOVASCULAR') || category.contains('HEART')) {
-      category = 'CARDIOLOGY';
-      accentColor = PhiaColors.pulseRed;
-      defaultImageUrl = 'assets/doctors/doctor_2.png';
-    } else if (category.contains('ENDOCRINOLOGY') || category.contains('DIABETES') || category.contains('METABOLIC')) {
-      category = 'ENDOCRINOLOGY';
-      accentColor = PhiaColors.warningOrange;
-      defaultImageUrl = 'assets/doctors/doctor_3.png';
-    } else if (category.contains('NEUROLOGY') || category.contains('NEURO') || category.contains('BRAIN') || category.contains('COGNITIVE')) {
-      category = 'NEUROLOGY';
-      accentColor = PhiaColors.skyBlue;
-      defaultImageUrl = 'assets/doctors/doctor_4.png';
-    } else {
-      category = 'CLINICAL MEDICINE';
-      accentColor = Colors.white60;
-      defaultImageUrl = 'assets/doctors/doctor_5.png';
-    }
- 
-    final imageUrl = detail?.photoUrl ?? defaultImageUrl;
- 
-    // Availability text helper
-    String nextAvailable = 'ACTIVE SHIFT CALIBRATED';
-    if (pr.availability.isNotEmpty && pr.availability.first.availableTimes.isNotEmpty) {
-      final times = pr.availability.first.availableTimes.first;
-      final days = times.daysOfWeek.map((d) => d.toUpperCase()).join(', ');
-      nextAvailable = 'AVAILABLE:\n$days\n${times.availableStartTime ?? ''} - ${times.availableEndTime ?? ''}';
-    }
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Main bordered box container
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
-          child: Row(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Grayscale athlete portrait photo
-              Container(
-                width: 90,
-                height: 110,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  image: DecorationImage(
-                    image: getImageProvider(imageUrl, fallback: 'assets/doctors/doctor_1.png'),
+              // Doctor Avatar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  color: PhiaColors.surfaceSubtle,
+                  child: SafeNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 64,
+                    height: 64,
                     fit: BoxFit.cover,
-                    colorFilter: const ColorFilter.matrix(<double>[
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0,      0,      0,      1, 0,
-                    ]),
+                    fallbackIcon: Icons.person,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              // Right side info stack
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name.toUpperCase(),
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 22,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      specialty.toUpperCase(),
-                      style: GoogleFonts.inter(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withValues(alpha: 0.38),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Next available rectangular box with indicator dot
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              nextAvailable,
-                              style: GoogleFonts.inter(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        specialty.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: badgeColor,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // Large SELECT CTA Button
-                    GestureDetector(
-                      onTap: () {
-                        // Pass practitioner role details dynamically
-                        Navigator.pushNamed(
-                          context,
-                          '/booking_date_time',
-                          arguments: {
-                            'specialist': pr,
-                            'name': name,
-                            'role': specialty,
-                            'accentColor': accentColor,
-                            'imageUrl': imageUrl,
-                          },
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          border: Border.all(color: Colors.white),
-                        ),
-                        child: Center(
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Flexible(
                           child: Text(
-                            'SELECT',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 13,
-                              color: Colors.white,
-                              letterSpacing: 1.0,
+                            name,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: PhiaColors.navyAnchor,
                             ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.verified_rounded, size: 16, color: PhiaColors.primary),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFBBF24)),
+                        const SizedBox(width: 3),
+                        Text(
+                          '4.9',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: PhiaColors.navyAnchor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '(120+ clinical reviews)',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: PhiaColors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        ),
-        // Overlapping Category label positioned exactly over the top border
-        Positioned(
-          left: 12,
-          top: -8,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            color: Colors.black,
-            child: Text(
-              category,
-              style: GoogleFonts.inter(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                color: Colors.white.withValues(alpha: 0.4),
-                letterSpacing: 0.8,
+          const SizedBox(height: 14),
+          const Divider(color: PhiaColors.borderSubtle, height: 1),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: PhiaColors.activeGreen,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Available Today',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF15803D),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/booking_date_time',
+                    arguments: {
+                      'specialist': pr,
+                      'name': name,
+                      'role': specialty,
+                      'accentColor': badgeColor,
+                      'imageUrl': imageUrl,
+                    },
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: PhiaColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                ),
+                child: Text(
+                  'Book Visit',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

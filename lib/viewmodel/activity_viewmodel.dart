@@ -10,12 +10,22 @@ import '../../data/service/gps_location_sensor.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/vitals_repository.dart';
 import '../../data/service/notification_service.dart';
+import '../../data/service/ble_heart_rate_service.dart';
+import '../../data/service/open_wearables_service.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 class ActivityViewModel extends ChangeNotifier {
   final PedometerSensor pedometer;
   final GPSLocationSensor gps;
   final HealthRepository repository;
   final VitalsRepository vitalsRepository = VitalsRepository();
+  final BleHeartRateService bleService = BleHeartRateService();
+  final OpenWearablesService openWearablesService = OpenWearablesService();
+
+  // --- BLE & Smartwatch Telemetry State ---
+  StreamSubscription<int>? _bleHrSub;
+  StreamSubscription<double>? _bleHrvSub;
+  String? connectedBleDeviceName;
 
   // --- Live Steps State ---
   int liveSteps = 0;
@@ -28,8 +38,7 @@ class ActivityViewModel extends ChangeNotifier {
   // --- Sleep & Actigraphy State ---
   double liveSleep = 0.0;
   double dashboardSleep = 0.0;
-  bool isStill = false;
-  int _stillSeconds = 0;
+  double? dashboardSpo2;
   StreamSubscription<UserAccelerometerEvent>? _sleepAccSub;
   Timer? _actigraphyTimer;
 
@@ -53,6 +62,8 @@ class ActivityViewModel extends ChangeNotifier {
   // --- Dashboard Metrics Cache (SQLite Historical Reads) ---
   int dashboardSteps = 0;
   double dashboardHr = 0.0;
+  int? dashboardMinHr;
+  int? dashboardMaxHr;
   double dashboardHrv = 0.0;
   double dashboardDistanceKm = 0.0;
   int dashboardActiveTimeMins = 0;
@@ -69,6 +80,10 @@ class ActivityViewModel extends ChangeNotifier {
   DateTime _lastActiveCheckTime = DateTime.now();
   int _lastCheckSteps = 0;
 
+  // --- Open-Wearables / Health Connect Sync State ---
+  bool isOpenWearablesSynced = false;
+  String? syncedProviderName;
+
   // --- Dynamic Getters for 24/7 Calculations ---
   int get currentSteps => liveSteps > 0 ? liveSteps : dashboardSteps;
   int get currentActiveMins => liveActiveMins > 0 ? liveActiveMins : (dashboardActiveTimeMins > 0 ? dashboardActiveTimeMins : 0);
@@ -76,12 +91,88 @@ class ActivityViewModel extends ChangeNotifier {
   double get currentSleep => liveSleep > 0.0 ? liveSleep : (dashboardSleep > 0.0 ? dashboardSleep : 0.0);
   bool get isStepSensorFallback => pedometer.isUsingAccelerometer;
 
+  /// Energy Meter / Body Battery score computed from Sleep, Steps, and Activity (0-100)
+  int get energyMeterScore {
+    double score = 50.0; // Baseline
+    // Sleep contribution (up to +35 pts for 7-8h sleep)
+    final sleepH = currentSleep;
+    if (sleepH >= 7.0) {
+      score += 35.0;
+    } else if (sleepH > 0) {
+      score += (sleepH / 7.0) * 35.0;
+    } else {
+      score += 15.0; // Moderate default if sleep not yet tracked
+    }
+
+    // Step drain (more steps drain energy throughout the day)
+    final drain = (currentSteps / 10000.0) * 20.0;
+    score -= drain;
+
+    // Active minutes drain
+    final activeDrain = (currentActiveMins / 60.0) * 15.0;
+    score -= activeDrain;
+
+    return score.clamp(10, 100).round();
+  }
+
+  DateTime? _lastBleFhirSyncTime;
+
   ActivityViewModel({
     required this.pedometer,
     required this.gps,
     required this.repository,
   }) {
+    // Listen to real-time BLE Heart Rate packets (GATT 0x180D / 0x2A37)
+    _bleHrSub = bleService.heartRateStream.listen((bpm) {
+      if (bpm > 0) {
+        dashboardHr = bpm.toDouble();
+        _recordLiveBleHeartRate(bpm);
+        notifyListeners();
+      }
+    });
+
+    // Listen to real-time BLE HRV packets (RR-interval)
+    _bleHrvSub = bleService.hrvStream.listen((hrv) {
+      if (hrv > 0) {
+        dashboardHrv = hrv;
+        notifyListeners();
+      }
+    });
+
     initDashboard();
+  }
+
+  /// Store live BLE HR into local repository and throttle sync to FHIR server
+  void _recordLiveBleHeartRate(int bpm) async {
+    try {
+      final now = DateTime.now();
+      await repository.saveMetric(HealthMetric(
+        id: 'ble_hr_${now.millisecondsSinceEpoch}',
+        type: 'heart_rate',
+        value: bpm.toDouble(),
+        timestamp: now,
+      ));
+
+      // Throttle FHIR server POSTs to once every 15 seconds to avoid network spam
+      if (_lastBleFhirSyncTime == null || now.difference(_lastBleFhirSyncTime!).inSeconds >= 15) {
+        _lastBleFhirSyncTime = now;
+        final userId = await repository.getSetting('iam_user_id') ?? 'usr_demo_101';
+        final orgId = await repository.getSetting('iam_org_id') ?? 'org_drgodly_default';
+
+        await vitalsRepository.submitVitals(
+          VitalsRecord(
+            heartRate: bpm,
+            heartRateVariability: dashboardHrv > 0 ? dashboardHrv : null,
+          ),
+          userId: userId,
+          orgId: orgId,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Error recording live BLE HR: $e');
+      }
+    }
   }
 
   Future<void> requestHardwarePermissions() async {
@@ -185,7 +276,8 @@ class ActivityViewModel extends ChangeNotifier {
       liveActiveMins = dashboardActiveTimeMins;
 
       final sleep = await repository.getRecentMetrics('sleep');
-      dashboardSleep = sleep.isNotEmpty ? _getTodayMetricValue(sleep) : 0.0;
+      final double sleepVal = sleep.isNotEmpty ? _getTodayMetricValue(sleep) : 0.0;
+      dashboardSleep = (sleepVal > 0 && sleepVal <= 18.0) ? sleepVal : 0.0;
 
       final calories = await repository.getRecentMetrics('calories');
       dashboardCalories = calories.isNotEmpty ? _getTodayMetricValue(calories) : 0.0;
@@ -244,6 +336,9 @@ class ActivityViewModel extends ChangeNotifier {
         print('[ActivityViewModel] Failed to hydrate dashboard from FHIR vitals: $e');
       }
     }
+
+    // 3. Auto-query Health Connect on launch so fresh watch vitals immediately reflect on dashboard
+    syncOpenWearablesVitals('Android Health Connect');
 
     // Run vitals warning checks against thresholds
     await checkVitalsThresholds();
@@ -352,6 +447,10 @@ class ActivityViewModel extends ChangeNotifier {
       await pedometer.startSensor();
       int lastSteps = -1;
       _stepsSub = pedometer.dataStream.listen((sessionSteps) async {
+        // If watch data has synced via Health Connect, prioritize watch steps!
+        if (isOpenWearablesSynced && dashboardSteps > 0) {
+          return;
+        }
         liveSteps = _todayStepsBase + sessionSteps;
         
         final now = DateTime.now();
@@ -534,54 +633,17 @@ class ActivityViewModel extends ChangeNotifier {
   Future<void> startSleepTracking() async {
     await _sleepAccSub?.cancel();
     _actigraphyTimer?.cancel();
-    
-    _stillSeconds = 0;
     liveSleep = 0.0;
-    isStill = false;
     
-    // Read previous sleep from database if any
+    // Read previous genuine sleep from database if any
     final sleepRecords = await repository.getRecentMetrics('sleep');
-    if (sleepRecords.isNotEmpty) {
-      dashboardSleep = sleepRecords.first.value;
+    final genuineSleep = sleepRecords.where((r) => r.value > 0.0 && r.value <= 18.0).toList();
+    if (genuineSleep.isNotEmpty) {
+      dashboardSleep = genuineSleep.first.value;
     } else {
-      dashboardSleep = 7.3; // Faded/simulated baseline
+      dashboardSleep = 0.0; // Clean initial state - strictly reflects watch sync
     }
-    
-    try {
-      _sleepAccSub = userAccelerometerEventStream().listen((UserAccelerometerEvent event) {
-        double mag = event.x * event.x + event.y * event.y + event.z * event.z;
-        // Phone is completely still if motion magnitude is extremely close to zero
-        isStill = mag < 0.05;
-      });
-      
-      // Periodically sample still state every second
-      _actigraphyTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-        if (isStill) {
-          _stillSeconds++;
-          if (_stillSeconds >= 5) {
-            liveSleep += 0.05; // 0.05 hrs per second (rapid progression for testing)
-            
-            // Save sleep log to SQLite occasionally
-            if (_stillSeconds % 10 == 0) {
-              await repository.saveMetric(HealthMetric(
-                id: 'sleep_${DateTime.now().millisecondsSinceEpoch}',
-                type: 'sleep',
-                value: liveSleep,
-                timestamp: DateTime.now(),
-              ));
-            }
-          }
-        } else {
-          // Device moved, reset actigraphy session stillness
-          _stillSeconds = 0;
-        }
-        notifyListeners();
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to start sleep actigraphy: $e');
-      }
-    }
+    notifyListeners();
   }
 
   Future<void> _seedHistoricalDataIfEmpty() async {
@@ -761,8 +823,99 @@ class ActivityViewModel extends ChangeNotifier {
     repository.uploadPendingMetrics();
   }
 
+  // --- Bluetooth LE & Open-Wearables Integration Methods ---
+
+  /// Connect to a nearby Bluetooth smartwatch (boAt, Fire-Boltt, Noise, etc.)
+  Future<bool> connectBleDevice(BluetoothDevice device) async {
+    final success = await bleService.connect(device);
+    if (success) {
+      connectedBleDeviceName = device.platformName.isNotEmpty ? device.platformName : 'Smartwatch';
+      notifyListeners();
+    }
+    return success;
+  }
+
+  /// Disconnect current active Bluetooth smartwatch
+  Future<void> disconnectBleDevice() async {
+    await bleService.disconnect();
+    connectedBleDeviceName = null;
+    notifyListeners();
+  }
+
+  /// Synchronize rich biometrics and sleep stages from Open-Wearables / Health Connect providers
+  /// and stream the normalized payload to the live FHIR server
+  /// Returns true if real records were fetched and synced, false otherwise
+  Future<bool> syncOpenWearablesVitals([String? providerName]) async {
+    try {
+      final userId = await repository.getSetting('iam_user_id') ?? 'usr_demo_101';
+      final orgId = await repository.getSetting('iam_org_id') ?? 'org_drgodly_default';
+
+      final cloudVitals = await openWearablesService.fetchLatestVitals(userId: userId, orgId: orgId);
+      if (cloudVitals != null) {
+        // Update Resting HR or HR
+        if (cloudVitals.restingHeartRate != null && cloudVitals.restingHeartRate! > 0) {
+          dashboardHr = cloudVitals.restingHeartRate!.toDouble();
+        } else if (cloudVitals.heartRate != null && cloudVitals.heartRate! > 0) {
+          dashboardHr = cloudVitals.heartRate!.toDouble();
+        }
+
+        dashboardMinHr = cloudVitals.minHeartRate;
+        dashboardMaxHr = cloudVitals.maxHeartRate;
+
+        if (cloudVitals.heartRateVariability != null) {
+          dashboardHrv = cloudVitals.heartRateVariability!;
+        }
+
+        if (cloudVitals.sleepMinutes != null) {
+          liveSleep = cloudVitals.sleepMinutes! / 60.0;
+          dashboardSleep = liveSleep;
+        }
+
+        if (cloudVitals.steps != null && cloudVitals.steps! > 0) {
+          dashboardSteps = cloudVitals.steps!;
+          liveSteps = cloudVitals.steps!;
+        }
+
+        if (cloudVitals.caloriesKcal != null && cloudVitals.caloriesKcal! > 0) {
+          dashboardCalories = cloudVitals.caloriesKcal!;
+        }
+
+        if (cloudVitals.oxygenSaturation != null && cloudVitals.oxygenSaturation! > 0) {
+          dashboardSpo2 = cloudVitals.oxygenSaturation!;
+        }
+
+        isOpenWearablesSynced = true;
+        syncedProviderName = providerName ?? 'Android Health Connect';
+
+        // Persist heart rate metric locally
+        final now = DateTime.now();
+        if (dashboardHr > 0) {
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_hr_${now.millisecondsSinceEpoch}',
+            type: 'heart_rate',
+            value: dashboardHr,
+            timestamp: now,
+          ));
+        }
+
+        // Stream merged vitals record to FHIR Server with exact, unchanged schema
+        await vitalsRepository.submitVitals(cloudVitals, userId: userId, orgId: orgId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Open-Wearables sync error: $e');
+      }
+      return false;
+    }
+  }
+
   @override
   void dispose() {
+    _bleHrSub?.cancel();
+    _bleHrvSub?.cancel();
     _stepsSub?.cancel();
     _gpsSub?.cancel();
     _stopwatchTimer?.cancel();

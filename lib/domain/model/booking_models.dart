@@ -91,9 +91,16 @@ class PractitionerDetail {
   });
 
   factory PractitionerDetail.fromJson(Map<String, dynamic> json) {
-    // Parse name text
+    // Parse name text (handle both List and Map formats from FHIR Middleware)
     String nameText = 'Attending Specialist';
-    final nameMap = json['name'] as Map<String, dynamic>?;
+    dynamic rawName = json['name'];
+    Map<String, dynamic>? nameMap;
+    if (rawName is List && rawName.isNotEmpty && rawName.first is Map) {
+      nameMap = Map<String, dynamic>.from(rawName.first as Map);
+    } else if (rawName is Map<String, dynamic>) {
+      nameMap = rawName;
+    }
+    
     if (nameMap != null) {
       if (nameMap['text'] != null && nameMap['text'].toString().isNotEmpty) {
         nameText = nameMap['text'].toString();
@@ -105,8 +112,8 @@ class PractitionerDetail {
       }
     }
 
-    // Parse qualifications
-    final qualList = json['qualifications'] as List?;
+    // Parse qualifications (support both 'qualification' and 'qualifications')
+    final qualList = (json['qualifications'] ?? json['qualification']) as List?;
     final quals = <PractitionerQualification>[];
     if (qualList != null) {
       for (var q in qualList) {
@@ -120,7 +127,7 @@ class PractitionerDetail {
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       gender: json['gender'],
       fullName: nameText,
-      photoUrl: json['photo_url'],
+      photoUrl: json['photo_url'] ?? json['photo'],
       qualifications: quals,
     );
   }
@@ -136,8 +143,8 @@ class PractitionerQualification {
   factory PractitionerQualification.fromJson(Map<String, dynamic> json) {
     return PractitionerQualification(
       code: json['code'],
-      display: json['display'],
-      text: json['text'],
+      display: json['display'] ?? json['code_display'],
+      text: json['text'] ?? json['code_display'] ?? json['display'],
     );
   }
 }
@@ -189,5 +196,49 @@ class AvailableTimeSlot {
       availableStartTime: json['available_start_time'],
       availableEndTime: json['available_end_time'],
     );
+  }
+}
+
+class BookingSlot {
+  final int id;
+  final String status;
+  final String start;
+  final String end;
+
+  BookingSlot({
+    required this.id,
+    required this.status,
+    required this.start,
+    required this.end,
+  });
+
+  factory BookingSlot.fromJson(Map<String, dynamic> json) {
+    return BookingSlot(
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      status: json['status']?.toString() ?? 'free',
+      start: json['start']?.toString() ?? '',
+      end: json['end']?.toString() ?? '',
+    );
+  }
+
+  /// Get local start DateTime
+  DateTime? get startDateTime {
+    if (start.isEmpty) return null;
+    try {
+      return DateTime.parse(start).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Formatted slot time string e.g. "09:30 AM"
+  String get displayTime {
+    final dt = startDateTime;
+    if (dt == null) return '';
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '${h12.toString().padLeft(2, '0')}:$minute $period';
   }
 }

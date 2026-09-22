@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/theme/colors.dart';
 import 'core/theme/typography.dart';
 import 'data/repository/health_repository.dart';
 import 'data/repository/profile_repository.dart';
@@ -86,8 +87,36 @@ class PhiaApp extends StatelessWidget {
       title: 'DRGODLY',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: PhiaColors.background,
+        colorScheme: const ColorScheme.light(
+          primary: PhiaColors.primary,
+          secondary: PhiaColors.primaryCard,
+          surface: PhiaColors.surface,
+          error: PhiaColors.pulseRed,
+          onPrimary: Colors.white,
+          onSurface: PhiaColors.textPrimary,
+        ),
+        cardTheme: CardThemeData(
+          color: PhiaColors.surface,
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: PhiaColors.borderSubtle, width: 1),
+          ),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: PhiaColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.white),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         textTheme: PhiaTypography.textTheme,
         useMaterial3: true,
       ),

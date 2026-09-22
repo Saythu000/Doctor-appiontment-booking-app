@@ -179,13 +179,38 @@ class FhirApiClient {
           }
           return handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
           if (kDebugMode) {
             print('[FHIR API] ERROR [${e.response?.statusCode}]: ${e.message}');
             if (e.response?.data != null) {
               print('[FHIR API] ERROR RESPONSE: ${e.response?.data}');
             }
           }
+
+          // If token expired and a refresher is registered, refresh token and retry request once
+          final errBody = e.response?.data?.toString() ?? '';
+          if (e.response?.statusCode == 401 &&
+              (errBody.contains('Token expired') || errBody.contains('expired')) &&
+              _tokenRefresher != null) {
+            try {
+              if (kDebugMode) {
+                print('[FHIR API] Token expired. Invoking automatic token refresh...');
+              }
+              final freshToken = await _tokenRefresher!();
+              if (freshToken != null && freshToken.isNotEmpty) {
+                _token = freshToken;
+                final retryOptions = e.requestOptions;
+                retryOptions.headers['Authorization'] = 'Bearer $freshToken';
+                final response = await _dio.fetch(retryOptions);
+                return handler.resolve(response);
+              }
+            } catch (refreshErr) {
+              if (kDebugMode) {
+                print('[FHIR API] Token refresh during retry failed: $refreshErr');
+              }
+            }
+          }
+
           return handler.next(e);
         },
       ),
@@ -193,17 +218,23 @@ class FhirApiClient {
   }
 
   late final Dio _dio;
-  String _baseUrl = 'http://10.0.2.2:8000'; // Default Android Emulator fallback
+  String _baseUrl = 'https://fhirgql.drgodly.com'; // Production FHIR Middleware API
   String? _token;
-  bool _isLiveMode = false;
+  bool _isLiveMode = true;
+  Future<String?> Function()? _tokenRefresher;
 
   Dio get client => _dio;
   String get baseUrl => _baseUrl;
   String? get token => _token;
   bool get isLiveMode => _isLiveMode;
 
+  /// Register callback to refresh JWT token on 401 expiry
+  void setTokenRefresher(Future<String?> Function() refresher) {
+    _tokenRefresher = refresher;
+  }
+
   /// Configure local server address and active auth JWT Token
-  void configure({required String baseUrl, String? token, bool isLiveMode = false}) {
+  void configure({required String baseUrl, String? token, bool isLiveMode = true}) {
     _baseUrl = baseUrl.trim();
     _dio.options.baseUrl = _baseUrl;
     _token = token;

@@ -53,3 +53,82 @@ class UserHeaderAvatar extends StatelessWidget {
     );
   }
 }
+
+/// Safe Network Image that handles errors gracefully without throwing UI exceptions
+class SafeNetworkImage extends StatelessWidget {
+  final String imageUrl;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final IconData fallbackIcon;
+
+  const SafeNetworkImage({
+    super.key,
+    required this.imageUrl,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.fallbackIcon = Icons.person,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: const Color(0xFFF1F5F9),
+        child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+      );
+    }
+
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFF1F5F9),
+            child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+          );
+        },
+      );
+    }
+
+    if (imageUrl.startsWith('/') || imageUrl.contains('/data/user/') || imageUrl.contains('cache')) {
+      return Image.file(
+        File(imageUrl),
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFFF1F5F9),
+            child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: width,
+          height: height,
+          color: const Color(0xFFF1F5F9),
+          child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+        );
+      },
+    );
+  }
+}
