@@ -38,6 +38,10 @@ class ActivityViewModel extends ChangeNotifier {
   // --- Sleep & Actigraphy State ---
   double liveSleep = 0.0;
   double dashboardSleep = 0.0;
+  int deepSleepMinutes = 0;
+  int lightSleepMinutes = 0;
+  int remSleepMinutes = 0;
+  int awakeMinutes = 0;
   double? dashboardSpo2;
   StreamSubscription<UserAccelerometerEvent>? _sleepAccSub;
   Timer? _actigraphyTimer;
@@ -85,7 +89,12 @@ class ActivityViewModel extends ChangeNotifier {
   String? syncedProviderName;
 
   // --- Dynamic Getters for 24/7 Calculations ---
-  int get currentSteps => liveSteps > 0 ? liveSteps : dashboardSteps;
+  // If synced from wearable / Health Connect or dashboard has steps, prioritize that over raw phone accelerometer noise
+  int get currentSteps => (isOpenWearablesSynced && dashboardSteps > 0)
+      ? dashboardSteps
+      : (dashboardSteps > 0
+          ? dashboardSteps
+          : (liveSteps > 0 ? liveSteps : 0));
   int get currentActiveMins => liveActiveMins > 0 ? liveActiveMins : (dashboardActiveTimeMins > 0 ? dashboardActiveTimeMins : 0);
   int get currentCalories => (currentSteps * userWeight * 0.0005 + currentActiveMins * 4.0 * (userWeight / 70.0)).toInt();
   double get currentSleep => liveSleep > 0.0 ? liveSleep : (dashboardSleep > 0.0 ? dashboardSleep : 0.0);
@@ -869,6 +878,10 @@ class ActivityViewModel extends ChangeNotifier {
         if (cloudVitals.sleepMinutes != null) {
           liveSleep = cloudVitals.sleepMinutes! / 60.0;
           dashboardSleep = liveSleep;
+          deepSleepMinutes = cloudVitals.deepSleepMinutes ?? 0;
+          lightSleepMinutes = cloudVitals.lightSleepMinutes ?? 0;
+          remSleepMinutes = cloudVitals.remSleepMinutes ?? 0;
+          awakeMinutes = cloudVitals.awakeMinutes ?? 0;
         }
 
         if (cloudVitals.steps != null && cloudVitals.steps! > 0) {

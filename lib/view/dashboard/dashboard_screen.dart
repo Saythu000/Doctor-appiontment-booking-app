@@ -753,10 +753,12 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
+                child: InkWell(
+                  onTap: () => onTabSelected?.call(1),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
                       // Concentric Progress Painter
                       SizedBox(
                         width: 110,
@@ -811,6 +813,7 @@ class DashboardScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
               ),
               const SizedBox(height: 16),
 

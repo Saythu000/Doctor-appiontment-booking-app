@@ -128,6 +128,13 @@ class VitalsRecord {
   }
 
   Map<String, dynamic> toJson() {
+    // Backend enforces sleep minutes <= 1440 (24h)
+    final clampedSleep = sleepMinutes?.clamp(0, 1440);
+    final clampedLight = lightSleepMinutes?.clamp(0, 1440);
+    final clampedDeep = deepSleepMinutes?.clamp(0, 1440);
+    final clampedRem = remSleepMinutes?.clamp(0, 1440);
+    final clampedAwake = awakeMinutes?.clamp(0, 1440);
+
     return {
       if (steps != null) 'steps': steps,
       if (caloriesKcal != null) 'calories_kcal': caloriesKcal,
@@ -141,18 +148,15 @@ class VitalsRecord {
       if (peakActiveZoneMinutes != null) 'peak_active_zone_minutes': peakActiveZoneMinutes,
       if (restingHeartRate != null) 'resting_heart_rate': restingHeartRate,
       if (heartRate != null) 'heart_rate': heartRate,
-      if (minHeartRate != null) 'min_heart_rate': minHeartRate,
-      if (maxHeartRate != null) 'max_heart_rate': maxHeartRate,
       if (heartRateVariability != null) 'heart_rate_variability': heartRateVariability,
       'stress_management_score': stressManagementScore,
       'blood_pressure_systolic': bloodPressureSystolic,
       'blood_pressure_diastolic': bloodPressureDiastolic,
-      if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
-      if (sleepMinutes != null) 'sleep_minutes': sleepMinutes,
-      if (remSleepMinutes != null) 'rem_sleep_minutes': remSleepMinutes,
-      if (deepSleepMinutes != null) 'deep_sleep_minutes': deepSleepMinutes,
-      if (lightSleepMinutes != null) 'light_sleep_minutes': lightSleepMinutes,
-      if (awakeMinutes != null) 'awake_minutes': awakeMinutes,
+      if (clampedSleep != null) 'sleep_minutes': clampedSleep,
+      if (clampedRem != null) 'rem_sleep_minutes': clampedRem,
+      if (clampedDeep != null) 'deep_sleep_minutes': clampedDeep,
+      if (clampedLight != null) 'light_sleep_minutes': clampedLight,
+      if (clampedAwake != null) 'awake_minutes': clampedAwake,
       if (bedTime != null) 'bed_time': bedTime,
       if (wakeUpTime != null) 'wake_up_time': wakeUpTime,
       if (deepSleepPercent != null) 'deep_sleep_percent': deepSleepPercent,

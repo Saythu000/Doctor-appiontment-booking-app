@@ -115,7 +115,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                   iconColor: const Color(0xFF4BAAE5),
                   iconBg: PhiaColors.primaryLight,
                   label: 'Heart Rate Var.',
-                  value: activityVM.dashboardHrv > 0 ? '${activityVM.dashboardHrv.toStringAsFixed(0)} ms' : '58 ms',
+                  value: activityVM.dashboardHrv > 0 ? '${activityVM.dashboardHrv.toStringAsFixed(0)} ms' : '--',
                 ),
               ],
             ),
@@ -193,7 +193,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} BPM RESTING' : 'RESTING 64 BPM',
+                  activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} BPM RESTING' : 'SPOT READING',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -209,18 +209,18 @@ class ActivityTrackingScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildMiniHeartMetric('Min HR', '${activityVM.dashboardMinHr ?? 54} bpm', const Color(0xFF15803D)),
+                        _buildMiniHeartMetric('Min HR', activityVM.dashboardMinHr != null ? '${activityVM.dashboardMinHr} bpm' : (activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--'), const Color(0xFF15803D)),
                         Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Avg HR', '${activityVM.dashboardHr > 0 ? activityVM.dashboardHr.toInt() : 72} bpm', PhiaColors.navyAnchor),
+                        _buildMiniHeartMetric('Avg HR', activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--', PhiaColors.navyAnchor),
                         Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Max HR', '${activityVM.dashboardMaxHr ?? 126} bpm', PhiaColors.pulseRed),
+                        _buildMiniHeartMetric('Max HR', activityVM.dashboardMaxHr != null ? '${activityVM.dashboardMaxHr} bpm' : (activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--'), PhiaColors.pulseRed),
                       ],
                     ),
                     const SizedBox(height: 18),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     const SizedBox(height: 14),
                     Text(
-                      '24-Hour Heart Rate Range & Trend',
+                      'Live Heart Rate Trend',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -232,9 +232,9 @@ class ActivityTrackingScreen extends StatelessWidget {
                       height: 80,
                       child: CustomPaint(
                         painter: IntradayHrCurvePainter(
-                          currentBpm: activityVM.dashboardHr > 0 ? activityVM.dashboardHr : 72.0,
-                          minBpm: (activityVM.dashboardMinHr ?? 54).toDouble(),
-                          maxBpm: (activityVM.dashboardMaxHr ?? 126).toDouble(),
+                          currentBpm: activityVM.dashboardHr,
+                          minBpm: (activityVM.dashboardMinHr ?? (activityVM.dashboardHr > 0 ? activityVM.dashboardHr : 60)).toDouble(),
+                          maxBpm: (activityVM.dashboardMaxHr ?? (activityVM.dashboardHr > 0 ? activityVM.dashboardHr : 100)).toDouble(),
                         ),
                       ),
                     ),
@@ -254,7 +254,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  activityVM.currentSleep > 0 ? '${activityVM.currentSleep.toStringAsFixed(1)}H SLEEP' : 'SYNCED',
+                  activityVM.currentSleep > 0 ? '${activityVM.currentSleep.toStringAsFixed(1)}H SLEEP' : 'PENDING SYNC',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -264,46 +264,100 @@ class ActivityTrackingScreen extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        _buildSleepStageLegend('Deep', const Color(0xFF1E3A8A)),
-                        const SizedBox(width: 12),
-                        _buildSleepStageLegend('Light', const Color(0xFF60A5FA)),
-                        const SizedBox(width: 12),
-                        _buildSleepStageLegend('REM', const Color(0xFF818CF8)),
-                        const SizedBox(width: 12),
-                        _buildSleepStageLegend('Awake', const Color(0xFFFCA5A5)),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: SizedBox(
-                        height: 14,
-                        child: Row(
+                child: activityVM.currentSleep <= 0
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        alignment: Alignment.center,
+                        child: Column(
                           children: [
-                            Expanded(flex: 22, child: Container(color: const Color(0xFF1E3A8A))), // Deep 22%
-                            Expanded(flex: 50, child: Container(color: const Color(0xFF60A5FA))), // Light 50%
-                            Expanded(flex: 20, child: Container(color: const Color(0xFF818CF8))), // REM 20%
-                            Expanded(flex: 8, child: Container(color: const Color(0xFFFCA5A5))),  // Awake 8%
+                            const Icon(Icons.bedtime_outlined, size: 36, color: PhiaColors.textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No Sleep Recorded Yet Today',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: PhiaColors.navyAnchor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Wear your connected smartwatch to bed to record deep, light, and REM sleep architecture.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: PhiaColors.textMuted,
+                              ),
+                            ),
                           ],
                         ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              _buildSleepStageLegend('Deep', const Color(0xFF1E3A8A)),
+                              const SizedBox(width: 12),
+                              _buildSleepStageLegend('Light', const Color(0xFF60A5FA)),
+                              const SizedBox(width: 12),
+                              _buildSleepStageLegend('REM', const Color(0xFF818CF8)),
+                              const SizedBox(width: 12),
+                              _buildSleepStageLegend('Awake', const Color(0xFFFCA5A5)),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: SizedBox(
+                              height: 14,
+                              child: Builder(
+                                builder: (context) {
+                                  final totalMin = (activityVM.currentSleep * 60).round();
+                                  final deep = activityVM.deepSleepMinutes > 0 ? activityVM.deepSleepMinutes : (totalMin * 0.22).round();
+                                  final light = activityVM.lightSleepMinutes > 0 ? activityVM.lightSleepMinutes : (totalMin * 0.50).round();
+                                  final rem = activityVM.remSleepMinutes > 0 ? activityVM.remSleepMinutes : (totalMin * 0.20).round();
+                                  final awake = activityVM.awakeMinutes > 0 ? activityVM.awakeMinutes : (totalMin * 0.08).round();
+                                  final sum = (deep + light + rem + awake).clamp(1, 99999);
+
+                                  return Row(
+                                    children: [
+                                      Expanded(flex: (deep * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF1E3A8A))),
+                                      Expanded(flex: (light * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF60A5FA))),
+                                      Expanded(flex: (rem * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF818CF8))),
+                                      Expanded(flex: (awake * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFFFCA5A5))),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Builder(
+                            builder: (context) {
+                              final totalMin = (activityVM.currentSleep * 60).round();
+                              final deep = activityVM.deepSleepMinutes > 0 ? activityVM.deepSleepMinutes : (totalMin * 0.22).round();
+                              final light = activityVM.lightSleepMinutes > 0 ? activityVM.lightSleepMinutes : (totalMin * 0.50).round();
+                              final rem = activityVM.remSleepMinutes > 0 ? activityVM.remSleepMinutes : (totalMin * 0.20).round();
+
+                              String formatM(int m) {
+                                final h = m ~/ 60;
+                                final min = m % 60;
+                                return h > 0 ? '${h}h ${min}m' : '${min}m';
+                              }
+
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Deep: ${formatM(deep)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
+                                  Text('Light: ${formatM(light)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
+                                  Text('REM: ${formatM(rem)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Deep: 1h 35m', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                        Text('Light: 3h 40m', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                        Text('REM: 1h 25m', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -325,7 +379,7 @@ class ActivityTrackingScreen extends StatelessWidget {
         border: Border.all(color: PhiaColors.borderSubtle, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -374,7 +428,7 @@ class ActivityTrackingScreen extends StatelessWidget {
         border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -461,13 +515,25 @@ class ActivityTrackingScreen extends StatelessWidget {
 
   List<int> _generateIntradaySteps(int totalSteps) {
     if (totalSteps <= 0) return List.filled(24, 0);
-    const weights = [
-      0.005, 0.002, 0.001, 0.001, 0.002, 0.015,
-      0.065, 0.095, 0.080, 0.055, 0.045, 0.060,
-      0.085, 0.070, 0.050, 0.045, 0.065, 0.095,
-      0.090, 0.070, 0.045, 0.025, 0.015, 0.005,
-    ];
-    return weights.map((w) => (totalSteps * w).round()).toList();
+    final list = List.filled(24, 0);
+    final nowHour = DateTime.now().hour.clamp(0, 23);
+    
+    // Distribute total actual steps realistically across the hours up to the current hour
+    if (nowHour == 0) {
+      list[0] = totalSteps;
+    } else {
+      // Allocate the real recorded steps across waking hours up to now
+      final activeHoursCount = (nowHour >= 6 ? (nowHour - 6 + 1) : 1).clamp(1, 24);
+      final avg = totalSteps ~/ activeHoursCount;
+      final remainder = totalSteps % activeHoursCount;
+      
+      int startH = nowHour >= 6 ? 6 : 0;
+      for (int h = startH; h <= nowHour; h++) {
+        list[h] = avg;
+      }
+      list[nowHour] += remainder;
+    }
+    return list;
   }
 }
 
@@ -604,19 +670,31 @@ class IntradayHrCurvePainter extends CustomPainter {
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
-    canvas.drawLine(Offset(0, size.height * 0.2), Offset(size.width, size.height * 0.2), dashPaint);
+    canvas.drawLine(Offset(0, size.height * 0.25), Offset(size.width, size.height * 0.25), dashPaint);
     canvas.drawLine(Offset(0, size.height * 0.5), Offset(size.width, size.height * 0.5), dashPaint);
-    canvas.drawLine(Offset(0, size.height * 0.8), Offset(size.width, size.height * 0.8), dashPaint);
+    canvas.drawLine(Offset(0, size.height * 0.75), Offset(size.width, size.height * 0.75), dashPaint);
 
+    if (currentBpm <= 0) {
+      // Flat idle line
+      final idlePaint = Paint()
+        ..color = PhiaColors.textMuted.withValues(alpha: 0.4)
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(Offset(0, size.height * 0.5), Offset(size.width, size.height * 0.5), idlePaint);
+      return;
+    }
+
+    // Dynamic spot or continuous baseline
+    final normalizedY = (size.height * 0.55).clamp(size.height * 0.2, size.height * 0.8);
     final points = [
-      Offset(0, size.height * 0.65),
-      Offset(size.width * 0.15, size.height * 0.75),
-      Offset(size.width * 0.30, size.height * 0.55),
-      Offset(size.width * 0.45, size.height * 0.40),
-      Offset(size.width * 0.60, size.height * 0.60),
-      Offset(size.width * 0.75, size.height * 0.30),
-      Offset(size.width * 0.90, size.height * 0.50),
-      Offset(size.width, size.height * 0.45),
+      Offset(0, normalizedY),
+      Offset(size.width * 0.25, normalizedY),
+      Offset(size.width * 0.35, normalizedY - 14),
+      Offset(size.width * 0.45, normalizedY + 18),
+      Offset(size.width * 0.55, normalizedY - 24),
+      Offset(size.width * 0.65, normalizedY),
+      Offset(size.width * 0.85, normalizedY),
+      Offset(size.width, normalizedY),
     ];
 
     final path = Path();
@@ -638,7 +716,7 @@ class IntradayHrCurvePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          PhiaColors.pulseRed.withValues(alpha: 0.25),
+          PhiaColors.pulseRed.withValues(alpha: 0.20),
           PhiaColors.pulseRed.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
@@ -652,7 +730,7 @@ class IntradayHrCurvePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
 
-    final lastPoint = points[points.length - 2];
+    final lastPoint = points[points.length - 3];
     final dotPaint = Paint()..color = PhiaColors.pulseRed..style = PaintingStyle.fill;
     final dotWhite = Paint()..color = Colors.white..style = PaintingStyle.fill;
     canvas.drawCircle(lastPoint, 5, dotPaint);

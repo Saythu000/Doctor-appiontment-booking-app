@@ -93,6 +93,7 @@ class OpenWearablesService {
   String _host = 'https://api.openwearables.io'; // Configurable Open-Wearables host
   String? _accessToken;
   String? _userId;
+  String? get currentUserId => _userId;
 
   // Active connected providers cache
   final Map<WearableProviderType, ProviderConnectionInfo> _connections = {
@@ -172,6 +173,7 @@ class OpenWearablesService {
   Future<VitalsRecord?> fetchLatestVitals({required String userId, required String orgId}) async {
     final now = DateTime.now();
     final todayStr = now.toIso8601String().split('T')[0];
+    final todayStart = DateTime(now.year, now.month, now.day);
 
     // Query REAL on-device data from Android Health Connect
     try {
@@ -261,17 +263,23 @@ class OpenWearablesService {
               realSpo2 = val;
             }
           } else if (dp.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-            if (dp.value is NumericHealthValue) {
+            if (dp.value is NumericHealthValue && dp.dateFrom.isAfter(todayStart)) {
               realCalories += (dp.value as NumericHealthValue).numericValue.toDouble();
             }
           } else if (dp.type == HealthDataType.DISTANCE_WALKING_RUNNING) {
-            if (dp.value is NumericHealthValue) {
+            if (dp.value is NumericHealthValue && dp.dateFrom.isAfter(todayStart)) {
               realDistance += (dp.value as NumericHealthValue).numericValue.toDouble();
             }
           } else if (dp.type == HealthDataType.SLEEP_SESSION || dp.type == HealthDataType.SLEEP_ASLEEP) {
-            realSleepMinutes += dp.dateTo.difference(dp.dateFrom).inMinutes;
+            // Only aggregate sleep ending today or after last night (18:00 yesterday)
+            final lastEvening = todayStart.subtract(const Duration(hours: 6));
+            if (dp.dateTo.isAfter(lastEvening)) {
+              realSleepMinutes += dp.dateTo.difference(dp.dateFrom).inMinutes;
+            }
           }
         }
+
+        realSleepMinutes = realSleepMinutes.clamp(0, 1440);
 
         try {
           final midnight = DateTime(now.year, now.month, now.day);
