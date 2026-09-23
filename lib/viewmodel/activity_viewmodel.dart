@@ -87,6 +87,7 @@ class ActivityViewModel extends ChangeNotifier {
   // --- Open-Wearables / Health Connect Sync State ---
   bool isOpenWearablesSynced = false;
   String? syncedProviderName;
+  Timer? _autoSyncTimer;
 
   // --- Dynamic Getters for 24/7 Calculations ---
   // If synced from wearable / Health Connect or dashboard has steps, prioritize that over raw phone accelerometer noise
@@ -348,6 +349,15 @@ class ActivityViewModel extends ChangeNotifier {
 
     // 3. Auto-query Health Connect on launch so fresh watch vitals immediately reflect on dashboard
     syncOpenWearablesVitals('Android Health Connect');
+
+    // Setup seamless recurring auto-sync (every 10 minutes) so telemetry stays updated automatically
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Triggering automatic periodic wearable sync...');
+      }
+      syncOpenWearablesVitals('Android Health Connect');
+    });
 
     // Run vitals warning checks against thresholds
     await checkVitalsThresholds();
@@ -934,6 +944,7 @@ class ActivityViewModel extends ChangeNotifier {
     _stopwatchTimer?.cancel();
     _sleepAccSub?.cancel();
     _actigraphyTimer?.cancel();
+    _autoSyncTimer?.cancel();
     super.dispose();
   }
 }

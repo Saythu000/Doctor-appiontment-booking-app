@@ -237,6 +237,11 @@ class BookingViewModel extends ChangeNotifier {
           final id = appt['id']?.toString() ?? '';
           if (id.isEmpty) continue;
 
+          final status = appt['status']?.toString().toLowerCase() ?? '';
+          if (status == 'cancelled' || status == 'canceled' || status == 'entered-in-error' || status == 'noshow') {
+            continue;
+          }
+
           String practitionerName = 'Attending Specialist';
           final participants = appt['participant'] as List?;
           if (participants != null) {
@@ -328,8 +333,38 @@ class BookingViewModel extends ChangeNotifier {
       }
     }
     await healthRepository.deleteAppointment(id);
+
+    // Clear cached last booking from profile if it matches this cancelled appointment
+    final lastBookedId = await healthRepository.getProfileValue('last_booking_id');
+    if (lastBookedId == id || lastBookingConfirmed?['appointment_id'] == id) {
+      await healthRepository.saveProfileValue('last_booking_practitioner', '');
+      await healthRepository.saveProfileValue('last_booking_start', '');
+      await healthRepository.saveProfileValue('last_booking_type', '');
+      await healthRepository.saveProfileValue('last_booking_id', '');
+      lastBookingConfirmed = null;
+    }
+
     final int notificationId = id.hashCode.abs() % 100000;
     await NotificationService.instance.cancelNotification(notificationId);
     await fetchAppointments();
+    notifyListeners();
+  }
+
+  /// Helper to find matching PractitionerRoleBooking for an appointment record
+  PractitionerRoleBooking? findSpecialistForAppointment(Map<String, dynamic> appt) {
+    final docName = (appt['practitioner_name'] ?? '').toString().toLowerCase();
+    for (final s in specialists) {
+      final specDisplay = (s.practitionerDisplay ?? '').toLowerCase();
+      if (specDisplay.isEmpty) continue;
+      if (docName.isNotEmpty && (docName.contains(specDisplay) || specDisplay.contains(docName))) {
+        return s;
+      }
+      final parts = docName.split(' ');
+      if (parts.length > 1 && specDisplay.contains(parts.last.toLowerCase())) {
+        return s;
+      }
+    }
+    if (specialists.isNotEmpty) return specialists.first;
+    return null;
   }
 }

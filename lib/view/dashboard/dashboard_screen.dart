@@ -41,11 +41,6 @@ class DashboardScreen extends StatelessWidget {
       } catch (_) {}
     }
 
-    // If no future appointment is found, display the most recent active consultation from the server
-    if (nearestUpcoming == null && bookingVM.appointmentsList.isNotEmpty) {
-      nearestUpcoming = bookingVM.appointmentsList.first;
-    }
-
     void showCancelConfirmation(BuildContext context, String id, String doctorName) {
       showDialog(
         context: context,
@@ -231,6 +226,29 @@ class DashboardScreen extends StatelessWidget {
                     color: PhiaColors.textSecondary,
                   ),
                 ),
+              ),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: PhiaColors.primary),
+                  foregroundColor: PhiaColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  final specialist = bookingVM.findSpecialistForAppointment(appt);
+                  Navigator.pushNamed(
+                    context,
+                    '/booking_date_time',
+                    arguments: {
+                      'specialist': specialist,
+                      'name': name,
+                      'role': role,
+                      'imageUrl': image,
+                      'reschedule_appointment_id': id,
+                    },
+                  );
+                },
+                child: const Text('Reschedule'),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(

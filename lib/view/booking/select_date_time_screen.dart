@@ -67,6 +67,8 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
     final morningSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '11:30 AM'];
     final afternoonSlots = ['01:30 PM', '02:00 PM', '03:00 PM', '03:30 PM', '04:30 PM'];
 
+    final isRescheduling = args['reschedule_appointment_id'] != null;
+
     return Scaffold(
       backgroundColor: PhiaColors.background,
       appBar: AppBar(
@@ -77,7 +79,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Select Date & Time',
+          isRescheduling ? 'Reschedule Consultation' : 'Select Date & Time',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -274,7 +276,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
-                    height: 80,
+                    height: 88,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _thirtyDays.length,
@@ -298,7 +300,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             width: 58,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             decoration: BoxDecoration(
                               color: isSelected ? PhiaColors.navyAnchor : PhiaColors.surface,
                               borderRadius: BorderRadius.circular(14),
@@ -499,7 +501,37 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                   ElevatedButton(
                     onPressed: _selectedTimeSlot == null
                         ? null
-                        : () {
+                        : () async {
+                            if (isRescheduling) {
+                              final rescheduleId = args['reschedule_appointment_id'].toString();
+                              final slotId = _selectedSlotId ?? 0;
+                              final scaffold = ScaffoldMessenger.of(context);
+                              final nav = Navigator.of(context);
+                              
+                              final success = await context.read<BookingViewModel>().rescheduleAppointment(
+                                rescheduleId,
+                                slotId,
+                              );
+                              
+                              if (success) {
+                                scaffold.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Consultation rescheduled successfully!'),
+                                    backgroundColor: PhiaColors.navyAnchor,
+                                  ),
+                                );
+                                nav.pop();
+                              } else {
+                                scaffold.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to reschedule consultation. Please try another slot.'),
+                                    backgroundColor: PhiaColors.pulseRed,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
                             Navigator.pushNamed(
                               context,
                               '/booking_review',
@@ -526,7 +558,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
                     ),
                     child: Text(
-                      'Review Booking',
+                      isRescheduling ? 'Confirm Reschedule' : 'Review Booking',
                       style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ),
