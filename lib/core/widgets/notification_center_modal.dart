@@ -10,10 +10,7 @@ void showNotificationCenter(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: const Color(0xFF0D0E0F),
-    shape: const Border(
-      top: BorderSide(color: Colors.white12, width: 1.0),
-    ),
+    backgroundColor: Colors.transparent,
     builder: (context) {
       return const NotificationCenterModal();
     },
@@ -33,8 +30,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    // Fetch latest notification log from database on open
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SettingsViewModel>().fetchInAppNotifications();
     });
@@ -52,64 +48,79 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
     final bookingVM = context.watch<BookingViewModel>();
 
     final inAppLogs = settingsVM.inAppNotificationsList;
-    final appointments = bookingVM.appointmentsList.where((appt) {
-      try {
-        final startTime = DateTime.parse(appt['start_time'] as String);
-        return startTime.isAfter(DateTime.now());
-      } catch (_) {
-        return false;
-      }
-    }).toList();
-    
-    final activeReminders = settingsVM.remindersList.where((r) => (r['is_active'] as int) == 1).toList();
+    final appointments = bookingVM.appointmentsList;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: const BoxDecoration(
+        color: PhiaColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Drag handle pill
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: PhiaColors.borderSubtle,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
           // Header title row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.notifications_active, color: PhiaColors.skyBlue, size: 24),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.notifications_active_rounded, color: PhiaColors.primary, size: 20),
+                    ),
                     const SizedBox(width: 12),
                     Text(
-                      'NOTIFICATION CENTER',
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 22,
-                        letterSpacing: 2.0,
-                        color: Colors.white,
+                      'Notification Center',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: PhiaColors.navyAnchor,
                       ),
                     ),
                   ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white60),
+                  icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
 
-          // Tab header
+          // Tab header (2 tabs: ALERTS and VISITS SCHEDULE)
           TabBar(
             controller: _tabController,
-            indicatorColor: PhiaColors.skyBlue,
-            labelColor: PhiaColors.skyBlue,
-            unselectedLabelColor: Colors.white38,
-            labelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-            dividerColor: Colors.white.withValues(alpha: 0.08),
+            indicatorColor: PhiaColors.primary,
+            indicatorWeight: 2.5,
+            labelColor: PhiaColors.primary,
+            unselectedLabelColor: PhiaColors.textMuted,
+            labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            unselectedLabelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            dividerColor: PhiaColors.borderSubtle,
             tabs: const [
-              Tab(text: 'ALERTS & MILESTONES'),
+              Tab(text: 'ALERTS'),
               Tab(text: 'VISITS SCHEDULE'),
-              Tab(text: 'DAILY ALARMS'),
             ],
           ),
 
@@ -118,14 +129,11 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
             child: TabBarView(
               controller: _tabController,
               children: [
-                // 1. Alerts & Milestones logs
+                // 1. Alerts logs
                 _buildAlertsSection(context, settingsVM, inAppLogs),
 
                 // 2. Upcoming appointment visits
                 _buildVisitsSection(context, appointments),
-
-                // 3. Active Meds/Vitals reminders
-                _buildRemindersSection(context, activeReminders),
               ],
             ),
           ),
@@ -137,25 +145,25 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
   Widget _buildAlertsSection(BuildContext context, SettingsViewModel settingsVM, List<Map<String, dynamic>> logs) {
     if (logs.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.notifications_none,
-        title: 'NO TELEMETRY ALERTS YET',
-        description: 'Vitals warning anomalies or milestone steps completions will log here.',
+        icon: Icons.notifications_none_rounded,
+        title: 'No Alerts Yet',
+        description: 'Vitals warning alerts or activity milestone achievements will appear here.',
       );
     }
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
                 onPressed: () => settingsVM.clearAllInAppNotifications(),
-                icon: const Icon(Icons.delete_sweep, color: PhiaColors.pulseRed, size: 16),
+                icon: const Icon(Icons.delete_sweep_rounded, color: PhiaColors.pulseRed, size: 16),
                 label: Text(
-                  'CLEAR LOGS',
-                  style: GoogleFonts.bebasNeue(fontSize: 12, letterSpacing: 1.0, color: PhiaColors.pulseRed),
+                  'Clear All',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: PhiaColors.pulseRed),
                 ),
               ),
             ],
@@ -163,7 +171,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
             itemCount: logs.length,
             itemBuilder: (context, index) {
               final log = logs[index];
@@ -190,8 +198,11 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20.0),
-                  color: Colors.redAccent.withValues(alpha: 0.1),
-                  child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  decoration: BoxDecoration(
+                    color: PhiaColors.pulseRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
                 ),
                 onDismissed: (dir) => settingsVM.deleteInAppNotification(id),
                 child: GestureDetector(
@@ -204,18 +215,34 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isRead ? Colors.transparent : Colors.white.withValues(alpha: 0.02),
+                      color: isRead ? PhiaColors.surface : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isRead ? Colors.white.withValues(alpha: 0.08) : accentColor.withValues(alpha: 0.25),
+                        color: isRead ? PhiaColors.borderSubtle : accentColor.withOpacity(0.35),
+                        width: isRead ? 1 : 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          type == 'MILESTONE' ? Icons.emoji_events_outlined : Icons.warning_amber_outlined,
-                          color: accentColor,
-                          size: 20,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            type == 'MILESTONE' ? Icons.emoji_events_rounded : Icons.warning_amber_rounded,
+                            color: accentColor,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -228,17 +255,17 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                                   Text(
                                     type.toUpperCase(),
                                     style: GoogleFonts.inter(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
                                       color: accentColor,
-                                      letterSpacing: 1.0,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
                                   Text(
                                     formattedTime,
                                     style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: Colors.white24,
+                                      fontSize: 11,
+                                      color: PhiaColors.textMuted,
                                     ),
                                   ),
                                 ],
@@ -247,17 +274,17 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                               Text(
                                 title,
                                 style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: PhiaColors.navyAnchor,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 body,
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: Colors.white54,
+                                  fontSize: 12,
+                                  color: PhiaColors.textSecondary,
                                   height: 1.4,
                                 ),
                               ),
@@ -279,14 +306,14 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
   Widget _buildVisitsSection(BuildContext context, List<Map<String, dynamic>> appointments) {
     if (appointments.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.calendar_today_outlined,
-        title: 'NO UPCOMING APPOINTMENTS',
-        description: 'Schedule a virtual consultation or in-person checkup to receive countdown reminders.',
+        icon: Icons.calendar_today_rounded,
+        title: 'No Upcoming Appointments',
+        description: 'Schedule a virtual consultation or in-person checkup with a specialist.',
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       itemCount: appointments.length,
       itemBuilder: (context, index) {
         final appt = appointments[index];
@@ -294,11 +321,12 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
         final role = appt['practitioner_role'] as String;
         final startTimeStr = appt['start_time'] as String;
         final type = appt['type'] as String;
+        final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
 
         String formattedDate = '';
         try {
           final dt = DateTime.parse(startTimeStr).toLocal();
-          formattedDate = DateFormat('EEEE, MMMM d @ h:mm a').format(dt).toUpperCase();
+          formattedDate = DateFormat('EEEE, MMMM d • h:mm a').format(dt);
         } catch (_) {
           formattedDate = startTimeStr;
         }
@@ -308,100 +336,26 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PhiaColors.surface,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.medical_services_outlined, color: PhiaColors.skyBlue, size: 20),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      type.toUpperCase(),
-                      style: GoogleFonts.inter(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: PhiaColors.skyBlue,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      name,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      role,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: Colors.white38,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      formattedDate,
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 14,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: PhiaColors.borderSubtle),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRemindersSection(BuildContext context, List<Map<String, dynamic>> reminders) {
-    if (reminders.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.alarm_off,
-        title: 'NO SCHEDULERS ACTIVE',
-        description: 'Enable medication doses or vital signs check reminders inside profile configuration.',
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      itemCount: reminders.length,
-      itemBuilder: (context, index) {
-        final rem = reminders[index];
-        final title = rem['title'] as String;
-        final type = rem['type'] as String;
-        final time = rem['time'] as String;
-        final days = rem['days'] as String;
-
-        final parts = time.split(':');
-        final hour = int.parse(parts[0]);
-        final minute = int.parse(parts[1]);
-        final timeOfDay = TimeOfDay(hour: hour, minute: minute);
-        final formattedTime = timeOfDay.format(context);
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                type == 'Medication' ? Icons.bubble_chart_outlined : Icons.favorite_border_outlined,
-                color: PhiaColors.stepGreen,
-                size: 20,
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: PhiaColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.medical_services_rounded, color: PhiaColors.primary, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -411,41 +365,54 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          type.toUpperCase(),
-                          style: GoogleFonts.inter(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: PhiaColors.stepGreen,
-                            letterSpacing: 1.0,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isVirtual ? const Color(0xFFE0F2FE) : const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                        ),
-                        Text(
-                          days,
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            color: Colors.white38,
+                          child: Text(
+                            type.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isVirtual ? PhiaColors.primary : const Color(0xFF16A34A),
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                      name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: PhiaColors.navyAnchor,
                       ),
                     ),
-                    const SizedBox(height: 6),
                     Text(
-                      formattedTime,
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 20,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
+                      role,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: PhiaColors.textSecondary,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 14, color: PhiaColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          formattedDate,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: PhiaColors.primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -468,14 +435,21 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: Colors.white12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: PhiaColors.textMuted),
+            ),
             const SizedBox(height: 16),
             Text(
               title,
-              style: GoogleFonts.bebasNeue(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
-                color: Colors.white38,
-                letterSpacing: 1.5,
+                fontWeight: FontWeight.w700,
+                color: PhiaColors.navyAnchor,
               ),
               textAlign: TextAlign.center,
             ),
@@ -483,8 +457,8 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
             Text(
               description,
               style: GoogleFonts.inter(
-                fontSize: 11,
-                color: Colors.white24,
+                fontSize: 13,
+                color: PhiaColors.textSecondary,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,

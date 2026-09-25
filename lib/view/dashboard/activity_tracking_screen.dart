@@ -30,9 +30,9 @@ class ActivityTrackingScreen extends StatelessWidget {
 
     // BMI Calculations
     double bmi = 0.0;
-    String bmiClassification = 'Normal';
-    Color bmiColor = PhiaColors.activeGreen;
-    Color bmiBg = PhiaColors.activeGreenBg;
+    String bmiClassification = 'Pending';
+    Color bmiColor = const Color(0xFF64748B);
+    Color bmiBg = const Color(0xFFF1F5F9);
     if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
       double heightM = activityVM.userHeight / 100.0;
       bmi = activityVM.userWeight / (heightM * heightM);
@@ -93,15 +93,15 @@ class ActivityTrackingScreen extends StatelessWidget {
                   icon: Icons.health_and_safety_rounded,
                   iconColor: bmiColor,
                   iconBg: bmiBg,
-                  label: 'BMI ($bmiClassification)',
-                  value: bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A',
+                  label: bmi > 0 ? 'BMI ($bmiClassification)' : 'BMI',
+                  value: bmi > 0 ? bmi.toStringAsFixed(1) : '--',
                 ),
                 _buildCleanBentoCard(
                   icon: Icons.monitor_weight_rounded,
                   iconColor: PhiaColors.primary,
                   iconBg: PhiaColors.primaryLight,
                   label: 'Body Weight',
-                  value: '${displayWeight.toStringAsFixed(1)} $weightUnitLabel',
+                  value: displayWeight > 0 ? '${displayWeight.toStringAsFixed(1)} $weightUnitLabel' : '--',
                 ),
                 _buildCleanBentoCard(
                   icon: Icons.directions_walk_rounded,

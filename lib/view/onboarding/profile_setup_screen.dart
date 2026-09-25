@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/activity_viewmodel.dart';
 
@@ -18,37 +17,71 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _dobController = TextEditingController();
-  final _genderController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
   final _ageController = TextEditingController();
 
-  final _firstNameFocus = FocusNode();
-  final _lastNameFocus = FocusNode();
-  final _dobFocus = FocusNode();
-  final _genderFocus = FocusNode();
-  final _heightFocus = FocusNode();
-  final _weightFocus = FocusNode();
-  final _ageFocus = FocusNode();
-
-  bool _isFirstNameFocused = false;
-  bool _isLastNameFocused = false;
-  bool _isDobFocused = false;
-  bool _isGenderFocused = false;
-  bool _isHeightFocused = false;
-  bool _isWeightFocused = false;
-  bool _isAgeFocused = false;
+  String _selectedGender = 'MALE';
+  bool _initializedFromState = false;
 
   @override
   void initState() {
     super.initState();
-    _firstNameFocus.addListener(() => setState(() => _isFirstNameFocused = _firstNameFocus.hasFocus));
-    _lastNameFocus.addListener(() => setState(() => _isLastNameFocused = _lastNameFocus.hasFocus));
-    _dobFocus.addListener(() => setState(() => _isDobFocused = _dobFocus.hasFocus));
-    _genderFocus.addListener(() => setState(() => _isGenderFocused = _genderFocus.hasFocus));
-    _heightFocus.addListener(() => setState(() => _isHeightFocused = _heightFocus.hasFocus));
-    _weightFocus.addListener(() => setState(() => _isWeightFocused = _weightFocus.hasFocus));
-    _ageFocus.addListener(() => setState(() => _isAgeFocused = _ageFocus.hasFocus));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefillExistingData();
+    });
+  }
+
+  void _prefillExistingData() {
+    if (_initializedFromState) return;
+    _initializedFromState = true;
+
+    final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+    final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
+
+    // Pre-fill Name
+    final nameObj = profileVM.currentProfile?.name?.firstOrNull;
+    if (nameObj != null) {
+      if (nameObj.givenName.isNotEmpty) {
+        _firstNameController.text = nameObj.givenName;
+      }
+      if (nameObj.familyName != null && nameObj.familyName!.isNotEmpty) {
+        _lastNameController.text = nameObj.familyName!;
+      }
+    }
+
+    // Pre-fill Gender
+    final g = profileVM.currentProfile?.gender?.toUpperCase();
+    if (g == 'MALE' || g == 'FEMALE' || g == 'OTHER') {
+      _selectedGender = g!;
+    }
+
+    // Pre-fill DOB & Age
+    final dob = profileVM.currentProfile?.birthDate;
+    if (dob != null && dob.isNotEmpty) {
+      _dobController.text = dob;
+      final dt = DateTime.tryParse(dob);
+      if (dt != null) {
+        final now = DateTime.now();
+        int age = now.year - dt.year;
+        if (now.month < dt.month || (now.month == dt.month && now.day < dt.day)) {
+          age--;
+        }
+        _ageController.text = age > 0 ? age.toString() : '';
+      }
+    } else if (activityVM.userAge > 0) {
+      _ageController.text = activityVM.userAge.toString();
+    }
+
+    // Pre-fill Height & Weight
+    if (activityVM.userHeight > 0) {
+      _heightController.text = activityVM.userHeight.toStringAsFixed(0);
+    }
+    if (activityVM.userWeight > 0) {
+      _weightController.text = activityVM.userWeight.toStringAsFixed(1);
+    }
+
+    if (mounted) setState(() {});
   }
 
   @override
@@ -56,17 +89,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dobController.dispose();
-    _genderController.dispose();
     _heightController.dispose();
     _weightController.dispose();
     _ageController.dispose();
-    _firstNameFocus.dispose();
-    _lastNameFocus.dispose();
-    _dobFocus.dispose();
-    _genderFocus.dispose();
-    _heightFocus.dispose();
-    _weightFocus.dispose();
-    _ageFocus.dispose();
     super.dispose();
   }
 
@@ -79,23 +104,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.white,
-              onPrimary: Colors.black,
-              surface: Colors.black,
-              onSurface: Colors.white,
+            colorScheme: const ColorScheme.light(
+              primary: PhiaColors.primary,
+              onPrimary: Colors.white,
+              surface: PhiaColors.surface,
+              onSurface: PhiaColors.textPrimary,
             ),
-            dialogBackgroundColor: Colors.black,
           ),
           child: child!,
         );
       },
     );
     if (picked != null) {
-      final String formatted = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      final String formatted =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       _dobController.text = formatted;
-      
-      // Calculate age
+
       final today = DateTime.now();
       int age = today.year - picked.year;
       if (today.month < picked.month || (today.month == picked.month && today.day < picked.day)) {
@@ -106,534 +130,512 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
-  Future<void> _selectGender() async {
-    final String? selected = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          backgroundColor: const Color(0xFF0D0E0F),
-          shape: const RoundedRectangleBorder(
-            side: BorderSide(color: Colors.white24),
-          ),
-          title: Text(
-            'SELECT GENDER',
-            style: GoogleFonts.bebasNeue(
-              color: Colors.white,
-              letterSpacing: 2.0,
-            ),
-          ),
-          children: <Widget>[
-            SimpleDialogOption(
-              onPressed: () { Navigator.pop(context, 'MALE'); },
-              child: Text('MALE', style: GoogleFonts.inter(color: Colors.white)),
-            ),
-            SimpleDialogOption(
-              onPressed: () { Navigator.pop(context, 'FEMALE'); },
-              child: Text('FEMALE', style: GoogleFonts.inter(color: Colors.white)),
-            ),
-            SimpleDialogOption(
-              onPressed: () { Navigator.pop(context, 'OTHER'); },
-              child: Text('OTHER', style: GoogleFonts.inter(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-    if (selected != null) {
-      _genderController.text = selected;
-      setState(() {});
-    }
-  }
-
-  Widget _buildBentoCard({
-    required String label,
-    required IconData icon,
-    required String placeholder,
-    required String unit,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required bool isFocused,
-    TextInputType keyboardType = TextInputType.number,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    double fontSize = 40,
-    bool useBebas = true,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isFocused ? const Color(0xFF0D0E0F) : Colors.black,
-          border: Border.all(
-            color: isFocused ? Colors.white : Colors.white.withValues(alpha: 0.1),
-            width: 1.0,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.0,
-                    color: Colors.white60,
-                  ),
-                ),
-                Icon(icon, color: Colors.white54, size: 18),
-              ],
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    keyboardType: keyboardType,
-                    readOnly: readOnly,
-                    onTap: onTap,
-                    style: useBebas 
-                      ? GoogleFonts.bebasNeue(
-                          fontSize: fontSize,
-                          color: Colors.white,
-                          letterSpacing: 1.0,
-                        )
-                      : GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                    decoration: InputDecoration(
-                      hintText: placeholder,
-                      hintStyle: useBebas
-                        ? GoogleFonts.bebasNeue(
-                            fontSize: fontSize,
-                            color: Colors.white24,
-                          )
-                        : GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white24,
-                          ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-                if (unit.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    unit,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white60,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            Container(
-              height: 1,
-              color: Colors.white.withValues(alpha: 0.08),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          // Dot Matrix texture background
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
-          ),
-
-          // Header
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.local_hospital, color: Colors.white, size: 24),
-                        const SizedBox(width: 8),
-                        Text(
-                          'DRGODLY',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 24,
-                            letterSpacing: 3.0,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.white24,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.white24,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+      appBar: AppBar(
+        backgroundColor: PhiaColors.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/app_logo.jpeg',
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: PhiaColors.primaryLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.medical_services_rounded, color: PhiaColors.primary, size: 16),
                 ),
               ),
             ),
-          ),
-
-          // Main form content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 80.0, bottom: 160.0, left: 24.0, right: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Section
-                  Container(
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        left: BorderSide(color: Colors.white, width: 2.0),
-                      ),
-                    ),
-                    padding: const EdgeInsets.only(left: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PATIENT PROFILE',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 36,
-                            letterSpacing: 1.0,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          'CLINICAL_INTAKE',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.0,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 1. Name Row (First Name, Last Name)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'FIRST NAME',
-                            icon: Icons.person_outline,
-                            placeholder: 'First Name',
-                            unit: '',
-                            controller: _firstNameController,
-                            focusNode: _firstNameFocus,
-                            isFocused: _isFirstNameFocused,
-                            keyboardType: TextInputType.text,
-                            useBebas: false,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'LAST NAME',
-                            icon: Icons.person_outline,
-                            placeholder: 'Last Name',
-                            unit: '',
-                            controller: _lastNameController,
-                            focusNode: _lastNameFocus,
-                            isFocused: _isLastNameFocused,
-                            keyboardType: TextInputType.text,
-                            useBebas: false,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 2. Details Row (Date of Birth, Gender)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'DATE OF BIRTH',
-                            icon: Icons.cake_outlined,
-                            placeholder: 'YYYY-MM-DD',
-                            unit: '',
-                            controller: _dobController,
-                            focusNode: _dobFocus,
-                            isFocused: _isDobFocused,
-                            readOnly: true,
-                            onTap: _selectDateOfBirth,
-                            useBebas: false,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'GENDER',
-                            icon: Icons.wc_outlined,
-                            placeholder: 'Select',
-                            unit: '',
-                            controller: _genderController,
-                            focusNode: _genderFocus,
-                            isFocused: _isGenderFocused,
-                            readOnly: true,
-                            onTap: _selectGender,
-                            useBebas: false,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 3. Height & Weight Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'HEIGHT',
-                            icon: Icons.straighten,
-                            placeholder: '000',
-                            unit: 'CM',
-                            controller: _heightController,
-                            focusNode: _heightFocus,
-                            isFocused: _isHeightFocused,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 120,
-                          child: _buildBentoCard(
-                            label: 'WEIGHT',
-                            icon: Icons.monitor_weight_outlined,
-                            placeholder: '00.0',
-                            unit: 'KG',
-                            controller: _weightController,
-                            focusNode: _weightFocus,
-                            isFocused: _isWeightFocused,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 4. Age Row
-                  SizedBox(
-                    height: 120,
-                    width: double.infinity,
-                    child: _buildBentoCard(
-                      label: 'AGE',
-                      icon: Icons.calendar_today_outlined,
-                      placeholder: '00',
-                      unit: 'YRS',
-                      controller: _ageController,
-                      focusNode: _ageFocus,
-                      isFocused: _isAgeFocused,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Encryption note
-                  Row(
-                    children: [
-                      const Icon(Icons.lock, color: Colors.white, size: 14),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'SYSTEM ENCRYPTION ACTIVE // END-TO-END SECURE',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(width: 10),
+            Text(
+              'DrGodly',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: PhiaColors.navyAnchor,
+                letterSpacing: 0.2,
               ),
             ),
-          ),
-
-          // Bottom Navigation Buttons
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              color: Colors.black.withValues(alpha: 0.85),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      minimumSize: const Size(double.infinity, 60),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () async {
-                      final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
-                      final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
-                      final double height = double.tryParse(_heightController.text) ?? 175.0;
-                      final double weight = double.tryParse(_weightController.text) ?? 70.0;
-                      final double age = double.tryParse(_ageController.text) ?? 25.0;
-                      
-                      final String firstName = _firstNameController.text.trim();
-                      final String lastName = _lastNameController.text.trim();
-                      final String dob = _dobController.text.trim();
-                      final String gender = _genderController.text.trim();
-
-                      // 1. Save local physical vitals
-                      await activityVM.saveBioData(weight: weight, height: height, age: age);
-                      
-                      // 2. Sync demographics safely to the local/remote FHIR server
-                      if (firstName.isNotEmpty || lastName.isNotEmpty || dob.isNotEmpty || gender.isNotEmpty) {
-                        try {
-                          await profileVM.saveProfileDetails(
-                            givenName: firstName,
-                            familyName: lastName,
-                            gender: gender,
-                            birthDate: dob,
-                            email: "",
-                            phone: "",
-                            street: "",
-                            city: "",
-                            state: "",
-                            zip: "",
-                            country: "",
-                          );
-                        } catch (e) {
-                          if (kDebugMode) {
-                            print('[ProfileSetupScreen] FHIR profile sync swallowed: $e');
-                          }
-                        }
-                      }
-                      
-                      if (mounted) {
-                        Navigator.pushNamed(context, '/goals');
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'NEXT',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 3.0,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward, size: 16),
-                      ],
-                    ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: PhiaColors.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: PhiaColors.primary,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'DRGODLY_PATIENT_V1.0.0',
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white38,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Step 1 of 3',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.primary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Banner Card
+                    Container(
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: PhiaColors.borderSubtle),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            color: PhiaColors.navyAnchor,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Patient Intake Registration',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 18),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'Please enter your clinical details to calibrate continuous vital tracking, BMI calculations, and doctor consultations.',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: PhiaColors.textSecondary,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section 1: Demographics Card
+                    _buildSectionHeader('Personal Demographics'),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: PhiaColors.borderSubtle),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // First Name & Last Name
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildInputField(
+                                  label: 'First Name',
+                                  hint: 'John',
+                                  controller: _firstNameController,
+                                  icon: Icons.person_outline_rounded,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: _buildInputField(
+                                  label: 'Last Name',
+                                  hint: 'Doe',
+                                  controller: _lastNameController,
+                                  icon: Icons.person_outline_rounded,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Date of Birth & Age
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: GestureDetector(
+                                  onTap: _selectDateOfBirth,
+                                  child: AbsorbPointer(
+                                    child: _buildInputField(
+                                      label: 'Date of Birth',
+                                      hint: 'YYYY-MM-DD',
+                                      controller: _dobController,
+                                      icon: Icons.calendar_today_rounded,
+                                      readOnly: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                flex: 2,
+                                child: _buildInputField(
+                                  label: 'Age',
+                                  hint: '25',
+                                  controller: _ageController,
+                                  icon: Icons.cake_outlined,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Gender Selection
+                          Text(
+                            'Gender',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildGenderChip('MALE', 'Male'),
+                              const SizedBox(width: 10),
+                              _buildGenderChip('FEMALE', 'Female'),
+                              const SizedBox(width: 10),
+                              _buildGenderChip('OTHER', 'Other'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section 2: Biometrics Card
+                    _buildSectionHeader('Physical Biometrics'),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: PhiaColors.borderSubtle),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildInputField(
+                                  label: 'Height',
+                                  hint: '175',
+                                  controller: _heightController,
+                                  icon: Icons.height_rounded,
+                                  suffixText: 'cm',
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: _buildInputField(
+                                  label: 'Weight',
+                                  hint: '70',
+                                  controller: _weightController,
+                                  icon: Icons.monitor_weight_outlined,
+                                  suffixText: 'kg',
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Encryption Note
+                    Row(
+                      children: [
+                        const Icon(Icons.shield_outlined, color: Color(0xFF15803D), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'HIPAA & FHIR Standard Encryption // Safe & Private',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: PhiaColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Sticky Action Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: PhiaColors.surface,
+                border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: PhiaColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shadowColor: PhiaColors.primary.withOpacity(0.3),
+                  ),
+                  onPressed: _handleContinue,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Continue to Goals',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: PhiaColors.navyAnchor,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData icon,
+    String? suffixText,
+    TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: PhiaColors.navyAnchor,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: PhiaColors.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: PhiaColors.borderSubtle),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(icon, color: PhiaColors.textSecondary, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  readOnly: readOnly,
+                  keyboardType: keyboardType,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: PhiaColors.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: PhiaColors.textSecondary.withOpacity(0.6),
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              if (suffixText != null) ...[
+                Text(
+                  suffixText,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderChip(String value, String label) {
+    final isSelected = _selectedGender == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedGender = value;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? PhiaColors.primaryLight : PhiaColors.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? PhiaColors.primary : PhiaColors.borderSubtle,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? PhiaColors.primary : PhiaColors.textPrimary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleContinue() async {
+    final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+    final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
+
+    final double height = double.tryParse(_heightController.text) ?? 175.0;
+    final double weight = double.tryParse(_weightController.text) ?? 70.0;
+    final double age = double.tryParse(_ageController.text) ?? 25.0;
+
+    final String firstName = _firstNameController.text.trim();
+    final String lastName = _lastNameController.text.trim();
+    final String dob = _dobController.text.trim();
+    final String gender = _selectedGender;
+
+    // 1. Save local physical vitals
+    await activityVM.saveBioData(weight: weight, height: height, age: age);
+
+    // 2. Sync demographics safely to the local/remote FHIR server
+    if (firstName.isNotEmpty || lastName.isNotEmpty || dob.isNotEmpty || gender.isNotEmpty) {
+      try {
+        await profileVM.saveProfileDetails(
+          givenName: firstName,
+          familyName: lastName,
+          gender: gender,
+          birthDate: dob,
+          email: "",
+          phone: "",
+          street: "",
+          city: "",
+          state: "",
+          zip: "",
+          country: "",
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('[ProfileSetupScreen] FHIR profile sync error: $e');
+        }
+      }
+    }
+
+    if (mounted) {
+      Navigator.pushNamed(context, '/goals');
+    }
   }
 }

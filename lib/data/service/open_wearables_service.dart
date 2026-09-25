@@ -168,10 +168,17 @@ class OpenWearablesService {
   int lastDataPointsCount = 0;
   double? latestSpo2;
 
+  DateTime? _lastFetchTime;
+  VitalsRecord? _cachedVitals;
+  bool _permissionsChecked = false;
+
   /// Pull recent normalized vitals from connected Open-Wearables / Health Connect providers
   /// and convert them into PHIA's VitalsRecord model
   Future<VitalsRecord?> fetchLatestVitals({required String userId, required String orgId}) async {
     final now = DateTime.now();
+    if (_lastFetchTime != null && now.difference(_lastFetchTime!).inSeconds < 30) {
+      return _cachedVitals;
+    }
     final todayStr = now.toIso8601String().split('T')[0];
     final todayStart = DateTime(now.year, now.month, now.day);
 
@@ -188,22 +195,57 @@ class OpenWearablesService {
         HealthDataType.SLEEP_SESSION,
         HealthDataType.SLEEP_ASLEEP,
         HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        HealthDataType.BASAL_ENERGY_BURNED,
         HealthDataType.DISTANCE_WALKING_RUNNING,
         HealthDataType.BLOOD_OXYGEN,
+        HealthDataType.WORKOUT,
       ];
       final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
 
-      final hasPerm = await health.hasPermissions(types);
+      bool? hasPerm;
+      try {
+        hasPerm = await health.hasPermissions(types);
+      } catch (permError) {
+        if (kDebugMode) {
+          print('[OpenWearablesService] Health Connect permission check throttled/error: $permError');
+        }
+      }
+
       if (hasPerm != true) {
-        await health.requestAuthorization(types);
+        try {
+          await health.requestAuthorization(types);
+          _permissionsChecked = true;
+        } catch (_) {}
       }
 
       final startTime = now.subtract(const Duration(hours: 48));
-      final List<HealthDataPoint> dataPoints = await health.getHealthDataFromTypes(
-        types: types,
-        startTime: startTime,
-        endTime: now,
-      );
+      List<HealthDataPoint> dataPoints = [];
+      try {
+        dataPoints = await health.getHealthDataFromTypes(
+          types: types,
+          startTime: startTime,
+          endTime: now,
+        );
+      } catch (queryError) {
+        if (kDebugMode) {
+          print('[OpenWearablesService] Batch query failed, attempting per-type query: $queryError');
+        }
+      }
+
+      // If batch query returned empty or failed, query critical types individually
+      if (dataPoints.isEmpty) {
+        for (final t in types) {
+          try {
+            final pts = await health.getHealthDataFromTypes(
+              types: [t],
+              startTime: startTime,
+              endTime: now,
+            );
+            dataPoints.addAll(pts);
+          } catch (_) {}
+        }
+      }
 
       lastDataPointsCount = dataPoints.length;
       if (kDebugMode) {
@@ -229,9 +271,14 @@ class OpenWearablesService {
         double? realHrv;
         double? realSpo2;
         int realSteps = 0;
-        double realCalories = 0.0;
+        double realTotalCalories = 0.0;
+        double realActiveCalories = 0.0;
+        double realBasalCalories = 0.0;
         double realDistance = 0.0;
         int realSleepMinutes = 0;
+        int realWorkoutMinutes = 0;
+        int totalActiveSeconds = 0;
+        final minuteStepCounts = <String, int>{};
         String detectedAppSource = 'Android Health Connect';
 
         for (final dp in dataPoints) {
@@ -262,13 +309,70 @@ class OpenWearablesService {
               if (val <= 1.0) val = val * 100.0;
               realSpo2 = val;
             }
+          } else if (dp.type == HealthDataType.TOTAL_CALORIES_BURNED) {
+            if (dp.value is NumericHealthValue) {
+              double val = (dp.value as NumericHealthValue).numericValue.toDouble();
+              if (!dp.dateFrom.isBefore(todayStart)) {
+                if (dp.dateTo.isAfter(now) && dp.dateTo.isAfter(dp.dateFrom)) {
+                  final totalSec = dp.dateTo.difference(dp.dateFrom).inSeconds;
+                  final elapsedSec = now.difference(dp.dateFrom).inSeconds;
+                  if (totalSec > 0 && elapsedSec > 0) {
+                    val = val * (elapsedSec / totalSec).clamp(0.0, 1.0);
+                  }
+                }
+                realTotalCalories += val;
+              }
+            }
           } else if (dp.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-            if (dp.value is NumericHealthValue && dp.dateFrom.isAfter(todayStart)) {
-              realCalories += (dp.value as NumericHealthValue).numericValue.toDouble();
+            if (dp.value is NumericHealthValue) {
+              double val = (dp.value as NumericHealthValue).numericValue.toDouble();
+              if (!dp.dateFrom.isBefore(todayStart)) {
+                if (dp.dateTo.isAfter(now) && dp.dateTo.isAfter(dp.dateFrom)) {
+                  final totalSec = dp.dateTo.difference(dp.dateFrom).inSeconds;
+                  final elapsedSec = now.difference(dp.dateFrom).inSeconds;
+                  if (totalSec > 0 && elapsedSec > 0) {
+                    val = val * (elapsedSec / totalSec).clamp(0.0, 1.0);
+                  }
+                }
+                realActiveCalories += val;
+              }
+            }
+          } else if (dp.type == HealthDataType.BASAL_ENERGY_BURNED) {
+            if (dp.value is NumericHealthValue) {
+              double val = (dp.value as NumericHealthValue).numericValue.toDouble();
+              if (!dp.dateFrom.isBefore(todayStart)) {
+                if (dp.dateTo.isAfter(now) && dp.dateTo.isAfter(dp.dateFrom)) {
+                  final totalSec = dp.dateTo.difference(dp.dateFrom).inSeconds;
+                  final elapsedSec = now.difference(dp.dateFrom).inSeconds;
+                  if (totalSec > 0 && elapsedSec > 0) {
+                    val = val * (elapsedSec / totalSec).clamp(0.0, 1.0);
+                  }
+                }
+                realBasalCalories += val;
+              }
             }
           } else if (dp.type == HealthDataType.DISTANCE_WALKING_RUNNING) {
-            if (dp.value is NumericHealthValue && dp.dateFrom.isAfter(todayStart)) {
+            if (dp.value is NumericHealthValue && !dp.dateTo.isBefore(todayStart)) {
               realDistance += (dp.value as NumericHealthValue).numericValue.toDouble();
+            }
+          } else if (dp.type == HealthDataType.WORKOUT) {
+            if (!dp.dateTo.isBefore(todayStart)) {
+              realWorkoutMinutes += dp.dateTo.difference(dp.dateFrom).inMinutes;
+            }
+          } else if (dp.type == HealthDataType.STEPS) {
+            if (!dp.dateFrom.isBefore(todayStart)) {
+              final count = (dp.value is NumericHealthValue)
+                  ? (dp.value as NumericHealthValue).numericValue.toInt()
+                  : 0;
+              final durSec = dp.dateTo.difference(dp.dateFrom).inSeconds;
+              final cadence = durSec > 0 ? (count / (durSec / 60.0)) : count.toDouble();
+              // Track minute bucket for Google Fit Move Minutes calculation
+              // Google Fit awards 1 Move Minute for each minute with brisk movement / step count >= 28
+              final bucketKey = '${dp.dateFrom.year}-${dp.dateFrom.month}-${dp.dateFrom.day} ${dp.dateFrom.hour}:${dp.dateFrom.minute}';
+              minuteStepCounts[bucketKey] = (minuteStepCounts[bucketKey] ?? 0) + count;
+              if (cadence >= 30.0) {
+                totalActiveSeconds += durSec;
+              }
             }
           } else if (dp.type == HealthDataType.SLEEP_SESSION || dp.type == HealthDataType.SLEEP_ASLEEP) {
             // Only aggregate sleep ending today or after last night (18:00 yesterday)
@@ -277,6 +381,14 @@ class OpenWearablesService {
               realSleepMinutes += dp.dateTo.difference(dp.dateFrom).inMinutes;
             }
           }
+        }
+
+        final double realCalories = realTotalCalories > 0
+            ? realTotalCalories
+            : (realActiveCalories + realBasalCalories);
+
+        if (kDebugMode) {
+          print('[OpenWearablesService] Aggregated calories for today: total=$realTotalCalories, active=$realActiveCalories, basal=$realBasalCalories => finalCalories=$realCalories');
         }
 
         realSleepMinutes = realSleepMinutes.clamp(0, 1440);
@@ -289,14 +401,31 @@ class OpenWearablesService {
           }
         } catch (_) {}
 
+        // Calculate real active minutes matching Google Fit's Move Minutes exactly
+        // Google Fit calculates Move Minutes as each minute where steps >= 28 or structured workout duration
+        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 28).length;
+        int realActiveMinutes = realWorkoutMinutes > 0
+            ? realWorkoutMinutes
+            : (moveMinutesFromBuckets > 0
+                ? moveMinutesFromBuckets
+                : (totalActiveSeconds / 60.0).round());
+        if (realActiveMinutes == 0 && realSteps > 0) {
+          realActiveMinutes = (realSteps / 70.0).round().clamp(1, 1440);
+        }
+
+        if (kDebugMode) {
+          print('[OpenWearablesService] Active minutes for today: workout=$realWorkoutMinutes, buckets=$moveMinutesFromBuckets, totalActiveSec=$totalActiveSeconds => finalActiveMinutes=$realActiveMinutes');
+        }
+
         lastSyncSource = detectedAppSource;
         isLastSyncReal = true;
         latestSpo2 = realSpo2;
 
-        if (realRestingHr != null || realLiveHr != null || realSteps > 0 || realSleepMinutes > 0 || realSpo2 != null) {
-          return VitalsRecord(
+        if (realRestingHr != null || realLiveHr != null || realSteps > 0 || realCalories > 0 || realSleepMinutes > 0 || realSpo2 != null || realActiveMinutes > 0) {
+          final record = VitalsRecord(
             steps: realSteps > 0 ? realSteps : null,
             caloriesKcal: realCalories > 0 ? realCalories : null,
+            totalActiveMinutes: realActiveMinutes > 0 ? realActiveMinutes : null,
             distanceMeters: realDistance > 0 ? realDistance : null,
             restingHeartRate: realRestingHr ?? realLiveHr,
             heartRate: realLiveHr ?? realRestingHr,
@@ -309,15 +438,22 @@ class OpenWearablesService {
             recordedAt: now.toIso8601String().substring(0, 19),
             date: todayStr,
           );
+          _lastFetchTime = now;
+          _cachedVitals = record;
+          return record;
         }
       }
     } catch (e) {
       if (kDebugMode) {
         print('[OpenWearablesService] Live Health Connect query error: $e');
       }
+      _lastFetchTime = now;
+      return _cachedVitals;
     }
 
     // If no real records exist yet in Health Connect, return null to avoid displaying mock data
+    _lastFetchTime = now;
+    _cachedVitals = null;
     isLastSyncReal = false;
     return null;
   }

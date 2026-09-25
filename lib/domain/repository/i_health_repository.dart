@@ -5,6 +5,7 @@ abstract class IHealthRepository {
   Future<List<HealthMetric>> getRecentMetrics(String type);
   Future<void> uploadPendingMetrics();
   Future<void> clearMetrics();
+  Future<void> clearProfile();
   Future<void> saveProfileValue(String key, String value);
   Future<String?> getProfileValue(String key);
 }

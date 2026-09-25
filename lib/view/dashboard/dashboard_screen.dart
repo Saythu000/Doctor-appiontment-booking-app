@@ -6,6 +6,7 @@ import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/activity_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
+import '../../viewmodel/auth_viewmodel.dart';
 import 'package:intl/intl.dart';
 import '../../core/widgets/image_helper.dart';
 import '../devices/device_manager_sheet.dart';
@@ -20,6 +21,7 @@ class DashboardScreen extends StatelessWidget {
     final activityVM = context.watch<ActivityViewModel>();
     final profileVM = context.watch<ProfileViewModel>();
     final bookingVM = context.watch<BookingViewModel>();
+    final authVM = context.watch<AuthViewModel>();
 
     // Get nearest upcoming appointment
     Map<String, dynamic>? nearestUpcoming;
@@ -39,6 +41,11 @@ class DashboardScreen extends StatelessWidget {
           }
         }
       } catch (_) {}
+    }
+
+    // Fallback: If no future consultation found, show the latest booked appointment
+    if (nearestUpcoming == null && bookingVM.appointmentsList.isNotEmpty) {
+      nearestUpcoming = bookingVM.appointmentsList.first;
     }
 
     void showCancelConfirmation(BuildContext context, String id, String doctorName) {
@@ -320,9 +327,14 @@ class DashboardScreen extends StatelessWidget {
       }
     }
 
-    final patientGivenName = (profileVM.currentProfile?.name != null && profileVM.currentProfile!.name!.isNotEmpty)
-        ? profileVM.currentProfile!.name!.first.givenName
-        : 'Sarah';
+    String patientGivenName = 'User';
+    if (profileVM.currentProfile?.name != null &&
+        profileVM.currentProfile!.name!.isNotEmpty &&
+        profileVM.currentProfile!.name!.first.givenName.trim().isNotEmpty) {
+      patientGivenName = profileVM.currentProfile!.name!.first.givenName.trim();
+    } else if (authVM.user?.name != null && authVM.user!.name.trim().isNotEmpty) {
+      patientGivenName = authVM.user!.name.trim().split(' ').first;
+    }
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
@@ -333,20 +345,27 @@ class DashboardScreen extends StatelessWidget {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
               ),
-              child: const Icon(Icons.medical_services_rounded, color: Colors.white, size: 18),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.asset(
+                  'assets/app_logo.jpeg',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             Text(
-              'DRGODLY',
+              'DrGodly',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
+                letterSpacing: 0.5,
                 color: Colors.white,
               ),
             ),
@@ -354,31 +373,36 @@ class DashboardScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            tooltip: 'Connect Wearable',
-            onPressed: () => DeviceManagerSheet.show(context),
+            onPressed: () => showNotificationCenter(context),
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.watch_rounded, color: Colors.white),
-                if (activityVM.bleService.currentState == BleDeviceState.connected)
+                const Icon(Icons.notifications_rounded, color: Colors.white),
+                if (bookingVM.appointmentsList.isNotEmpty)
                   Positioned(
                     right: -2,
                     top: -2,
                     child: Container(
-                      width: 8,
-                      height: 8,
+                      padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
-                        color: PhiaColors.activeGreen,
+                        color: PhiaColors.pulseRed,
                         shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                      child: Text(
+                        '${bookingVM.appointmentsList.length}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
-          ),
-          IconButton(
-            onPressed: () => showNotificationCenter(context),
-            icon: const Icon(Icons.notifications_rounded, color: Colors.white),
           ),
           IconButton(
             onPressed: () => onTabSelected?.call(2),
@@ -388,8 +412,19 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        child: RefreshIndicator(
+          color: PhiaColors.primary,
+          onRefresh: () async {
+            await activityVM.syncOpenWearablesVitals('Android Health Connect');
+            await activityVM.initDashboard();
+            if (context.mounted) {
+              await context.read<ProfileViewModel>().fetchOrInitProfile();
+              await context.read<BookingViewModel>().fetchAppointments();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -644,11 +679,15 @@ class DashboardScreen extends StatelessWidget {
                 actionWidget: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning,
+                    color: activityVM.energyMeterScore > 0
+                        ? (activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning)
+                        : const Color(0xFF94A3B8),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    activityVM.energyMeterScore >= 75 ? 'HIGH' : (activityVM.energyMeterScore >= 40 ? 'OPTIMAL' : 'DRAINED'),
+                    activityVM.energyMeterScore > 0
+                        ? (activityVM.energyMeterScore >= 75 ? 'HIGH' : (activityVM.energyMeterScore >= 40 ? 'OPTIMAL' : 'DRAINED'))
+                        : 'PENDING',
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -663,11 +702,17 @@ class DashboardScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
+                          color: activityVM.energyMeterScore > 0 ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF86EFAC)),
+                          border: Border.all(
+                            color: activityVM.energyMeterScore > 0 ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+                          ),
                         ),
-                        child: const Icon(Icons.bolt_rounded, color: Color(0xFF16A34A), size: 28),
+                        child: Icon(
+                          Icons.bolt_rounded,
+                          color: activityVM.energyMeterScore > 0 ? const Color(0xFF16A34A) : PhiaColors.textMuted,
+                          size: 28,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -677,7 +722,7 @@ class DashboardScreen extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  '${activityVM.energyMeterScore}',
+                                  activityVM.energyMeterScore > 0 ? '${activityVM.energyMeterScore}' : '--',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w800,
@@ -698,17 +743,21 @@ class DashboardScreen extends StatelessWidget {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: activityVM.energyMeterScore / 100.0,
+                                value: activityVM.energyMeterScore > 0 ? (activityVM.energyMeterScore / 100.0) : 0.0,
                                 minHeight: 6,
                                 backgroundColor: PhiaColors.borderSubtle,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning,
+                                  activityVM.energyMeterScore > 0
+                                      ? (activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning)
+                                      : PhiaColors.borderSubtle,
                                 ),
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Energy readiness computed from sleep restorative depth and physical exertion.',
+                              activityVM.energyMeterScore > 0
+                                  ? 'Energy readiness computed from sleep restorative depth and physical exertion.'
+                                  : 'Wear device or track activity to compute your energy readiness score.',
                               style: GoogleFonts.inter(
                                 fontSize: 11,
                                 color: PhiaColors.textSecondary,
@@ -843,7 +892,7 @@ class DashboardScreen extends StatelessWidget {
                       title: 'Resting HR',
                       value: activityVM.dashboardHr > 0
                           ? activityVM.dashboardHr.toInt().toString()
-                          : (activityVM.bleService.currentState == BleDeviceState.connected ? '--' : '64'),
+                          : '--',
                       unit: 'bpm',
                       subtitle: (activityVM.dashboardMinHr != null && activityVM.dashboardMaxHr != null)
                           ? '${activityVM.dashboardMinHr} - ${activityVM.dashboardMaxHr} bpm'
@@ -852,13 +901,15 @@ class DashboardScreen extends StatelessWidget {
                           ? 'Live BLE'
                           : (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0
                               ? 'Measuring...'
-                              : (activityVM.isOpenWearablesSynced ? 'Health Connect' : 'Normal')),
+                              : (activityVM.dashboardHr > 0
+                                  ? (activityVM.isOpenWearablesSynced ? 'Health Connect' : 'Recorded')
+                                  : 'Pending')),
                       statusColor: (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0)
                           ? PhiaColors.amberWarning
-                          : const Color(0xFF15803D),
+                          : (activityVM.dashboardHr > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B)),
                       statusBg: (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0)
                           ? const Color(0xFFFEF3C7)
-                          : PhiaColors.activeGreenBg,
+                          : (activityVM.dashboardHr > 0 ? PhiaColors.activeGreenBg : const Color(0xFFF1F5F9)),
                       icon: Icons.favorite_rounded,
                       iconColor: PhiaColors.pulseRed,
                     ),
@@ -869,13 +920,13 @@ class DashboardScreen extends StatelessWidget {
                       title: 'Heart Rate Var.',
                       value: activityVM.dashboardHrv > 0
                           ? activityVM.dashboardHrv.toStringAsFixed(0)
-                          : (activityVM.bleService.currentState == BleDeviceState.connected ? '--' : '58'),
+                          : '--',
                       unit: 'ms',
                       status: activityVM.dashboardHrv > 0
                           ? (activityVM.isOpenWearablesSynced ? 'Health Connect' : 'Optimal')
-                          : (activityVM.bleService.currentState == BleDeviceState.connected ? 'Analyzing' : 'Optimal'),
-                      statusColor: const Color(0xFF15803D),
-                      statusBg: PhiaColors.activeGreenBg,
+                          : (activityVM.bleService.currentState == BleDeviceState.connected ? 'Analyzing' : 'Pending'),
+                      statusColor: activityVM.dashboardHrv > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                      statusBg: activityVM.dashboardHrv > 0 ? PhiaColors.activeGreenBg : const Color(0xFFF1F5F9),
                       icon: Icons.graphic_eq_rounded,
                       iconColor: PhiaColors.primary,
                     ),
@@ -927,33 +978,41 @@ class DashboardScreen extends StatelessWidget {
               // CARD 4: CLINICAL BASELINE & BMI
               _buildNavyCard(
                 title: 'Clinical Baseline & Body Metrics',
-                actionWidget: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: bmiBg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    bmiClassification,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: bmiColor,
+                onTap: () => _showEditBodyMetricsSheet(context, activityVM),
+                actionWidget: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: bmiBg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        bmiClassification,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: bmiColor,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.edit_outlined, size: 14, color: Colors.white70),
+                  ],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatColumn('Height', '${activityVM.userHeight.toStringAsFixed(0)} cm'),
+                      _buildStatColumn('Height', activityVM.userHeight > 0 ? '${activityVM.userHeight.toStringAsFixed(0)} cm' : '--'),
                       Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                      _buildStatColumn('Weight', '${activityVM.userWeight.toStringAsFixed(1)} kg'),
+                      _buildStatColumn('Weight', activityVM.userWeight > 0 ? '${activityVM.userWeight.toStringAsFixed(1)} kg' : '--'),
                       Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                      _buildStatColumn('Age', '${activityVM.userAge} yrs'),
+                      _buildStatColumn('Age', activityVM.userAge > 0 ? '${activityVM.userAge} yrs' : '--'),
                       Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                      _buildStatColumn('BMI', bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A'),
+                      _buildStatColumn('BMI', bmi > 0 ? bmi.toStringAsFixed(1) : '--'),
                     ],
                   ),
                 ),
@@ -963,6 +1022,213 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
       ),
+      ),
+    );
+  }
+
+  void _showEditBodyMetricsSheet(BuildContext context, ActivityViewModel activityVM) {
+    final heightController = TextEditingController(
+      text: activityVM.userHeight > 0 ? activityVM.userHeight.toStringAsFixed(0) : '',
+    );
+    final weightController = TextEditingController(
+      text: activityVM.userWeight > 0 ? activityVM.userWeight.toStringAsFixed(1) : '',
+    );
+    final ageController = TextEditingController(
+      text: activityVM.userAge > 0 ? activityVM.userAge.toString() : '',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          decoration: const BoxDecoration(
+            color: PhiaColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: PhiaColors.borderSubtle,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Edit Body Metrics',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: PhiaColors.navyAnchor,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
+                      onPressed: () => Navigator.pop(sheetCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'HEIGHT (CM)',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: PhiaColors.surfaceSubtle,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: PhiaColors.borderSubtle),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: TextField(
+                              controller: heightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                              style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. 175',
+                                hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'WEIGHT (KG)',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: PhiaColors.surfaceSubtle,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: PhiaColors.borderSubtle),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: TextField(
+                              controller: weightController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'e.g. 70.5',
+                                hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AGE (YEARS)',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: PhiaColors.surfaceSubtle,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: PhiaColors.borderSubtle),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: TextField(
+                        controller: ageController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                        style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. 28',
+                          hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () async {
+                    final h = double.tryParse(heightController.text.trim()) ?? 0.0;
+                    final w = double.tryParse(weightController.text.trim()) ?? 0.0;
+                    final a = double.tryParse(ageController.text.trim()) ?? 0.0;
+                    Navigator.pop(sheetCtx);
+                    if (h > 0 || w > 0 || a > 0) {
+                      await activityVM.saveBioData(
+                        weight: w > 0 ? w : activityVM.userWeight,
+                        height: h > 0 ? h : activityVM.userHeight,
+                        age: a > 0 ? a : (activityVM.userAge > 0 ? activityVM.userAge.toDouble() : 25.0),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: PhiaColors.activeGreen,
+                            content: Text(
+                              'Body metrics updated!',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: PhiaColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Save Body Metrics',
+                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -970,6 +1236,7 @@ class DashboardScreen extends StatelessWidget {
     required String title,
     required Widget child,
     Widget? actionWidget,
+    VoidCallback? onTap,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -985,30 +1252,33 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            color: PhiaColors.navyAnchor,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.2,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              color: PhiaColors.navyAnchor,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                ),
-                if (actionWidget != null) actionWidget,
-              ],
+                  if (actionWidget != null) actionWidget,
+                ],
+              ),
             ),
-          ),
-          child,
-        ],
+            child,
+          ],
+        ),
       ),
     );
   }

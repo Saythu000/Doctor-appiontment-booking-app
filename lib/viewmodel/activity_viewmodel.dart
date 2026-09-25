@@ -12,7 +12,9 @@ import '../../data/repository/vitals_repository.dart';
 import '../../data/service/notification_service.dart';
 import '../../data/service/ble_heart_rate_service.dart';
 import '../../data/service/open_wearables_service.dart';
+import '../../data/service/vitals_foreground_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:health/health.dart';
 
 class ActivityViewModel extends ChangeNotifier {
   final PedometerSensor pedometer;
@@ -47,7 +49,7 @@ class ActivityViewModel extends ChangeNotifier {
   Timer? _actigraphyTimer;
 
   // --- Weekly Progress List ---
-  List<int> weeklyCaloriesList = [350, 420, 390, 510, 480, 220, 150];
+  List<int> weeklyCaloriesList = [0, 0, 0, 0, 0, 0, 0];
 
   // --- Live GPS Workout State ---
   bool isGpsTracking = false;
@@ -74,35 +76,30 @@ class ActivityViewModel extends ChangeNotifier {
   double dashboardCalories = 0.0;
 
   // --- User Bio-Data State (Weight, Height, Age) ---
-  double userWeight = 70.0;
-  double userHeight = 175.0;
-  int userAge = 25;
+  double userWeight = 0.0;
+  double userHeight = 0.0;
+  int userAge = 0;
 
-  // --- Real-time Step Tracking Baselines ---
-  int _todayStepsBase = 0;
   int liveActiveMins = 0;
-  DateTime _lastActiveCheckTime = DateTime.now();
-  int _lastCheckSteps = 0;
 
   // --- Open-Wearables / Health Connect Sync State ---
   bool isOpenWearablesSynced = false;
   String? syncedProviderName;
   Timer? _autoSyncTimer;
 
-  // --- Dynamic Getters for 24/7 Calculations ---
-  // If synced from wearable / Health Connect or dashboard has steps, prioritize that over raw phone accelerometer noise
-  int get currentSteps => (isOpenWearablesSynced && dashboardSteps > 0)
-      ? dashboardSteps
-      : (dashboardSteps > 0
-          ? dashboardSteps
-          : (liveSteps > 0 ? liveSteps : 0));
+  // Steps strictly reflect synced data from Google Fit / Health Connect / Wearables
+  int get currentSteps => dashboardSteps;
   int get currentActiveMins => liveActiveMins > 0 ? liveActiveMins : (dashboardActiveTimeMins > 0 ? dashboardActiveTimeMins : 0);
-  int get currentCalories => (currentSteps * userWeight * 0.0005 + currentActiveMins * 4.0 * (userWeight / 70.0)).toInt();
+  // Calories strictly reflect synced data from Google Fit / Health Connect / Wearables (no mathematical formula fallback)
+  int get currentCalories => dashboardCalories > 0 ? dashboardCalories.toInt() : 0;
   double get currentSleep => liveSleep > 0.0 ? liveSleep : (dashboardSleep > 0.0 ? dashboardSleep : 0.0);
   bool get isStepSensorFallback => pedometer.isUsingAccelerometer;
 
   /// Energy Meter / Body Battery score computed from Sleep, Steps, and Activity (0-100)
   int get energyMeterScore {
+    if (currentSteps == 0 && currentSleep == 0.0 && currentActiveMins == 0) {
+      return 0; // Fresh account or pending sync
+    }
     double score = 50.0; // Baseline
     // Sleep contribution (up to +35 pts for 7-8h sleep)
     final sleepH = currentSleep;
@@ -111,7 +108,7 @@ class ActivityViewModel extends ChangeNotifier {
     } else if (sleepH > 0) {
       score += (sleepH / 7.0) * 35.0;
     } else {
-      score += 15.0; // Moderate default if sleep not yet tracked
+      score += 10.0;
     }
 
     // Step drain (more steps drain energy throughout the day)
@@ -190,7 +187,19 @@ class ActivityViewModel extends ChangeNotifier {
       print('[ActivityViewModel] Starting runtime hardware permission requests...');
     }
 
-    // A. Request Activity Recognition (Pedometer)
+    // A. Request Notifications (for vital alerts & appointment updates)
+    try {
+      final notifStatus = await Permission.notification.request();
+      if (kDebugMode) {
+        print('[ActivityViewModel] Notification permission status: ${notifStatus.name}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Failed to request notification permission: $e');
+      }
+    }
+
+    // B. Request Activity Recognition (Pedometer)
     try {
       final activityStatus = await Permission.activityRecognition.request();
       hasActivityPermission = activityStatus.isGranted;
@@ -203,7 +212,7 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
-    // B. Request Location (GPS)
+    // C. Request Location (GPS)
     try {
       final locationStatus = await Permission.locationWhenInUse.request();
       hasLocationPermission = locationStatus.isGranted;
@@ -216,7 +225,7 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
-    // C. Request Camera (Flash/BPM Vital Sensing)
+    // D. Request Camera (Flash/BPM Vital Sensing)
     try {
       final cameraStatus = await Permission.camera.request();
       if (kDebugMode) {
@@ -228,6 +237,44 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
+    // Small delay so Android OS dismisses earlier permission dialogs cleanly before Health Connect modal
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    // E. Request Android Health Connect permissions popup directly on launch
+    try {
+      final candidateTypes = [
+        HealthDataType.STEPS,
+        HealthDataType.HEART_RATE,
+        HealthDataType.RESTING_HEART_RATE,
+        HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        HealthDataType.SLEEP_SESSION,
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        HealthDataType.BASAL_ENERGY_BURNED,
+        HealthDataType.DISTANCE_WALKING_RUNNING,
+        HealthDataType.BLOOD_OXYGEN,
+        HealthDataType.WORKOUT,
+      ];
+      final health = Health();
+      await health.configure();
+      final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
+      bool? hasPerm;
+      try {
+        hasPerm = await health.hasPermissions(types);
+      } catch (_) {}
+      if (hasPerm != true) {
+        try {
+          await health.requestAuthorization(types);
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Auto Health Connect permission request error: $e');
+      }
+    }
+
     notifyListeners();
 
     // If activity recognition was granted, start native steps tracker immediately
@@ -235,6 +282,9 @@ class ActivityViewModel extends ChangeNotifier {
       await startStepsTracking();
     }
     
+    // Start background sync service
+    VitalsForegroundService.start();
+
     // Always initialize dashboard after permission check (fallback stats load if denied)
     await initDashboard();
   }
@@ -252,31 +302,50 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   Future<void> initDashboard() async {
-    // A. Seed historical data if empty
-    await _seedHistoricalDataIfEmpty();
-
     // 1. Fetch latest baseline logs from local database first (immediate load)
     try {
       // Load user bio data (Weight, Height, Age) first from SQLite
       final weightMetric = await repository.getRecentMetrics('weight');
-      if (weightMetric.isNotEmpty) userWeight = weightMetric.first.value;
+      if (weightMetric.isNotEmpty) {
+        userWeight = weightMetric.first.value;
+      } else {
+        final cachedWeight = await repository.getProfileValue('user_weight');
+        if (cachedWeight != null && cachedWeight.isNotEmpty) {
+          userWeight = double.tryParse(cachedWeight) ?? 0.0;
+        }
+      }
       
       final heightMetric = await repository.getRecentMetrics('height');
-      if (heightMetric.isNotEmpty) userHeight = heightMetric.first.value;
+      if (heightMetric.isNotEmpty) {
+        userHeight = heightMetric.first.value;
+      } else {
+        final cachedHeight = await repository.getProfileValue('user_height');
+        if (cachedHeight != null && cachedHeight.isNotEmpty) {
+          userHeight = double.tryParse(cachedHeight) ?? 0.0;
+        }
+      }
       
       final ageMetric = await repository.getRecentMetrics('age');
-      if (ageMetric.isNotEmpty) userAge = ageMetric.first.value.toInt();
+      if (ageMetric.isNotEmpty) {
+        userAge = ageMetric.first.value.toInt();
+      } else {
+        final cachedAge = await repository.getProfileValue('user_age');
+        if (cachedAge != null && cachedAge.isNotEmpty) {
+          userAge = int.tryParse(cachedAge) ?? 0;
+        }
+      }
 
       final steps = await repository.getRecentMetrics('steps');
       dashboardSteps = steps.isNotEmpty ? _getTodayMetricValue(steps).toInt() : 0;
-      _todayStepsBase = dashboardSteps;
-      _lastCheckSteps = dashboardSteps;
       
+      await repository.clearSyntheticHeartRate();
       final hr = await repository.getRecentMetrics('heart_rate');
-      dashboardHr = hr.isNotEmpty ? _getTodayMetricValue(hr) : 0.0;
+      final double rawHr = hr.isNotEmpty ? _getTodayMetricValue(hr) : 0.0;
+      dashboardHr = (rawHr > 0 && rawHr != 72.0) ? rawHr : 0.0;
       
       final hrv = await repository.getRecentMetrics('hrv');
-      dashboardHrv = hrv.isNotEmpty ? _getTodayMetricValue(hrv) : 0.0;
+      final double rawHrv = hrv.isNotEmpty ? _getTodayMetricValue(hrv) : 0.0;
+      dashboardHrv = (rawHrv > 0 && rawHrv != 45.5) ? rawHrv : 0.0;
 
       final distance = await repository.getRecentMetrics('distance');
       dashboardDistanceKm = distance.isNotEmpty ? _getTodayMetricValue(distance) : 0.0;
@@ -333,11 +402,57 @@ class ActivityViewModel extends ChangeNotifier {
         if (latest.totalActiveMinutes != null && latest.totalActiveMinutes! > 0) {
           dashboardActiveTimeMins = latest.totalActiveMinutes!;
         }
-        if (latest.heartRate != null && latest.heartRate! > 0) {
+        if (latest.heartRate != null && latest.heartRate! > 0 && latest.heartRate != 72) {
           dashboardHr = latest.heartRate!.toDouble();
         }
-        if (latest.heartRateVariability != null && latest.heartRateVariability! > 0.0) {
+        if (latest.heartRateVariability != null && latest.heartRateVariability! > 0.0 && latest.heartRateVariability != 45.5) {
           dashboardHrv = latest.heartRateVariability!;
+        }
+        if (latest.weightKg != null && latest.weightKg! > 0) {
+          userWeight = latest.weightKg!;
+          await repository.saveMetric(HealthMetric(
+            id: 'weight_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'weight',
+            value: latest.weightKg!,
+            timestamp: DateTime.now(),
+            isSynced: true,
+          ));
+        }
+        if (latest.heightCm != null && latest.heightCm! > 0) {
+          userHeight = latest.heightCm!;
+          await repository.saveMetric(HealthMetric(
+            id: 'height_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'height',
+            value: latest.heightCm!,
+            timestamp: DateTime.now(),
+            isSynced: true,
+          ));
+        }
+        if (latest.age != null && latest.age! > 0) {
+          userAge = latest.age!;
+          await repository.saveMetric(HealthMetric(
+            id: 'age_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'age',
+            value: latest.age!.toDouble(),
+            timestamp: DateTime.now(),
+            isSynced: true,
+          ));
+        }
+        if (userAge == 0) {
+          final dobStr = await repository.getProfileValue('birth_date');
+          if (dobStr != null && dobStr.isNotEmpty) {
+            final dob = DateTime.tryParse(dobStr);
+            if (dob != null) {
+              final now = DateTime.now();
+              int age = now.year - dob.year;
+              if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+                age--;
+              }
+              if (age > 0) {
+                userAge = age;
+              }
+            }
+          }
         }
         notifyListeners();
       }
@@ -350,14 +465,17 @@ class ActivityViewModel extends ChangeNotifier {
     // 3. Auto-query Health Connect on launch so fresh watch vitals immediately reflect on dashboard
     syncOpenWearablesVitals('Android Health Connect');
 
-    // Setup seamless recurring auto-sync (every 10 minutes) so telemetry stays updated automatically
+    // Setup seamless recurring auto-sync (every 5 minutes) so telemetry stays updated automatically
     _autoSyncTimer?.cancel();
-    _autoSyncTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+    _autoSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       if (kDebugMode) {
-        print('[ActivityViewModel] Triggering automatic periodic wearable sync...');
+        print('[ActivityViewModel] Triggering automatic 5-minute wearable sync...');
       }
       syncOpenWearablesVitals('Android Health Connect');
     });
+
+    // Start background sync service to keep syncing even when app is minimized
+    VitalsForegroundService.start();
 
     // Run vitals warning checks against thresholds
     await checkVitalsThresholds();
@@ -462,126 +580,12 @@ class ActivityViewModel extends ChangeNotifier {
     // Periodically start Actigraphy Sleep tracking as well
     startSleepTracking();
     
+    // Hardware sensor step tracking is completely disabled.
+    // Steps are exclusively retrieved from Google Fit / Health Connect via syncOpenWearablesVitals().
     try {
-      await pedometer.startSensor();
-      int lastSteps = -1;
-      _stepsSub = pedometer.dataStream.listen((sessionSteps) async {
-        // If watch data has synced via Health Connect, prioritize watch steps!
-        if (isOpenWearablesSynced && dashboardSteps > 0) {
-          return;
-        }
-        liveSteps = _todayStepsBase + sessionSteps;
-        
-        final now = DateTime.now();
-        final todayStr = now.toIso8601String().substring(0, 10);
-        
-        // Save today's cumulative steps under a single unique ID for today!
-        await repository.saveMetric(HealthMetric(
-          id: 'steps_$todayStr',
-          type: 'steps',
-          value: liveSteps.toDouble(),
-          timestamp: now,
-        ));
-
-        // 10,000 steps congratulatory notification check
-        if (liveSteps >= 10000) {
-          final milestoneStepsSentKey = 'milestone_steps_sent_$todayStr';
-          final alreadySent = await repository.getSetting(milestoneStepsSentKey);
-          if (alreadySent == null) {
-            await repository.saveSetting(milestoneStepsSentKey, 'true');
-            await NotificationService.instance.showImmediateNotification(
-              id: 10000,
-              title: 'Goal Achieved! 🎉',
-              body: 'Congratulations! You have completed 10,000 steps today!',
-              type: 'MILESTONE',
-            );
-          }
-        }
-
-        // Initialize active tracking controls on the first stream event
-        if (lastSteps == -1) {
-          _lastCheckSteps = liveSteps;
-          _lastActiveCheckTime = now;
-        }
-
-        // 2. Active minutes: Check if steps incremented by >= 40 in a true 60-second window!
-        final diffSeconds = now.difference(_lastActiveCheckTime).inSeconds;
-        if (diffSeconds >= 60) {
-          final difference = liveSteps - _lastCheckSteps;
-          if (difference >= 40) {
-            liveActiveMins += 1;
-            dashboardActiveTimeMins = liveActiveMins;
-            
-            await repository.saveMetric(HealthMetric(
-              id: 'active_time_$todayStr',
-              type: 'active_time',
-              value: liveActiveMins.toDouble(),
-              timestamp: now,
-            ));
-          }
-          _lastActiveCheckTime = now;
-          _lastCheckSteps = liveSteps;
-        }
-        
-        lastSteps = sessionSteps;
-        
-        // 3. Personalized Calorie Calculation & Remote FHIR Sync
-        try {
-          final int personalizedCal = (liveSteps * userWeight * 0.0005 + liveActiveMins * 4.0 * (userWeight / 70.0)).toInt();
-          final int sleepMin = (dashboardSleep * 60).toInt() > 0 ? (dashboardSleep * 60).toInt() : 480;
-
-          final cachedGender = await repository.getProfileValue('gender');
-          final userId = await repository.getSetting('iam_user_id') ?? '';
-          final orgId = await repository.getSetting('iam_org_id') ?? '';
-
-          await vitalsRepository.submitVitals(VitalsRecord(
-            steps: liveSteps,
-            caloriesKcal: personalizedCal.toDouble(),
-            distanceMeters: liveSteps * 0.8, // ~0.8m per step
-            totalActiveMinutes: liveActiveMins,
-            activityName: 'WALKING',
-            exerciseDurationMinutes: liveActiveMins.toDouble(),
-            activeZoneMinutes: liveActiveMins,
-            fatburnActiveZoneMinutes: (liveActiveMins * 0.5).toInt(),
-            cardioActiveZoneMinutes: (liveActiveMins * 0.3).toInt(),
-            peakActiveZoneMinutes: (liveActiveMins * 0.2).toInt(),
-            restingHeartRate: dashboardHr > 0 ? dashboardHr.toInt() : 72,
-            heartRate: dashboardHr > 0 ? dashboardHr.toInt() : 72,
-            heartRateVariability: dashboardHrv > 0 ? dashboardHrv : 45.5,
-            stressManagementScore: null,
-            bloodPressureSystolic: null,
-            bloodPressureDiastolic: null,
-            sleepMinutes: sleepMin,
-            remSleepMinutes: (sleepMin * 0.1875).toInt(),
-            deepSleepMinutes: (sleepMin * 0.125).toInt(),
-            lightSleepMinutes: (sleepMin * 0.5208).toInt(),
-            awakeMinutes: (sleepMin * 0.0417).toInt(),
-            bedTime: '22:00',
-            wakeUpTime: '06:00',
-            deepSleepPercent: 14.2,
-            remSleepPercent: 21.4,
-            lightSleepPercent: 59.5,
-            awakePercent: 4.7,
-            weightKg: userWeight,
-            heightCm: userHeight,
-            age: userAge,
-            gender: cachedGender,
-            recordedAt: now.toIso8601String().substring(0, 19),
-            date: todayStr,
-          ), userId: userId, orgId: orgId);
-        } catch (e) {
-          if (kDebugMode) {
-            print('[ActivityViewModel] Live steps FHIR sync failed: $e');
-          }
-        }
-        
-        notifyListeners();
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to start native steps sensor: $e');
-      }
-    }
+      await _stepsSub?.cancel();
+      _stepsSub = null;
+    } catch (_) {}
   }
 
   /// Persists height, weight, and age directly to the SQLite cache and triggers remote sync
@@ -589,24 +593,30 @@ class ActivityViewModel extends ChangeNotifier {
     userWeight = weight;
     userHeight = height;
     userAge = age.toInt();
+    notifyListeners();
     
     final now = DateTime.now();
     
+    // Save to local profile key-value storage for instant synchronous retrieval
+    await repository.saveProfileValue('user_weight', weight.toString());
+    await repository.saveProfileValue('user_height', height.toString());
+    await repository.saveProfileValue('user_age', age.toInt().toString());
+
     // Save to local database with unique baseline keys
     await repository.saveMetric(HealthMetric(
-      id: 'bio_weight',
+      id: 'bio_weight_${now.millisecondsSinceEpoch}',
       type: 'weight',
       value: weight,
       timestamp: now,
     ));
     await repository.saveMetric(HealthMetric(
-      id: 'bio_height',
+      id: 'bio_height_${now.millisecondsSinceEpoch}',
       type: 'height',
       value: height,
       timestamp: now,
     ));
     await repository.saveMetric(HealthMetric(
-      id: 'bio_age',
+      id: 'bio_age_${now.millisecondsSinceEpoch}',
       type: 'age',
       value: age,
       timestamp: now,
@@ -628,12 +638,12 @@ class ActivityViewModel extends ChangeNotifier {
             caloriesKcal: calories.toDouble(),
             distanceMeters: steps * 0.8,
             totalActiveMinutes: activeMins,
-            restingHeartRate: dashboardHr > 0 ? dashboardHr.toInt() : 72,
-            heartRate: dashboardHr > 0 ? dashboardHr.toInt() : 72,
-            heartRateVariability: dashboardHrv > 0 ? dashboardHrv : 45.5,
-            weightKg: weight,
-            heightCm: height,
-            age: age.toInt(),
+            restingHeartRate: dashboardHr > 0 ? dashboardHr.toInt() : null,
+            heartRate: dashboardHr > 0 ? dashboardHr.toInt() : null,
+            heartRateVariability: dashboardHrv > 0 ? dashboardHrv : null,
+            weightKg: weight > 0 ? weight : null,
+            heightCm: height > 0 ? height : null,
+            age: age > 0 ? age.toInt() : null,
             gender: cachedGender,
           ),
           userId: userId,
@@ -645,7 +655,32 @@ class ActivityViewModel extends ChangeNotifier {
         print('[ActivityViewModel] Failed to push immediate biometrics: $e');
       }
     }
-    
+  }
+
+  /// Wipes all in-memory user data so switching accounts loads authentic new records
+  void resetState() {
+    dashboardSteps = 0;
+    dashboardHr = 0.0;
+    dashboardMinHr = null;
+    dashboardMaxHr = null;
+    dashboardHrv = 0.0;
+    dashboardDistanceKm = 0.0;
+    dashboardActiveTimeMins = 0;
+    dashboardCalories = 0.0;
+    userWeight = 0.0;
+    userHeight = 0.0;
+    userAge = 0;
+    liveSteps = 0;
+    liveActiveMins = 0;
+    liveSleep = 0.0;
+    dashboardSleep = 0.0;
+    deepSleepMinutes = 0;
+    lightSleepMinutes = 0;
+    remSleepMinutes = 0;
+    awakeMinutes = 0;
+    isOpenWearablesSynced = false;
+    syncedProviderName = null;
+    weeklyCaloriesList = [0, 0, 0, 0, 0, 0, 0];
     notifyListeners();
   }
 
@@ -665,58 +700,7 @@ class ActivityViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _seedHistoricalDataIfEmpty() async {
-    try {
-      final steps = await repository.getRecentMetrics('steps');
-      if (steps.isEmpty) {
-        final now = DateTime.now();
-        // Seed 7 days of historical logs
-        for (int i = 6; i >= 1; i--) {
-          final date = now.subtract(Duration(days: i));
-          final int mockSteps = 6000 + i * 500 + (i % 2 == 0 ? 800 : -400);
-          final double mockActiveMins = 30.0 + i * 5 + (i % 2 == 0 ? 10 : -5);
-          final double mockDistance = mockSteps * 0.0008; // ~0.8m per step
-          final double mockSleep = 6.5 + (i % 3) * 0.5;
-          final double mockCalories = mockSteps * 0.04 + mockActiveMins * 5.0;
 
-          await repository.saveMetric(HealthMetric(
-            id: 'seed_steps_${date.day}',
-            type: 'steps',
-            value: mockSteps.toDouble(),
-            timestamp: date,
-          ));
-          await repository.saveMetric(HealthMetric(
-            id: 'seed_active_time_${date.day}',
-            type: 'active_time',
-            value: mockActiveMins,
-            timestamp: date,
-          ));
-          await repository.saveMetric(HealthMetric(
-            id: 'seed_distance_${date.day}',
-            type: 'distance',
-            value: mockDistance,
-            timestamp: date,
-          ));
-          await repository.saveMetric(HealthMetric(
-            id: 'seed_sleep_${date.day}',
-            type: 'sleep',
-            value: mockSleep,
-            timestamp: date,
-          ));
-          await repository.saveMetric(HealthMetric(
-            id: 'seed_calories_${date.day}',
-            type: 'calories',
-            value: mockCalories,
-            timestamp: date,
-          ));
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to seed historical data: $e');
-      }
-    }
-  }
 
   // --- GPS Workout Controller ---
 
@@ -871,18 +855,25 @@ class ActivityViewModel extends ChangeNotifier {
 
       final cloudVitals = await openWearablesService.fetchLatestVitals(userId: userId, orgId: orgId);
       if (cloudVitals != null) {
-        // Update Resting HR or HR
-        if (cloudVitals.restingHeartRate != null && cloudVitals.restingHeartRate! > 0) {
-          dashboardHr = cloudVitals.restingHeartRate!.toDouble();
-        } else if (cloudVitals.heartRate != null && cloudVitals.heartRate! > 0) {
-          dashboardHr = cloudVitals.heartRate!.toDouble();
+        // Update Resting HR or HR only if real values are reported
+        final realHr = cloudVitals.restingHeartRate ?? cloudVitals.heartRate;
+        if (realHr != null && realHr > 0 && realHr != 72) {
+          dashboardHr = realHr.toDouble();
+        } else if (bleService.currentState != BleDeviceState.connected) {
+          if (dashboardHr == 72.0) {
+            dashboardHr = 0.0;
+          }
         }
 
         dashboardMinHr = cloudVitals.minHeartRate;
         dashboardMaxHr = cloudVitals.maxHeartRate;
 
-        if (cloudVitals.heartRateVariability != null) {
+        if (cloudVitals.heartRateVariability != null && cloudVitals.heartRateVariability! > 0.0 && cloudVitals.heartRateVariability != 45.5) {
           dashboardHrv = cloudVitals.heartRateVariability!;
+        } else if (bleService.currentState != BleDeviceState.connected) {
+          if (dashboardHrv == 45.5) {
+            dashboardHrv = 0.0;
+          }
         }
 
         if (cloudVitals.sleepMinutes != null) {
@@ -901,6 +892,25 @@ class ActivityViewModel extends ChangeNotifier {
 
         if (cloudVitals.caloriesKcal != null && cloudVitals.caloriesKcal! > 0) {
           dashboardCalories = cloudVitals.caloriesKcal!;
+          final now = DateTime.now();
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_cal_${now.millisecondsSinceEpoch}',
+            type: 'calories',
+            value: dashboardCalories,
+            timestamp: now,
+          ));
+        }
+
+        if (cloudVitals.totalActiveMinutes != null && cloudVitals.totalActiveMinutes! > 0) {
+          dashboardActiveTimeMins = cloudVitals.totalActiveMinutes!;
+          liveActiveMins = cloudVitals.totalActiveMinutes!;
+          final now = DateTime.now();
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_active_${now.millisecondsSinceEpoch}',
+            type: 'active_time',
+            value: dashboardActiveTimeMins.toDouble(),
+            timestamp: now,
+          ));
         }
 
         if (cloudVitals.oxygenSaturation != null && cloudVitals.oxygenSaturation! > 0) {
@@ -910,9 +920,9 @@ class ActivityViewModel extends ChangeNotifier {
         isOpenWearablesSynced = true;
         syncedProviderName = providerName ?? 'Android Health Connect';
 
-        // Persist heart rate metric locally
+        // Persist heart rate metric locally ONLY if real data was measured
         final now = DateTime.now();
-        if (dashboardHr > 0) {
+        if (realHr != null && realHr > 0 && realHr != 72) {
           await repository.saveMetric(HealthMetric(
             id: 'synced_hr_${now.millisecondsSinceEpoch}',
             type: 'heart_rate',

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../../domain/model/booking_models.dart';
 import '../service/fhir_api_client.dart';
@@ -59,7 +58,7 @@ class BookingRepository {
     try {
       final queryParams = <String, dynamic>{
         'practitioner_role_id': practitionerRoleId,
-        'date': dateString,
+        if (dateString.isNotEmpty) 'date': dateString,
         'status': 'free',
         'limit': 100,
       };
@@ -68,7 +67,7 @@ class BookingRepository {
       }
 
       final response = await _apiClient.client.get(
-        '/api/v1/slots',
+        '/api/v1/slots/',
         queryParameters: queryParams,
       );
 
@@ -95,6 +94,7 @@ class BookingRepository {
     required int practitionerId,
     required int slotId,
     required int patientId,
+    String? userId,
     required String orgId,
     required String appointmentTypeDisplay,
     String? reasonCode,
@@ -107,6 +107,7 @@ class BookingRepository {
         'practitioner_id': practitionerId,
         'slot_id': slotId,
         'patient_id': patientId,
+        if (userId != null && userId.isNotEmpty) 'user_id': userId,
         if (orgId.isNotEmpty) 'org_id': orgId,
         'appointment_type_display': appointmentTypeDisplay,
         if (practitionerName.isNotEmpty) 'practitioner_display': practitionerName,
@@ -143,6 +144,27 @@ class BookingRepository {
         print('[BookingRepository] POST /api/v1/appointments/book failed: $e');
       }
       rethrow;
+    }
+  }
+
+  /// Provision consultation room via POST https://app.drgodly.com/api/consultation/create
+  Future<bool> provisionConsultationRoom(int fhirAppointmentId) async {
+    try {
+      final resp = await _apiClient.client.post(
+        'https://app.drgodly.com/api/consultation/create',
+        data: {
+          'fhir_appointment_id': fhirAppointmentId,
+        },
+      );
+      if (kDebugMode) {
+        print('[BookingRepository] consultation/create success: ${resp.data}');
+      }
+      return resp.statusCode == 200 || resp.statusCode == 201;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[BookingRepository] consultation/create (non-critical): $e');
+      }
+      return false;
     }
   }
 
@@ -285,7 +307,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30001,
         practitionerDisplay: 'Dr. Marcus Aurelius',
-        organizationDisplay: 'DRGODLY Wellness Hub',
+        organizationDisplay: 'DrGodly Wellness Hub',
         availabilityExceptions: 'Not available on local public holidays.',
         specialties: ['Primary Care / Family Medicine Physician'],
         availability: [
@@ -325,7 +347,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30002,
         practitionerDisplay: 'Dr. Elena Vance',
-        organizationDisplay: 'DRGODLY Cardiac Center',
+        organizationDisplay: 'DrGodly Cardiac Center',
         availabilityExceptions: 'Academic research commitments on Wed afternoon.',
         specialties: ['Cardiology / Cardiovascular Specialist'],
         availability: [
@@ -365,7 +387,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30003,
         practitionerDisplay: 'Dr. David Chen',
-        organizationDisplay: 'DRGODLY Endocrinology Lab',
+        organizationDisplay: 'DrGodly Endocrinology Lab',
         specialties: ['Endocrinology / Diabetes Specialist'],
         availability: [
           PractitionerAvailability(
@@ -397,7 +419,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30004,
         practitionerDisplay: 'Dr. Sarah Vance',
-        organizationDisplay: 'DRGODLY Neurology Clinic',
+        organizationDisplay: 'DrGodly Neurology Clinic',
         specialties: ['Neurology / Brain & Cognitive Specialist'],
         availability: [
           PractitionerAvailability(
@@ -429,7 +451,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30005,
         practitionerDisplay: 'Dr. Kaelen Cross',
-        organizationDisplay: 'DRGODLY Sleep Labs',
+        organizationDisplay: 'DrGodly Sleep Labs',
         specialties: ['Pulmonology / Sleep Medicine Specialist'],
         availability: [
           PractitionerAvailability(
@@ -461,7 +483,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30006,
         practitionerDisplay: 'Dr. Aria Frost',
-        organizationDisplay: 'DRGODLY Dermatology Center',
+        organizationDisplay: 'DrGodly Dermatology Center',
         specialties: ['Dermatology / Skin Care Specialist'],
         availability: [
           PractitionerAvailability(
@@ -493,7 +515,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30007,
         practitionerDisplay: 'Dr. Logan Gray',
-        organizationDisplay: 'DRGODLY Orthopedics',
+        organizationDisplay: 'DrGodly Orthopedics',
         specialties: ['Orthopedic Surgery / Joint Specialist'],
         availability: [
           PractitionerAvailability(
@@ -525,7 +547,7 @@ class BookingRepository {
         active: true,
         practitionerRefId: 30008,
         practitionerDisplay: 'Dr. Evelyn Stark',
-        organizationDisplay: 'DRGODLY Pediatrics',
+        organizationDisplay: 'DrGodly Pediatrics',
         specialties: ['Pediatrics / Child Health Specialist'],
         availability: [
           PractitionerAvailability(

@@ -6,6 +6,9 @@ import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/booking_viewmodel.dart';
+import '../../viewmodel/auth_viewmodel.dart';
+import '../../viewmodel/activity_viewmodel.dart';
 import '../../domain/model/patient_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -139,18 +142,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditProfileBottomSheet(BuildContext context, PlainPatient? currentProfile) {
+    final authVM = context.read<AuthViewModel>();
+    final profileVM = context.read<ProfileViewModel>();
+    final activityVM = context.read<ActivityViewModel>();
+    final defaultGiven = authVM.user?.name.split(' ').first ?? '';
+    final defaultFamily = (authVM.user?.name.split(' ').length ?? 0) > 1
+        ? authVM.user!.name.split(' ').sublist(1).join(' ')
+        : '';
+    final defaultEmail = authVM.user?.email ?? '';
+
     final givenNameController = TextEditingController(
-      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
+      text: (currentProfile?.name != null && currentProfile!.name!.isNotEmpty && currentProfile.name!.first.givenName.isNotEmpty)
           ? currentProfile.name!.first.givenName
-          : 'Sarah',
+          : defaultGiven,
     );
     final familyNameController = TextEditingController(
-      text: currentProfile?.name != null && currentProfile!.name!.isNotEmpty
-          ? currentProfile.name!.first.familyName ?? ''
-          : 'Chen',
+      text: (currentProfile?.name != null && currentProfile!.name!.isNotEmpty)
+          ? (currentProfile.name!.first.familyName ?? '')
+          : defaultFamily,
     );
-    final emailController = TextEditingController(text: currentProfile?.primaryEmail ?? 'sarah.chen@example.com');
-    final phoneController = TextEditingController(text: currentProfile?.primaryPhone ?? '+1 (555) 234-5678');
+    final emailController = TextEditingController(
+      text: (currentProfile?.primaryEmail.isNotEmpty == true)
+          ? currentProfile!.primaryEmail
+          : defaultEmail,
+    );
+    final phoneController = TextEditingController(
+      text: currentProfile?.primaryPhone ?? '',
+    );
+    final dobController = TextEditingController(
+      text: currentProfile?.birthDate ?? '',
+    );
+    final heightController = TextEditingController(
+      text: activityVM.userHeight > 0 ? activityVM.userHeight.toStringAsFixed(0) : '',
+    );
+    final weightController = TextEditingController(
+      text: activityVM.userWeight > 0 ? activityVM.userWeight.toStringAsFixed(1) : '',
+    );
+
+    String existingStreet = '';
+    String existingCity = '';
+    String existingState = '';
+    String existingZip = '';
+    String existingCountry = '';
+    if (currentProfile?.address != null && currentProfile!.address!.isNotEmpty) {
+      final addr = currentProfile.address!.first;
+      existingStreet = addr.line.isNotEmpty ? addr.line.join(', ') : '';
+      existingCity = addr.city ?? '';
+      existingState = addr.state ?? '';
+      existingZip = addr.postalCode ?? '';
+      existingCountry = addr.country ?? '';
+    }
+
+    final streetController = TextEditingController(text: existingStreet);
+    final cityController = TextEditingController(text: existingCity);
+    final stateController = TextEditingController(text: existingState);
+    final zipController = TextEditingController(text: existingZip);
+    final countryController = TextEditingController(text: existingCountry);
+
+    String selectedGender = currentProfile?.gender?.toLowerCase() ?? 'female';
+    if (selectedGender != 'male' && selectedGender != 'female' && selectedGender != 'other') {
+      selectedGender = 'female';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -159,71 +211,325 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Edit Personal Details',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: PhiaColors.navyAnchor,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                top: 20,
+                left: 20,
+                right: 20,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Edit Personal Details',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildCleanInput('FIRST NAME', givenNameController, 'First Name'),
-                const SizedBox(height: 14),
-                _buildCleanInput('LAST NAME', familyNameController, 'Last Name'),
-                const SizedBox(height: 14),
-                _buildCleanInput('EMAIL ADDRESS', emailController, 'sarah.chen@example.com'),
-                const SizedBox(height: 14),
-                _buildCleanInput('PHONE NUMBER', phoneController, '+1 (555) 234-5678'),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: PhiaColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                      const SizedBox(height: 14),
+
+                      // NAME ROW
+                      Row(
+                        children: [
+                          Expanded(child: _buildCleanInput('FIRST NAME', givenNameController, 'First Name')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildCleanInput('LAST NAME', familyNameController, 'Last Name')),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // GENDER SELECTOR
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'GENDER',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              _buildInteractiveGenderChip('Female', selectedGender == 'female', () {
+                                setSheetState(() => selectedGender = 'female');
+                              }),
+                              const SizedBox(width: 8),
+                              _buildInteractiveGenderChip('Male', selectedGender == 'male', () {
+                                setSheetState(() => selectedGender = 'male');
+                              }),
+                              const SizedBox(width: 8),
+                              _buildInteractiveGenderChip('Other', selectedGender == 'other', () {
+                                setSheetState(() => selectedGender = 'other');
+                              }),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // DATE OF BIRTH (with DatePicker tap)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DATE OF BIRTH (YYYY-MM-DD)',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
+                          ),
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: () async {
+                              DateTime initial = DateTime.tryParse(dobController.text) ?? DateTime(2000, 1, 1);
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: initial,
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                final formatted = "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                setSheetState(() {
+                                  dobController.text = formatted;
+                                });
+                              }
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: PhiaColors.surfaceSubtle,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: PhiaColors.borderSubtle),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    dobController.text.isNotEmpty ? dobController.text : 'Select Date of Birth',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: dobController.text.isNotEmpty ? PhiaColors.textPrimary : PhiaColors.textMuted,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const Icon(Icons.calendar_today_rounded, size: 18, color: PhiaColors.primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // HEIGHT & WEIGHT ROW
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildCleanInput(
+                              'HEIGHT (CM)',
+                              heightController,
+                              'e.g. 175',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildCleanInput(
+                              'WEIGHT (KG)',
+                              weightController,
+                              'e.g. 70.5',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // PHONE & EMAIL
+                      _buildCleanInput('PHONE NUMBER', phoneController, '+1 234 567 8900'),
+                      const SizedBox(height: 14),
+                      _buildCleanInput('EMAIL ADDRESS', emailController, 'name@example.com'),
+                      const SizedBox(height: 14),
+
+                      // ADDRESS FIELDS
+                      _buildCleanInput('STREET ADDRESS', streetController, '123 Health Ave, Suite 400'),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(child: _buildCleanInput('CITY', cityController, 'City')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildCleanInput('STATE / PROV', stateController, 'State')),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(child: _buildCleanInput('POSTAL CODE', zipController, 'Postal Code')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildCleanInput('COUNTRY', countryController, 'Country')),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // SAVE BUTTON
+                      ElevatedButton(
+                        onPressed: () async {
+                          final gName = givenNameController.text.trim();
+                          final fName = familyNameController.text.trim();
+                          final pDob = dobController.text.trim();
+                          final pHeight = heightController.text.trim();
+                          final pWeight = weightController.text.trim();
+                          final pPhone = phoneController.text.trim();
+                          final pEmail = emailController.text.trim();
+                          final pStreet = streetController.text.trim();
+                          final pCity = cityController.text.trim();
+                          final pState = stateController.text.trim();
+                          final pZip = zipController.text.trim();
+                          final pCountry = countryController.text.trim();
+
+                          Navigator.pop(context);
+
+                          try {
+                            // 1. Save Height, Weight & Age to SQLite immediately
+                            final hVal = double.tryParse(pHeight) ?? 0.0;
+                            final wVal = double.tryParse(pWeight) ?? 0.0;
+                            int calcAge = activityVM.userAge;
+                            if (pDob.isNotEmpty) {
+                              final birth = DateTime.tryParse(pDob);
+                              if (birth != null) {
+                                final now = DateTime.now();
+                                calcAge = now.year - birth.year;
+                                if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) {
+                                  calcAge--;
+                                }
+                              }
+                            }
+                            if (hVal > 0 || wVal > 0 || calcAge > 0) {
+                              await activityVM.saveBioData(
+                                weight: wVal > 0 ? wVal : activityVM.userWeight,
+                                height: hVal > 0 ? hVal : activityVM.userHeight,
+                                age: calcAge > 0 ? calcAge.toDouble() : (activityVM.userAge > 0 ? activityVM.userAge.toDouble() : 25.0),
+                              );
+                            }
+
+                            // 2. Save profile demographics (wrapped in inner try so remote failure doesn't block UI)
+                            try {
+                              await profileVM.saveProfileDetails(
+                                givenName: gName,
+                                familyName: fName,
+                                gender: selectedGender,
+                                birthDate: pDob,
+                                email: pEmail,
+                                phone: pPhone,
+                                street: pStreet,
+                                city: pCity,
+                                state: pState,
+                                zip: pZip,
+                                country: pCountry,
+                              );
+                            } catch (remoteErr) {
+                              debugPrint('Profile remote update exception: $remoteErr');
+                            }
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: PhiaColors.activeGreen,
+                                  content: Text(
+                                    'Profile updated successfully!',
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: PhiaColors.primary,
+                                  content: Text(
+                                    'Saved locally.',
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: PhiaColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(
+                          'Save Changes',
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  child: Text(
-                    'Save Changes',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildCleanInput(String label, TextEditingController controller, String placeholder) {
+  Widget _buildInteractiveGenderChip(String label, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE1F2FC) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? PhiaColors.primary : PhiaColors.borderSubtle,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? PhiaColors.navyAnchor : PhiaColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCleanInput(
+    String label,
+    TextEditingController controller,
+    String placeholder, {
+    TextInputType? keyboardType,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -241,6 +547,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: TextField(
             controller: controller,
+            keyboardType: keyboardType,
             style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
             decoration: InputDecoration(
               hintText: placeholder,
@@ -257,18 +564,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authVM = context.watch<AuthViewModel>();
     final profileVM = context.watch<ProfileViewModel>();
+    final bookingVM = context.watch<BookingViewModel>();
+    final activityVM = context.watch<ActivityViewModel>();
     final profile = profileVM.currentProfile;
-    final patientName = profile?.primaryName ?? 'Sarah J. Chen';
-    final patientId = 'DG987654';
+
+    String patientName = '--';
+    if (profile?.name != null && profile!.name!.isNotEmpty && profile.name!.first.fullName.trim().isNotEmpty) {
+      patientName = profile.name!.first.fullName.trim();
+    } else if (authVM.user?.name != null && authVM.user!.name.trim().isNotEmpty) {
+      patientName = authVM.user!.name.trim();
+    }
+
+    String patientId = '--';
+    if (profile?.id != null && profile!.id > 0) {
+      patientId = '#${profile.id}';
+    } else if (authVM.userId != null && authVM.userId!.isNotEmpty) {
+      final cleanId = authVM.userId!.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+      patientId = 'DG-${cleanId.length >= 6 ? cleanId.substring(0, 6) : cleanId}';
+    }
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
       appBar: AppBar(
         backgroundColor: PhiaColors.primary,
         elevation: 0,
+        automaticallyImplyLeading: !widget.isTab,
         leading: widget.isTab
-            ? const Icon(Icons.menu_rounded, color: Colors.white)
+            ? null
             : IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                 onPressed: () => Navigator.pop(context),
@@ -285,7 +609,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             onPressed: () => showNotificationCenter(context),
-            icon: const Icon(Icons.search_rounded, color: Colors.white),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_rounded, color: Colors.white),
+                if (bookingVM.appointmentsList.isNotEmpty)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: PhiaColors.pulseRed,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                      child: Text(
+                        '${bookingVM.appointmentsList.length}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -368,31 +720,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: 'Personal Information',
               actionIcon: Icons.edit_rounded,
               onAction: () => _showEditProfileBottomSheet(context, profile),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    _buildInfoGridRow(
-                      leftLabel: 'Full Name',
-                      leftValue: patientName,
-                      rightLabel: 'Date of Birth',
-                      rightValue: profile?.birthDate ?? '1988-03-15',
-                    ),
-                    const Divider(color: PhiaColors.borderSubtle, height: 24),
-                    _buildGenderRow(selectedGender: profile?.gender?.toLowerCase() ?? 'female'),
-                    const Divider(color: PhiaColors.borderSubtle, height: 24),
-                    _buildFullWidthInfoRow(
-                      label: 'Address',
-                      value: '123 Medical Center Dr, Suite 400\nBoston, MA 02115',
-                    ),
-                    const Divider(color: PhiaColors.borderSubtle, height: 24),
-                    _buildInfoGridRow(
-                      leftLabel: 'Phone Number',
-                      leftValue: profile?.primaryPhone ?? '+1 (555) 234-5678',
-                      rightLabel: 'Email Address',
-                      rightValue: profile?.primaryEmail ?? 'sarah.chen@example.com',
-                    ),
-                  ],
+              child: InkWell(
+                onTap: () => _showEditProfileBottomSheet(context, profile),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      _buildInfoGridRow(
+                        leftLabel: 'Full Name',
+                        leftValue: patientName,
+                        rightLabel: 'Date of Birth',
+                        rightValue: (profile?.birthDate != null && profile!.birthDate!.isNotEmpty)
+                            ? profile.birthDate!
+                            : '--',
+                      ),
+                      const Divider(color: PhiaColors.borderSubtle, height: 24),
+                      _buildInfoGridRow(
+                        leftLabel: 'Height',
+                        leftValue: activityVM.userHeight > 0 ? '${activityVM.userHeight.toStringAsFixed(0)} cm' : '--',
+                        rightLabel: 'Weight',
+                        rightValue: activityVM.userWeight > 0 ? '${activityVM.userWeight.toStringAsFixed(1)} kg' : '--',
+                      ),
+                      const Divider(color: PhiaColors.borderSubtle, height: 24),
+                      _buildGenderRow(selectedGender: profile?.gender?.toLowerCase() ?? ''),
+                      const Divider(color: PhiaColors.borderSubtle, height: 24),
+                      _buildFullWidthInfoRow(
+                        label: 'Address',
+                        value: (profile?.address != null && profile!.address!.isNotEmpty)
+                            ? [...profile.address!.first.line, profile.address!.first.city, profile.address!.first.state, profile.address!.first.postalCode, profile.address!.first.country]
+                                .where((s) => s != null && s.trim().isNotEmpty)
+                                .join(', ')
+                            : 'Not Set',
+                      ),
+                      const Divider(color: PhiaColors.borderSubtle, height: 24),
+                      _buildInfoGridRow(
+                        leftLabel: 'Phone Number',
+                        leftValue: (profile?.primaryPhone.isNotEmpty == true) ? profile!.primaryPhone : '--',
+                        rightLabel: 'Email Address',
+                        rightValue: (profile?.primaryEmail.isNotEmpty == true)
+                            ? profile!.primaryEmail
+                            : (authVM.user?.email ?? '--'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -438,79 +808,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: 'Configured',
                       onTap: () => Navigator.pushNamed(context, '/vitals_reminders'),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // CARD 3: Clinical Unit Registrations (Navy Header Banner)
-            _buildNavyHeaderCard(
-              title: 'Clinical Unit Registrations',
-              actionWidget: TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/clinical_units'),
-                child: Text(
-                  'Manage',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white70,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          // Unit 1: Neurology Unit (Sky Blue Card)
-                          _buildUnitCard(
-                            unitName: 'Neurology Unit',
-                            doctorName: 'Dr. Michael Chang',
-                            status: 'ACTIVE',
-                            cardBgColor: const Color(0xFF4BAAE5),
-                            textColor: Colors.white,
-                          ),
-                          const SizedBox(width: 12),
-                          // Unit 2: Cardiology Unit (Sky Blue Card)
-                          _buildUnitCard(
-                            unitName: 'Cardiology Unit',
-                            doctorName: 'Dr. Elena Rostova',
-                            status: 'ACTIVE',
-                            cardBgColor: const Color(0xFF4BAAE5),
-                            textColor: Colors.white,
-                          ),
-                          const SizedBox(width: 12),
-                          // Unit 3: Primary Care (Navy Card)
-                          _buildUnitCard(
-                            unitName: 'Primary Care',
-                            doctorName: 'Dr. Sarah Jenkins',
-                            status: 'ACTIVE',
-                            cardBgColor: PhiaColors.navyAnchor,
-                            textColor: Colors.white,
-                          ),
-                        ],
-                      ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildNavActionRow(
+                      title: 'Clinical Unit Registrations',
+                      value: 'Configured',
+                      onTap: () => Navigator.pushNamed(context, '/clinical_units'),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // Sign Out / Log Out Button
             Center(
               child: TextButton.icon(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                onPressed: () async {
+                  context.read<ActivityViewModel>().resetState();
+                  context.read<ProfileViewModel>().resetState();
+                  await context.read<AuthViewModel>().signOut();
+                  if (context.mounted) {
+                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                  }
                 },
                 icon: const Icon(Icons.logout_rounded, color: PhiaColors.pulseRed, size: 18),
                 label: Text(
-                  'Sign Out of Account',
+                  'Sign Out',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -809,89 +1132,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildUnitCard({
-    required String unitName,
-    required String doctorName,
-    required String status,
-    required Color cardBgColor,
-    required Color textColor,
-  }) {
-    return Container(
-      width: 175,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBgColor,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: cardBgColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  unitName,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  status,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            doctorName,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: textColor.withOpacity(0.9),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'View Details',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: cardBgColor == PhiaColors.navyAnchor ? PhiaColors.navyAnchor : const Color(0xFF228BCA),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }

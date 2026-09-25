@@ -38,12 +38,52 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
     _thirtyDays = List.generate(30, (index) => today.add(Duration(days: index)));
   }
 
+  bool _isDoctorAvailableOn(DateTime d) {
+    if (_specialist == null) return true;
+    final avails = _specialist!.availability;
+    if (avails.isEmpty) return true;
+
+    const daysMap = {
+      DateTime.monday: 'mon',
+      DateTime.tuesday: 'tue',
+      DateTime.wednesday: 'wed',
+      DateTime.thursday: 'thu',
+      DateTime.friday: 'fri',
+      DateTime.saturday: 'sat',
+      DateTime.sunday: 'sun',
+    };
+    final dayCode = daysMap[d.weekday] ?? '';
+
+    final allowedDays = <String>{};
+    for (final a in avails) {
+      for (final t in a.availableTimes) {
+        for (final day in t.daysOfWeek) {
+          allowedDays.add(day.toLowerCase().trim());
+        }
+      }
+    }
+
+    if (allowedDays.isEmpty) return true;
+    return allowedDays.contains(dayCode);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
       final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
       _specialist = args['specialist'] as PractitionerRoleBooking?;
+
+      // Auto-select first available day if today is not an active day for this specialist
+      if (!_isDoctorAvailableOn(_selectedDate)) {
+        for (final d in _thirtyDays) {
+          if (_isDoctorAvailableOn(d)) {
+            _selectedDate = d;
+            break;
+          }
+        }
+      }
+
       _fetchSlotsForDate(_selectedDate);
       _initialized = true;
     }
@@ -63,9 +103,6 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
     final specialistName = args['name'] as String? ?? 'Clinical Specialist';
     final specialistRole = args['role'] as String? ?? 'General Practice';
     final specialistImageUrl = args['imageUrl'] as String? ?? 'assets/doctors/doctor_1.png';
-
-    final morningSlots = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '11:30 AM'];
-    final afternoonSlots = ['01:30 PM', '02:00 PM', '03:00 PM', '03:30 PM', '04:30 PM'];
 
     final isRescheduling = args['reschedule_appointment_id'] != null;
 
@@ -276,68 +313,96 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
-                    height: 88,
+                    height: 92,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _thirtyDays.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
                       itemBuilder: (context, idx) {
                         final d = _thirtyDays[idx];
-                        final isSelected = d.year == _selectedDate.year &&
+                        final isAvailable = _isDoctorAvailableOn(d);
+                        final isSelected = isAvailable &&
+                            d.year == _selectedDate.year &&
                             d.month == _selectedDate.month &&
                             d.day == _selectedDate.day;
 
-                        return InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedDate = d;
-                              _selectedTimeSlot = null;
-                              _selectedSlotId = null;
-                            });
-                            _fetchSlotsForDate(d);
-                          },
-                          borderRadius: BorderRadius.circular(14),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            width: 58,
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected ? PhiaColors.navyAnchor : PhiaColors.surface,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isSelected ? PhiaColors.navyAnchor : PhiaColors.borderSubtle,
+                        return Opacity(
+                          opacity: isAvailable ? 1.0 : 0.38,
+                          child: InkWell(
+                            onTap: isAvailable
+                                ? () {
+                                    setState(() {
+                                      _selectedDate = d;
+                                      _selectedTimeSlot = null;
+                                      _selectedSlotId = null;
+                                    });
+                                    _fetchSlotsForDate(d);
+                                  }
+                                : null,
+                            borderRadius: BorderRadius.circular(14),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 60,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? PhiaColors.navyAnchor
+                                    : (isAvailable ? PhiaColors.surface : PhiaColors.surfaceSubtle),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? PhiaColors.navyAnchor
+                                      : PhiaColors.borderSubtle,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: PhiaColors.navyAnchor.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: PhiaColors.navyAnchor.withOpacity(0.2),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    DateFormat('E').format(d).toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected
+                                          ? Colors.white.withOpacity(0.85)
+                                          : (isAvailable ? PhiaColors.textMuted : PhiaColors.textMuted.withOpacity(0.6)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    d.day.toString(),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : (isAvailable ? PhiaColors.navyAnchor : PhiaColors.textMuted),
+                                    ),
+                                  ),
+                                  if (!isAvailable) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'OFF',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: PhiaColors.textMuted,
+                                        letterSpacing: 0.3,
                                       ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  DateFormat('E').format(d).toUpperCase(),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected ? Colors.white.withOpacity(0.85) : PhiaColors.textMuted,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  d.day.toString(),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: isSelected ? Colors.white : PhiaColors.navyAnchor,
-                                  ),
-                                ),
-                              ],
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -374,83 +439,145 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       final bookingVM = context.watch<BookingViewModel>();
                       final serverSlots = bookingVM.availableSlots;
 
-                      if (serverSlots.isNotEmpty) {
-                        final morning = serverSlots.where((s) => (s.startDateTime?.hour ?? 9) < 12).toList();
-                        final afternoon = serverSlots.where((s) => (s.startDateTime?.hour ?? 9) >= 12).toList();
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (morning.isNotEmpty) ...[
-                              Text(
-                                'MORNING',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: PhiaColors.textSecondary,
+                      if (bookingVM.isSlotsLoading) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 36.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(color: PhiaColors.primary),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Checking schedule for $specialistName...',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: PhiaColors.textSecondary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: morning.map((s) => _buildSlotChip(s.displayTime, slotId: s.id)).toList(),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            if (afternoon.isNotEmpty) ...[
-                              Text(
-                                'AFTERNOON / EVENING',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: PhiaColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: afternoon.map((s) => _buildSlotChip(s.displayTime, slotId: s.id)).toList(),
-                              ),
-                            ],
-                          ],
+                              ],
+                            ),
+                          ),
                         );
                       }
 
-                      // Fallback standard slots when server has no pre-generated slot records
+                      if (serverSlots.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: PhiaColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: PhiaColors.borderSubtle),
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: PhiaColors.surfaceSubtle,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.event_busy_rounded,
+                                  color: PhiaColors.textMuted,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No Slots Available',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: PhiaColors.navyAnchor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'No consultation slots available for $specialistName on ${DateFormat('EEE, MMM d').format(_selectedDate)}.\nPlease select another date from the calendar above.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: PhiaColors.textSecondary,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final morning = serverSlots.where((s) {
+                        final hour = s.startDateTime?.hour ?? 9;
+                        return hour < 12;
+                      }).toList();
+
+                      final afternoon = serverSlots.where((s) {
+                        final hour = s.startDateTime?.hour ?? 13;
+                        return hour >= 12 && hour < 17;
+                      }).toList();
+
+                      final evening = serverSlots.where((s) {
+                        final hour = s.startDateTime?.hour ?? 18;
+                        return hour >= 17;
+                      }).toList();
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'MORNING',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: PhiaColors.textSecondary,
+                          if (morning.isNotEmpty) ...[
+                            Text(
+                              'MORNING',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: PhiaColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: morningSlots.map((slot) => _buildSlotChip(slot)).toList(),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'AFTERNOON',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: PhiaColors.textSecondary,
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: morning.map((s) => _buildSlotChip(s.displayTime, slotId: s.id)).toList(),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: afternoonSlots.map((slot) => _buildSlotChip(slot)).toList(),
-                          ),
+                            const SizedBox(height: 16),
+                          ],
+                          if (afternoon.isNotEmpty) ...[
+                            Text(
+                              'AFTERNOON',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: PhiaColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: afternoon.map((s) => _buildSlotChip(s.displayTime, slotId: s.id)).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          if (evening.isNotEmpty) ...[
+                            Text(
+                              'EVENING',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: PhiaColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: evening.map((s) => _buildSlotChip(s.displayTime, slotId: s.id)).toList(),
+                            ),
+                          ],
                         ],
                       );
                     },

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/activity_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -79,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'DRGODLY',
+                      'DrGodly',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
@@ -154,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _nameController,
                               focusNode: _nameFocus,
                               isFocused: _isNameFocused,
-                              hintText: 'Sarah J. Chen',
+                              hintText: 'e.g. Alex Morgan',
                               icon: Icons.person_outline_rounded,
                               keyboardType: TextInputType.name,
                             ),
@@ -168,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailController,
                             focusNode: _emailFocus,
                             isFocused: _isEmailFocused,
-                            hintText: 'sarah.chen@example.com',
+                            hintText: 'name@example.com',
                             icon: Icons.alternate_email_rounded,
                             keyboardType: TextInputType.emailAddress,
                           ),
@@ -302,7 +303,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     }
 
                                     if (success) {
+                                      final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
+                                      activityVM.resetState();
+                                      profileVM.resetState();
                                       await profileVM.fetchOrInitProfile();
+                                      await activityVM.initDashboard();
                                       final profile = profileVM.currentProfile;
                                       final bool hasProfile = profile != null &&
                                           profile.name != null &&

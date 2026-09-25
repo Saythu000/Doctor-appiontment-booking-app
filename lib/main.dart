@@ -33,8 +33,13 @@ import 'viewmodel/auth_viewmodel.dart';
 import 'data/repository/auth_repository.dart';
 import 'data/service/notification_service.dart';
 
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'data/service/vitals_foreground_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterForegroundTask.initCommunicationPort();
+  VitalsForegroundService.init();
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermissions();
   
@@ -83,9 +88,10 @@ class PhiaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DRGODLY',
-      debugShowCheckedModeBanner: false,
+    return WithForegroundTask(
+      child: MaterialApp(
+        title: 'DrGodly',
+        debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: PhiaColors.background,
@@ -141,6 +147,7 @@ class PhiaApp extends StatelessWidget {
         '/general_settings': (context) => const GeneralSettingsScreen(),
         '/appointment_history': (context) => const AppointmentHistoryScreen(),
       },
+    ),
     );
   }
 }

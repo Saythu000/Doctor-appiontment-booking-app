@@ -48,25 +48,34 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: PhiaColors.primaryLight,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.medical_services_rounded,
-                          color: PhiaColors.primary,
-                          size: 20,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/app_logo.jpeg',
+                          width: 28,
+                          height: 28,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: PhiaColors.primaryLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.medical_services_rounded,
+                              color: PhiaColors.primary,
+                              size: 16,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'DRGODLY',
+                        'DrGodly',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
+                          letterSpacing: 0.5,
                           color: PhiaColors.navyAnchor,
                         ),
                       ),
@@ -212,10 +221,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shadowColor: PhiaColors.primary.withOpacity(0.35),
+                  shadowColor: PhiaColors.primary.withOpacity(0.3),
                 ),
                 onPressed: () {
                   Navigator.pushNamed(context, '/login');
@@ -224,11 +233,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'GET STARTED',
+                      'Get Started',
                       style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                        fontSize: 15,
                       ),
                     ),
                     const SizedBox(width: 8),

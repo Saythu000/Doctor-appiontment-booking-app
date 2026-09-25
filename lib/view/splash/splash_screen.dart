@@ -101,38 +101,29 @@ class _SplashScreenState extends State<SplashScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 100,
-                      height: 100,
+                      width: 96,
+                      height: 96,
                       decoration: BoxDecoration(
                         color: PhiaColors.surface,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(22),
                         border: Border.all(color: PhiaColors.borderSubtle, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: PhiaColors.navyAnchor.withOpacity(0.06),
+                            color: PhiaColors.navyAnchor.withOpacity(0.08),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.all(18),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: PhiaColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.medical_services_rounded,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                        ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'assets/app_logo.jpeg',
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'DRGODLY',
+                      'DrGodly',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,

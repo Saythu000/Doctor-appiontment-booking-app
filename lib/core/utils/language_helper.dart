@@ -5,7 +5,7 @@ import '../../viewmodel/settings_viewmodel.dart';
 class AppLanguageHelper {
   static const Map<String, Map<String, String>> _translations = {
     'English': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'HI',
       'patient': 'PATIENT',
       'steps': 'STEPS',
@@ -29,7 +29,7 @@ class AppLanguageHelper {
       'connected_devices': 'Connected Devices',
     },
     'Français': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'BONJOUR',
       'patient': 'PATIENT',
       'steps': 'PAS',
@@ -53,7 +53,7 @@ class AppLanguageHelper {
       'connected_devices': 'Appareils Connectés',
     },
     'Italiano': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'CIAO',
       'patient': 'PAZIENTE',
       'steps': 'PASSI',
@@ -77,7 +77,7 @@ class AppLanguageHelper {
       'connected_devices': 'Dispositivi Connessi',
     },
     'Deutsch': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'HALLO',
       'patient': 'PATIENT',
       'steps': 'SCHRITTE',
@@ -101,7 +101,7 @@ class AppLanguageHelper {
       'connected_devices': 'Verbundene Geräte',
     },
     'Español': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'HOLA',
       'patient': 'PACIENTE',
       'steps': 'PASOS',
@@ -125,7 +125,7 @@ class AppLanguageHelper {
       'connected_devices': 'Dispositivos Conectados',
     },
     'Русский': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'ПРИВЕТ',
       'patient': 'ПАЦИЕНТ',
       'steps': 'ШАГИ',
@@ -149,7 +149,7 @@ class AppLanguageHelper {
       'connected_devices': 'Подключенные устройства',
     },
     'Português': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'OLÁ',
       'patient': 'PACIENTE',
       'steps': 'PASSOS',
@@ -173,7 +173,7 @@ class AppLanguageHelper {
       'connected_devices': 'Dispositivos Conectados',
     },
     'Nederlands': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'HALLO',
       'patient': 'PATIËNT',
       'steps': 'STAPPEN',
@@ -197,7 +197,7 @@ class AppLanguageHelper {
       'connected_devices': 'Gekoppelde Apparaten',
     },
     'Polski': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'WITAJ',
       'patient': 'PACJENT',
       'steps': 'KROKI',
@@ -221,7 +221,7 @@ class AppLanguageHelper {
       'connected_devices': 'Połączone Urządzenia',
     },
     '日本語': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'こんにちは',
       'patient': '患者',
       'steps': '歩数',
@@ -245,7 +245,7 @@ class AppLanguageHelper {
       'connected_devices': '接続済みデバイス',
     },
     '한국어': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': '안녕하세요',
       'patient': '환자',
       'steps': '걸음 수',
@@ -269,7 +269,7 @@ class AppLanguageHelper {
       'connected_devices': '연결된 기기',
     },
     'Türkçe': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'MERHABA',
       'patient': 'HASTA',
       'steps': 'ADIMLAR',
@@ -293,7 +293,7 @@ class AppLanguageHelper {
       'connected_devices': 'Bağlı Cihazlar',
     },
     'العربية': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'أهلاً',
       'patient': 'المريض',
       'steps': 'الخطوات',
@@ -317,7 +317,7 @@ class AppLanguageHelper {
       'connected_devices': 'الأجهزة المتصلة',
     },
     'Indonesia': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'HALO',
       'patient': 'PASIEN',
       'steps': 'LANGKAH',
@@ -341,7 +341,7 @@ class AppLanguageHelper {
       'connected_devices': 'Perangkat Terhubung',
     },
     '简体中文': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': '你好',
       'patient': '患者',
       'steps': '步数',
@@ -365,7 +365,7 @@ class AppLanguageHelper {
       'connected_devices': '已连接的设备',
     },
     '繁體中文': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': '你好',
       'patient': '患者',
       'steps': '步數',
@@ -389,7 +389,7 @@ class AppLanguageHelper {
       'connected_devices': '已連接的設備',
     },
     'فارسی': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'سلام',
       'patient': 'بیمار',
       'steps': 'گام‌ها',
@@ -413,7 +413,7 @@ class AppLanguageHelper {
       'connected_devices': 'دستگاه‌های متصل',
     },
     'Tiếng Việt': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'XIN CHÀO',
       'patient': 'BỆNH NHÂN',
       'steps': 'BƯỚC CHÂN',
@@ -437,7 +437,7 @@ class AppLanguageHelper {
       'connected_devices': 'Thiết bị Kết nối',
     },
     'ไทย': {
-      'drgodly': 'DRGODLY',
+      'drgodly': 'DrGodly',
       'hi': 'สวัสดี',
       'patient': 'ผู้ป่วย',
       'steps': 'ก้าวเดิน',

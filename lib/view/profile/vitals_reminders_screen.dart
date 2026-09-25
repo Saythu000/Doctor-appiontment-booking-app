@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 import '../../core/utils/language_helper.dart';
 
@@ -41,10 +40,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const Border(
-        top: BorderSide(color: PhiaColors.skyBlue, width: 2.0),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -52,27 +48,42 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
               padding: MediaQuery.of(context).viewInsets,
               duration: const Duration(milliseconds: 100),
               child: Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: const BoxDecoration(
+                  color: PhiaColors.surface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: PhiaColors.borderSubtle,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                             isEdit
-                                 ? AppLanguageHelper.translate(context, 'edit_reminder', defaultText: 'EDIT REMINDER')
-                                 : AppLanguageHelper.translate(context, 'new_reminder', defaultText: 'NEW REMINDER'),
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 24,
-                              color: Colors.white,
-                              letterSpacing: 2.0,
+                            isEdit
+                                ? AppLanguageHelper.translate(context, 'edit_reminder', defaultText: 'Edit Reminder')
+                                : AppLanguageHelper.translate(context, 'new_reminder', defaultText: 'New Reminder'),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white60),
+                            icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
                             onPressed: () => Navigator.pop(context),
                           ),
                         ],
@@ -81,12 +92,11 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                       
                       // Type Selection (Medication or Vitals)
                       Text(
-                        'REMINDER CATEGORY',
+                        'CATEGORY',
                         style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white54,
-                          letterSpacing: 1.0,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -97,60 +107,66 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                               onTap: () {
                                 setModalState(() => selectedType = 'Medication');
                               },
+                              borderRadius: BorderRadius.circular(10),
                               child: Container(
                                 height: 44,
                                 decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: selectedType == 'Medication'
-                                        ? PhiaColors.skyBlue
-                                        : Colors.white.withValues(alpha: 0.12),
+                                        ? PhiaColors.primary
+                                        : PhiaColors.borderSubtle,
+                                    width: selectedType == 'Medication' ? 1.5 : 1,
                                   ),
                                   color: selectedType == 'Medication'
-                                      ? PhiaColors.skyBlue.withValues(alpha: 0.1)
-                                      : Colors.transparent,
+                                      ? const Color(0xFFE0F2FE)
+                                      : PhiaColors.surfaceSubtle,
                                 ),
                                 child: Center(
                                   child: Text(
                                     'MEDICATION 💊',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
                                       color: selectedType == 'Medication'
-                                          ? Colors.white
-                                          : Colors.white60,
+                                          ? PhiaColors.primary
+                                          : PhiaColors.textSecondary,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: InkWell(
                               onTap: () {
                                 setModalState(() => selectedType = 'Vitals Check');
                               },
+                              borderRadius: BorderRadius.circular(10),
                               child: Container(
                                 height: 44,
                                 decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: selectedType == 'Vitals Check'
-                                        ? PhiaColors.skyBlue
-                                        : Colors.white.withValues(alpha: 0.12),
+                                        ? PhiaColors.primary
+                                        : PhiaColors.borderSubtle,
+                                    width: selectedType == 'Vitals Check' ? 1.5 : 1,
                                   ),
                                   color: selectedType == 'Vitals Check'
-                                      ? PhiaColors.skyBlue.withValues(alpha: 0.1)
-                                      : Colors.transparent,
+                                      ? const Color(0xFFE0F2FE)
+                                      : PhiaColors.surfaceSubtle,
                                 ),
                                 child: Center(
                                   child: Text(
                                     'VITALS CHECK 🩺',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
                                       color: selectedType == 'Vitals Check'
-                                          ? Colors.white
-                                          : Colors.white60,
+                                          ? PhiaColors.primary
+                                          : PhiaColors.textSecondary,
                                     ),
                                   ),
                                 ),
@@ -167,27 +183,27 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                             ? 'MEDICATION NAME / DOSAGE'
                             : 'VITAL SIGN TO MEASURE',
                         style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white54,
-                          letterSpacing: 1.0,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                          color: const Color(0xFF0D0E0F),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: PhiaColors.borderSubtle),
+                          color: PhiaColors.surfaceSubtle,
                         ),
                         child: TextField(
                           controller: nameController,
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                          style: GoogleFonts.inter(color: PhiaColors.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: selectedType == 'Medication'
                                 ? 'e.g., Metformin 500mg'
                                 : 'e.g., Blood Pressure, Blood Glucose',
-                            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 13),
+                            hintStyle: GoogleFonts.inter(color: PhiaColors.textMuted, fontSize: 13),
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -200,10 +216,9 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                       Text(
                         'SET TIME',
                         style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white54,
-                          letterSpacing: 1.0,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -214,12 +229,11 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                             initialTime: selectedTime,
                             builder: (context, child) {
                               return Theme(
-                                data: ThemeData.dark().copyWith(
-                                  colorScheme: const ColorScheme.dark(
-                                    primary: PhiaColors.skyBlue,
-                                    onPrimary: Colors.black,
-                                    surface: Color(0xFF0D0E0F),
-                                    onSurface: Colors.white,
+                                data: ThemeData.light().copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: PhiaColors.primary,
+                                    surface: PhiaColors.surface,
+                                    onSurface: PhiaColors.navyAnchor,
                                   ),
                                 ),
                                 child: child!,
@@ -230,24 +244,26 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                             setModalState(() => selectedTime = time);
                           }
                         },
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                            color: const Color(0xFF0D0E0F),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: PhiaColors.borderSubtle),
+                            color: PhiaColors.surfaceSubtle,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 selectedTime.format(context),
-                                style: GoogleFonts.bebasNeue(
-                                  fontSize: 20,
-                                  color: Colors.white,
-                                  letterSpacing: 1.5,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: PhiaColors.navyAnchor,
                                 ),
                               ),
-                              const Icon(Icons.access_time, color: PhiaColors.skyBlue),
+                              const Icon(Icons.access_time_rounded, color: PhiaColors.primary),
                             ],
                           ),
                         ),
@@ -258,10 +274,9 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                       Text(
                         'REPEAT WEEKLY ON',
                         style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white54,
-                          letterSpacing: 1.0,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -286,11 +301,12 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: isSelected
-                                      ? PhiaColors.skyBlue
-                                      : Colors.white.withValues(alpha: 0.15),
+                                      ? PhiaColors.primary
+                                      : PhiaColors.borderSubtle,
+                                  width: isSelected ? 1.5 : 1,
                                 ),
                                 color: isSelected
-                                    ? PhiaColors.skyBlue.withValues(alpha: 0.1)
+                                    ? const Color(0xFFE0F2FE)
                                     : Colors.transparent,
                               ),
                               child: Center(
@@ -298,8 +314,8 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                                   day.substring(0, 1),
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : Colors.white54,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected ? PhiaColors.primary : PhiaColors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -307,14 +323,15 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
 
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                          backgroundColor: PhiaColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () async {
                           final name = nameController.text.trim();
@@ -344,26 +361,26 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                           if (context.mounted) Navigator.pop(context);
                         },
                         child: Text(
-                          isEdit ? 'UPDATE REMINDER' : 'SAVE REMINDER',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 18,
-                            letterSpacing: 2.0,
+                          isEdit ? 'Save Changes' : 'Create Reminder',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                       if (isEdit) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: () async {
                             await context.read<SettingsViewModel>().deleteReminder(reminder['id']);
                             if (context.mounted) Navigator.pop(context);
                           },
-                          icon: const Icon(Icons.delete_outline, color: PhiaColors.pulseRed),
+                          icon: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed, size: 18),
                           label: Text(
-                            'DELETE REMINDER',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 16,
-                              letterSpacing: 1.0,
+                            'Delete Reminder',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                               color: PhiaColors.pulseRed,
                             ),
                           ),
@@ -387,199 +404,212 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
+      appBar: AppBar(
+        backgroundColor: PhiaColors.primary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
+        title: Text(
+          'Vitals Reminders & Thresholds',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  child: Row(
+        ),
+      ),
+      body: SafeArea(
+        child: reminders.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: PhiaColors.surfaceSubtle,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_off_outlined,
+                          size: 44,
+                          color: PhiaColors.textMuted,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                       Text(
-                         AppLanguageHelper.translate(context, 'meds_vitals_reminders', defaultText: 'MEDS & VITALS REMINDERS'),
-                        style: GoogleFonts.bebasNeue(
-                          fontSize: 22,
-                          color: Colors.white,
-                          letterSpacing: 2.0,
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Reminders Scheduled',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.navyAnchor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap the button below to schedule medication doses or vital signs monitoring checks.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: PhiaColors.textSecondary,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                
-                Expanded(
-                  child: reminders.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.notifications_off_outlined,
-                                size: 64,
-                                color: Colors.white.withValues(alpha: 0.15),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'NO REMINDERS SCHEDULED',
-                                style: GoogleFonts.bebasNeue(
-                                  fontSize: 20,
-                                  color: Colors.white38,
-                                  letterSpacing: 2.0,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tap + to schedule medication doses\nor vital signs monitoring checks.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.white24,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          itemCount: reminders.length,
-                          itemBuilder: (context, index) {
-                            final rem = reminders[index];
-                            final id = rem['id'] as String;
-                            final title = rem['title'] as String;
-                            final type = rem['type'] as String;
-                            final time = rem['time'] as String;
-                            final days = rem['days'] as String;
-                            final isActive = (rem['is_active'] as int) == 1;
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                itemCount: reminders.length,
+                itemBuilder: (context, index) {
+                  final rem = reminders[index];
+                  final id = rem['id'] as String;
+                  final title = rem['title'] as String;
+                  final type = rem['type'] as String;
+                  final time = rem['time'] as String;
+                  final days = rem['days'] as String;
+                  final isActive = (rem['is_active'] as int) == 1;
 
-                            // Formatted time display
-                            final parts = time.split(':');
-                            final hour = int.parse(parts[0]);
-                            final minute = int.parse(parts[1]);
-                            final timeOfDay = TimeOfDay(hour: hour, minute: minute);
-                            final formattedTime = timeOfDay.format(context);
+                  // Formatted time display
+                  final parts = time.split(':');
+                  final hour = int.parse(parts[0]);
+                  final minute = int.parse(parts[1]);
+                  final timeOfDay = TimeOfDay(hour: hour, minute: minute);
+                  final formattedTime = timeOfDay.format(context);
 
-                            return Dismissible(
-                              key: Key(id),
-                              direction: DismissDirection.endToStart,
-                              background: Container(
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20.0),
-                                color: Colors.redAccent.withValues(alpha: 0.2),
-                                child: const Icon(Icons.delete, color: Colors.redAccent),
-                              ),
-                              onDismissed: (direction) async {
-                                 await settingsVM.deleteReminder(id);
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('"$title" reminder deleted.')),
-                                  );
-                                }
-                              },
-                              child: GestureDetector(
-                                onTap: () => _showReminderBottomSheet(context, reminder: rem),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 16.0),
-                                  padding: const EdgeInsets.all(16.0),
-                                  decoration: BoxDecoration(
-                                    color: PhiaColors.surface,
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.08),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  return Dismissible(
+                    key: Key(id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20.0),
+                      decoration: BoxDecoration(
+                        color: PhiaColors.pulseRed.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
+                    ),
+                    onDismissed: (direction) async {
+                      await settingsVM.deleteReminder(id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('"$title" reminder deleted.')),
+                        );
+                      }
+                    },
+                    child: GestureDetector(
+                      onTap: () => _showReminderBottomSheet(context, reminder: rem),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: PhiaColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: PhiaColors.borderSubtle),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  type == 'Medication' ? '💊' : '🩺',
-                                                  style: const TextStyle(fontSize: 16),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  type.toUpperCase(),
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: PhiaColors.skyBlue,
-                                                    letterSpacing: 1.0,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              formattedTime,
-                                              style: GoogleFonts.bebasNeue(
-                                                fontSize: 32,
-                                                color: isActive ? Colors.white : Colors.white38,
-                                                letterSpacing: 1.5,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              title,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: isActive ? Colors.white : Colors.white38,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              days,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 11,
-                                                color: Colors.white.withValues(alpha: 0.38),
-                                              ),
-                                            ),
-                                          ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: type == 'Medication'
+                                              ? const Color(0xFFE0F2FE)
+                                              : const Color(0xFFDCFCE7),
+                                          borderRadius: BorderRadius.circular(6),
                                         ),
-                                      ),
-                                      Switch(
-                                        value: isActive,
-                                        activeColor: PhiaColors.skyBlue,
-                                        inactiveThumbColor: Colors.white30,
-                                        inactiveTrackColor: Colors.white10,
-                                        onChanged: (val) {
-                                           settingsVM.toggleReminder(id, val);
-                                        },
+                                        child: Text(
+                                          type == 'Medication' ? 'MEDICATION 💊' : 'VITALS CHECK 🩺',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: type == 'Medication'
+                                                ? PhiaColors.primary
+                                                : const Color(0xFF16A34A),
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    formattedTime,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: isActive ? PhiaColors.navyAnchor : PhiaColors.textMuted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isActive ? PhiaColors.textPrimary : PhiaColors.textMuted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    days,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: PhiaColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
+                            ),
+                            Switch(
+                              value: isActive,
+                              activeColor: Colors.white,
+                              activeTrackColor: PhiaColors.primary,
+                              inactiveThumbColor: Colors.white,
+                              inactiveTrackColor: PhiaColors.borderSubtle,
+                              onChanged: (val) {
+                                settingsVM.toggleReminder(id, val);
+                              },
+                            ),
+                          ],
                         ),
-                ),
-              ],
-            ),
-          ),
-        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: PhiaColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: () => _showReminderBottomSheet(context),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(
+          'New Reminder',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

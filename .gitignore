@@ -48,3 +48,4 @@ app.*.map.json
 .antigravitycli/
 .omg/
 
+build_artifacts/

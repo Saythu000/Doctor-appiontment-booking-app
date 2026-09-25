@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
+import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../domain/model/booking_models.dart';
 
@@ -28,15 +29,29 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final specialties = ['ALL', 'PRIMARY CARE', 'CARDIOLOGY', 'NEUROLOGY', 'ENDOCRINOLOGY', 'SPORTS'];
+    final bookingVM = Provider.of<BookingViewModel>(context);
+
+    // Dynamically derive specialties from onboarded doctors
+    final Set<String> dynamicSet = {};
+    for (final sp in bookingVM.specialists) {
+      for (final s in sp.specialties) {
+        final clean = s.replaceAll(RegExp(r'\(SPECIALTY\)', caseSensitive: false), '').trim().toUpperCase();
+        if (clean.isNotEmpty) {
+          dynamicSet.add(clean);
+        }
+      }
+    }
+    final sortedSpecialties = dynamicSet.toList()..sort();
+    final specialties = ['ALL', ...sortedSpecialties];
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
       appBar: AppBar(
         backgroundColor: PhiaColors.primary,
         elevation: 0,
+        automaticallyImplyLeading: !widget.isTab,
         leading: widget.isTab
-            ? const Icon(Icons.menu_rounded, color: Colors.white)
+            ? null
             : IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                 onPressed: () => Navigator.pop(context),
@@ -52,8 +67,36 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune_rounded, color: Colors.white),
+            onPressed: () => showNotificationCenter(context),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_rounded, color: Colors.white),
+                if (bookingVM.appointmentsList.isNotEmpty)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: PhiaColors.pulseRed,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                      child: Text(
+                        '${bookingVM.appointmentsList.length}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -111,7 +154,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, idx) {
                   final s = specialties[idx];
-                  final isSelected = _selectedSpecialty == s;
+                  final activeSpecialty = specialties.contains(_selectedSpecialty) ? _selectedSpecialty : 'ALL';
+                  final isSelected = activeSpecialty == s;
                   return InkWell(
                     onTap: () {
                       setState(() {
@@ -159,6 +203,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                   }
 
                   // Filter specialists by query & category
+                  final activeFilter = specialties.contains(_selectedSpecialty) ? _selectedSpecialty : 'ALL';
                   final filtered = vm.specialists.where((sp) {
                     final name = sp.practitionerDetail?.fullName ?? sp.practitionerDisplay ?? '';
                     final specialty = sp.specialties.isNotEmpty ? sp.specialties.first : '';
@@ -167,21 +212,12 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                         specialty.toLowerCase().contains(_searchQuery);
 
                     if (!matchesQuery) return false;
-                    if (_selectedSpecialty == 'ALL') return true;
+                    if (activeFilter == 'ALL') return true;
 
-                    final catUpper = specialty.toUpperCase();
-                    if (_selectedSpecialty == 'PRIMARY CARE') {
-                      return catUpper.contains('PRIMARY') || catUpper.contains('FAMILY') || catUpper.contains('GENERAL');
-                    } else if (_selectedSpecialty == 'CARDIOLOGY') {
-                      return catUpper.contains('CARDIO') || catUpper.contains('HEART');
-                    } else if (_selectedSpecialty == 'NEUROLOGY') {
-                      return catUpper.contains('NEURO') || catUpper.contains('BRAIN');
-                    } else if (_selectedSpecialty == 'ENDOCRINOLOGY') {
-                      return catUpper.contains('ENDO') || catUpper.contains('METABOLIC');
-                    } else if (_selectedSpecialty == 'SPORTS') {
-                      return catUpper.contains('SPORT') || catUpper.contains('ORTHO');
-                    }
-                    return true;
+                    return sp.specialties.any((s) {
+                      final clean = s.replaceAll(RegExp(r'\(SPECIALTY\)', caseSensitive: false), '').trim().toUpperCase();
+                      return clean == activeFilter || clean.contains(activeFilter);
+                    });
                   }).toList();
 
                   if (filtered.isEmpty) {
@@ -233,7 +269,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
   Widget _buildCleanDoctorCard(BuildContext context, PractitionerRoleBooking pr) {
     final detail = pr.practitionerDetail;
     final String name = detail?.fullName ?? pr.practitionerDisplay ?? 'Clinical Specialist';
-    final String specialty = pr.specialties.isNotEmpty ? pr.specialties.first : 'General Practitioner';
+    final rawSpecialty = pr.specialties.isNotEmpty ? pr.specialties.first : 'General Practitioner';
+    final String specialty = rawSpecialty.replaceAll(RegExp(r'\(SPECIALTY\)', caseSensitive: false), '').trim();
     final imageUrl = detail?.photoUrl ?? 'assets/doctors/doctor_1.png';
 
     // Badge styling based on specialty

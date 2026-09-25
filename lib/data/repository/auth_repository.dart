@@ -110,7 +110,7 @@ class AuthRepository {
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
-        final token = data['token'] as String?;
+        final token = (data['token'] ?? data['jwt'] ?? data['access_token']) as String?;
         if (token != null) {
           return token;
         }

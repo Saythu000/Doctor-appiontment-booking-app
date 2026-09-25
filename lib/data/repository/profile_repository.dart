@@ -167,9 +167,10 @@ class ProfileRepository {
     required String familyName,
   }) async {
     final response = await _apiClient.client.post(
-      '/api/fhir/v1/patients/$patientId/names',
+      '/api/v1/patients/$patientId/names',
       data: {
         'use': 'official',
+        'text': '$givenName $familyName'.trim(),
         'given': [givenName],
         'family': familyName,
       },
@@ -184,7 +185,7 @@ class ProfileRepository {
     required String value,
   }) async {
     final response = await _apiClient.client.post(
-      '/api/fhir/v1/patients/$patientId/telecom',
+      '/api/v1/patients/$patientId/telecom',
       data: {
         'system': system,
         'value': value,
@@ -204,7 +205,7 @@ class ProfileRepository {
     required String country,
   }) async {
     final response = await _apiClient.client.post(
-      '/api/fhir/v1/patients/$patientId/addresses',
+      '/api/v1/patients/$patientId/addresses',
       data: {
         'use': 'home',
         'line': [street],

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../data/repository/auth_repository.dart';
 import '../data/repository/health_repository.dart';
@@ -21,6 +22,30 @@ class AuthViewModel extends ChangeNotifier {
     required this.healthRepository,
   }) {
     FhirApiClient().setTokenRefresher(refreshToken);
+  }
+
+  /// Helper to decode activeOrganizationId or org_id claim from JWT token
+  String? _extractOrgIdFromJwt(String jwt) {
+    try {
+      final parts = jwt.split('.');
+      if (parts.length != 3) return null;
+      var payloadB64 = parts[1];
+      // Normalize base64 padding
+      while (payloadB64.length % 4 != 0) {
+        payloadB64 += '=';
+      }
+      final payloadJson = utf8.decode(base64Url.decode(payloadB64));
+      final Map<String, dynamic> data = jsonDecode(payloadJson);
+      final org = data['activeOrganizationId'] ?? data['org_id'] ?? data['organization_id'];
+      if (org != null && org.toString().isNotEmpty) {
+        return org.toString();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[AuthViewModel] Error decoding JWT claims: $e');
+      }
+    }
+    return null;
   }
 
   /// Refresh expired JWT token transparently using active session cookie
@@ -82,6 +107,22 @@ class AuthViewModel extends ChangeNotifier {
       final jwt = await authRepository.getJwtToken(sessionCookie: token);
       _jwtToken = jwt;
 
+      // Ensure activeOrganizationId is populated from JWT claims if missing from session
+      if (_orgId == null || _orgId!.isEmpty) {
+        final jwtOrg = _extractOrgIdFromJwt(jwt);
+        if (jwtOrg != null && jwtOrg.isNotEmpty) {
+          _orgId = jwtOrg;
+        }
+      }
+
+      // Clear previous user cached data if switching accounts
+      final previousUserId = await healthRepository.getSetting('iam_user_id');
+      if (previousUserId != null && previousUserId.isNotEmpty && previousUserId != _userId) {
+        await healthRepository.clearMetrics();
+        await healthRepository.clearLocalAppointments();
+        await healthRepository.clearProfile();
+      }
+
       // Save credentials locally
       await _saveCredentials();
 
@@ -140,6 +181,21 @@ class AuthViewModel extends ChangeNotifier {
       final jwt = await authRepository.getJwtToken(sessionCookie: token);
       _jwtToken = jwt;
 
+      if (_orgId == null || _orgId!.isEmpty) {
+        final jwtOrg = _extractOrgIdFromJwt(jwt);
+        if (jwtOrg != null && jwtOrg.isNotEmpty) {
+          _orgId = jwtOrg;
+        }
+      }
+
+      // Clear previous user cached data if switching accounts
+      final previousUserId = await healthRepository.getSetting('iam_user_id');
+      if (previousUserId != null && previousUserId.isNotEmpty && previousUserId != _userId) {
+        await healthRepository.clearMetrics();
+        await healthRepository.clearLocalAppointments();
+        await healthRepository.clearProfile();
+      }
+
       // Save credentials locally
       await _saveCredentials();
 
@@ -193,6 +249,13 @@ class AuthViewModel extends ChangeNotifier {
       final jwt = await authRepository.getJwtToken(sessionCookie: savedSessionToken);
       _jwtToken = jwt;
 
+      if (_orgId == null || _orgId!.isEmpty) {
+        final jwtOrg = _extractOrgIdFromJwt(jwt);
+        if (jwtOrg != null && jwtOrg.isNotEmpty) {
+          _orgId = jwtOrg;
+        }
+      }
+
       // Save the updated credentials (which might have changed organization or JWT expires)
       await _saveCredentials();
 
@@ -239,6 +302,11 @@ class AuthViewModel extends ChangeNotifier {
     await healthRepository.saveProfileValue('gender', '');
     await healthRepository.saveProfileValue('birth_date', '');
     await healthRepository.saveProfileValue('profile_image_path', '');
+
+    // Clear user cached metrics, profile & appointments from local database
+    await healthRepository.clearProfile();
+    await healthRepository.clearMetrics();
+    await healthRepository.clearLocalAppointments();
 
     // Reset FhirApiClient to default mock mode (no token, isLiveMode = false)
     FhirApiClient().configure(

@@ -169,7 +169,7 @@ class PlainPatient {
 
   /// Helper to get the primary full name of the patient
   String get primaryName {
-    if (name == null || name!.isEmpty) return 'Operator';
+    if (name == null || name!.isEmpty) return '';
     return name!.first.fullName;
   }
 
