@@ -86,7 +86,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                     decoration: BoxDecoration(
                       color: PhiaColors.activeGreenBg,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.3)),
+                      border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -125,7 +125,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                     border: Border.all(color: PhiaColors.borderSubtle, width: 1),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -224,7 +224,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                     borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shadowColor: PhiaColors.primary.withOpacity(0.3),
+                  shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                 ),
                 onPressed: () {
                   Navigator.pushNamed(context, '/login');

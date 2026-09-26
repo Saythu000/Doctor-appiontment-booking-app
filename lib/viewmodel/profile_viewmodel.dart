@@ -289,49 +289,21 @@ class ProfileViewModel extends ChangeNotifier {
       }
       
       if (pId != 0) {
-        // Patch Core Demographics (DOB, Gender)
-        PlainPatient updated = await profileRepository.patchDemographics(
+        // Atomic full update via PATCH /patients/{id}/full
+        final updated = await profileRepository.updateFullProfile(
           patientId: pId,
           gender: gender,
           birthDate: birthDate,
-        );
-
-      // Sync Name Subresource
-      updated = await profileRepository.addName(
-        patientId: pId,
-        givenName: givenName,
-        familyName: familyName,
-      );
-
-      // Sync Email Subresource
-      if (email.isNotEmpty) {
-        updated = await profileRepository.addTelecom(
-          patientId: pId,
-          system: 'email',
-          value: email,
-        );
-      }
-
-      // Sync Phone Subresource
-      if (phone.isNotEmpty) {
-        updated = await profileRepository.addTelecom(
-          patientId: pId,
-          system: 'phone',
-          value: phone,
-        );
-      }
-
-      // Sync Address Subresource
-      if (street.isNotEmpty || city.isNotEmpty || state.isNotEmpty || zip.isNotEmpty || country.isNotEmpty) {
-        updated = await profileRepository.addAddress(
-          patientId: pId,
+          givenName: givenName,
+          familyName: familyName,
+          phone: phone,
+          email: email,
           street: street,
           city: city,
           state: state,
           zip: zip,
           country: country,
         );
-      }
 
         currentProfile = updated;
       }

@@ -58,7 +58,7 @@ class ReviewBookingScreen extends StatelessWidget {
                       border: Border.all(color: PhiaColors.borderSubtle),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -206,7 +206,7 @@ class ReviewBookingScreen extends StatelessWidget {
                 border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -308,7 +308,7 @@ class ReviewBookingScreen extends StatelessWidget {
         border: Border.all(color: PhiaColors.borderSubtle, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),

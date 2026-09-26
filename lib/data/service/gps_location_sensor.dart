@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import '../../domain/service/i_sensor_service.dart';
 
-class GPSLocationSensor implements ISensorService {
+class GPSLocationSensor {
   StreamSubscription<Position>? _subscription;
   final StreamController<Position> _controller = StreamController<Position>.broadcast();
 
-  @override
   Stream<Position> get dataStream => _controller.stream;
 
-  @override
   Future<void> startSensor() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -50,7 +47,6 @@ class GPSLocationSensor implements ISensorService {
     );
   }
 
-  @override
   Future<void> stopSensor() async {
     await _subscription?.cancel();
     _subscription = null;

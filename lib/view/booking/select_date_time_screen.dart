@@ -140,7 +140,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       border: Border.all(color: PhiaColors.borderSubtle),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -236,7 +236,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                 color: _isVirtualMode ? PhiaColors.surface : Colors.transparent,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: _isVirtualMode
-                                    ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]
+                                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]
                                     : null,
                               ),
                               child: Row(
@@ -271,7 +271,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                 color: !_isVirtualMode ? PhiaColors.surface : Colors.transparent,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: !_isVirtualMode
-                                    ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]
+                                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]
                                     : null,
                               ),
                               child: Row(
@@ -357,7 +357,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: PhiaColors.navyAnchor.withOpacity(0.2),
+                                          color: PhiaColors.navyAnchor.withValues(alpha: 0.2),
                                           blurRadius: 8,
                                           offset: const Offset(0, 3),
                                         ),
@@ -374,8 +374,8 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: isSelected
-                                          ? Colors.white.withOpacity(0.85)
-                                          : (isAvailable ? PhiaColors.textMuted : PhiaColors.textMuted.withOpacity(0.6)),
+                                          ? Colors.white.withValues(alpha: 0.85)
+                                          : (isAvailable ? PhiaColors.textMuted : PhiaColors.textMuted.withValues(alpha: 0.6)),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -594,7 +594,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                 border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -720,7 +720,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: PhiaColors.primary.withOpacity(0.25),
+                    color: PhiaColors.primary.withValues(alpha: 0.25),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),

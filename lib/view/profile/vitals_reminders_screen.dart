@@ -491,7 +491,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 20.0),
                       decoration: BoxDecoration(
-                        color: PhiaColors.pulseRed.withOpacity(0.1),
+                        color: PhiaColors.pulseRed.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
@@ -515,7 +515,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                           border: Border.all(color: PhiaColors.borderSubtle),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: Colors.black.withValues(alpha: 0.02),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -583,7 +583,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                             ),
                             Switch(
                               value: isActive,
-                              activeColor: Colors.white,
+                              activeThumbColor: Colors.white,
                               activeTrackColor: PhiaColors.primary,
                               inactiveThumbColor: Colors.white,
                               inactiveTrackColor: PhiaColors.borderSubtle,

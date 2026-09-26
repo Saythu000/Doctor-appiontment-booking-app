@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         color: PhiaColors.primaryLight,
                         shape: BoxShape.circle,
-                        border: Border.all(color: PhiaColors.primary.withOpacity(0.3), width: 1.5),
+                        border: Border.all(color: PhiaColors.primary.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: const Icon(
                         Icons.medical_services_rounded,
@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: Border.all(color: PhiaColors.borderSubtle, width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: BoxDecoration(
                                 color: PhiaColors.pulseRedLight,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: PhiaColors.pulseRed.withOpacity(0.3)),
+                                border: Border.all(color: PhiaColors.pulseRed.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 children: [
@@ -272,6 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     final email = _emailController.text.trim();
                                     final password = _passwordController.text;
                                     final name = _nameController.text.trim();
+                                    final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
                                     final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
                                     final navigator = Navigator.of(context);
                                     final messenger = ScaffoldMessenger.of(context);
@@ -303,7 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     }
 
                                     if (success) {
-                                      final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
                                       activityVM.resetState();
                                       profileVM.resetState();
                                       await profileVM.fetchOrInitProfile();

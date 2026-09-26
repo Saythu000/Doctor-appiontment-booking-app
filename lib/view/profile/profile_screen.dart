@@ -659,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: PhiaColors.navyAnchor.withOpacity(0.12),
+                              color: PhiaColors.navyAnchor.withValues(alpha: 0.12),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -865,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         border: Border.all(color: PhiaColors.borderSubtle, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1082,7 +1082,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: PhiaColors.primary,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: PhiaColors.borderSubtle,

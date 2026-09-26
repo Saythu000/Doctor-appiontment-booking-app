@@ -116,7 +116,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                   border: Border.all(color: PhiaColors.borderSubtle),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -225,7 +225,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.search_off_rounded, size: 48, color: PhiaColors.textMuted.withOpacity(0.5)),
+                          Icon(Icons.search_off_rounded, size: 48, color: PhiaColors.textMuted.withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
                           Text(
                             'No specialists found',
@@ -291,7 +291,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
         border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

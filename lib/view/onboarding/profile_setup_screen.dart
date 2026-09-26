@@ -221,7 +221,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         border: Border.all(color: PhiaColors.borderSubtle),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -433,7 +433,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -450,7 +450,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shadowColor: PhiaColors.primary.withOpacity(0.3),
+                    shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                   ),
                   onPressed: _handleContinue,
                   child: Row(
@@ -536,7 +536,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     hintText: hint,
                     hintStyle: GoogleFonts.inter(
                       fontSize: 14,
-                      color: PhiaColors.textSecondary.withOpacity(0.6),
+                      color: PhiaColors.textSecondary.withValues(alpha: 0.6),
                     ),
                     border: InputBorder.none,
                     isDense: true,

@@ -347,7 +347,7 @@ class DashboardScreen extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(7),
@@ -419,6 +419,8 @@ class DashboardScreen extends StatelessWidget {
             await activityVM.initDashboard();
             if (context.mounted) {
               await context.read<ProfileViewModel>().fetchOrInitProfile();
+            }
+            if (context.mounted) {
               await context.read<BookingViewModel>().fetchAppointments();
             }
           },
@@ -464,7 +466,7 @@ class DashboardScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: PhiaColors.activeGreenBg,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.3)),
+                        border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1245,7 +1247,7 @@ class DashboardScreen extends StatelessWidget {
         border: Border.all(color: PhiaColors.borderSubtle, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1344,7 +1346,7 @@ class DashboardScreen extends StatelessWidget {
         border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1360,7 +1362,7 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, size: 16, color: iconColor),
@@ -1475,15 +1477,15 @@ class ConcentricActivityPainter extends CustomPainter {
 
     // Ring 1 (outermost): Steps (Primary Sky Blue)
     double r1 = size.width / 2 - strokeW / 2;
-    _drawRing(canvas, center, r1, strokeW, stepsPct, PhiaColors.primary, PhiaColors.primary.withOpacity(0.12));
+    _drawRing(canvas, center, r1, strokeW, stepsPct, PhiaColors.primary, PhiaColors.primary.withValues(alpha: 0.12));
 
     // Ring 2 (middle): Calories (Clinical Cyan)
     double r2 = r1 - strokeW - spacing;
-    _drawRing(canvas, center, r2, strokeW, caloriesPct, const Color(0xFF4BAAE5), const Color(0xFF4BAAE5).withOpacity(0.12));
+    _drawRing(canvas, center, r2, strokeW, caloriesPct, const Color(0xFF4BAAE5), const Color(0xFF4BAAE5).withValues(alpha: 0.12));
 
     // Ring 3 (innermost): Active Mins (Active Green)
     double r3 = r2 - strokeW - spacing;
-    _drawRing(canvas, center, r3, strokeW, activeMinsPct, PhiaColors.activeGreen, PhiaColors.activeGreen.withOpacity(0.12));
+    _drawRing(canvas, center, r3, strokeW, activeMinsPct, PhiaColors.activeGreen, PhiaColors.activeGreen.withValues(alpha: 0.12));
   }
 
   void _drawRing(Canvas canvas, Offset center, double radius, double strokeWidth, double pct, Color color, Color bgColor) {

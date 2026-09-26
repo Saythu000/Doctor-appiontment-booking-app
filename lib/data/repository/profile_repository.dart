@@ -118,6 +118,11 @@ class ProfileRepository {
     String? familyName,
     String? phone,
     String? email,
+    String? street,
+    String? city,
+    String? state,
+    String? zip,
+    String? country,
   }) async {
     final payload = <String, dynamic>{
       if (gender != null && gender.isNotEmpty) 'gender': gender.toLowerCase(),
@@ -135,6 +140,16 @@ class ProfileRepository {
         if (email != null && email.isNotEmpty)
           {'system': 'email', 'value': email, 'rank': 1},
       ],
+      if (street != null || city != null || state != null || zip != null || country != null)
+        'addresses': [
+          {
+            if (street != null && street.isNotEmpty) 'line': [street],
+            if (city != null && city.isNotEmpty) 'city': city,
+            if (state != null && state.isNotEmpty) 'state': state,
+            if (zip != null && zip.isNotEmpty) 'postal_code': zip,
+            if (country != null && country.isNotEmpty) 'country': country,
+          }
+        ],
     };
 
     final response = await _apiClient.client.patch(

@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         border: Border.all(color: PhiaColors.borderSubtle, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: PhiaColors.navyAnchor.withOpacity(0.08),
+                            color: PhiaColors.navyAnchor.withValues(alpha: 0.08),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -147,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       decoration: BoxDecoration(
                         color: PhiaColors.activeGreenBg,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.3)),
+                        border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

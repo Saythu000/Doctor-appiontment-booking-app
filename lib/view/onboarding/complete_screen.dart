@@ -128,7 +128,7 @@ class CompleteScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: PhiaColors.activeGreenBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.3)),
+              border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -175,7 +175,7 @@ class CompleteScreen extends StatelessWidget {
                           color: PhiaColors.activeGreenBg,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: PhiaColors.activeGreen.withOpacity(0.3),
+                            color: PhiaColors.activeGreen.withValues(alpha: 0.3),
                             width: 2,
                           ),
                         ),
@@ -224,7 +224,7 @@ class CompleteScreen extends StatelessWidget {
                         border: Border.all(color: PhiaColors.borderSubtle),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -292,7 +292,7 @@ class CompleteScreen extends StatelessWidget {
                 border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -309,7 +309,7 @@ class CompleteScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     minimumSize: const Size(double.infinity, 52),
-                    shadowColor: PhiaColors.primary.withOpacity(0.3),
+                    shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                   ),
                   onPressed: () {
                     Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);

@@ -83,7 +83,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: PhiaColors.primary.withOpacity(0.1),
+                        color: PhiaColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.notifications_active_rounded, color: PhiaColors.primary, size: 20),
@@ -199,7 +199,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20.0),
                   decoration: BoxDecoration(
-                    color: PhiaColors.pulseRed.withOpacity(0.1),
+                    color: PhiaColors.pulseRed.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
@@ -218,12 +218,12 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                       color: isRead ? PhiaColors.surface : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isRead ? PhiaColors.borderSubtle : accentColor.withOpacity(0.35),
+                        color: isRead ? PhiaColors.borderSubtle : accentColor.withValues(alpha: 0.35),
                         width: isRead ? 1 : 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -235,7 +235,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.1),
+                            color: accentColor.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -340,7 +340,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
             border: Border.all(color: PhiaColors.borderSubtle),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -352,7 +352,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: PhiaColors.primary.withOpacity(0.1),
+                  color: PhiaColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.medical_services_rounded, color: PhiaColors.primary, size: 20),

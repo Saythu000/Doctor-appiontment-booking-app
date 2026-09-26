@@ -170,7 +170,6 @@ class OpenWearablesService {
 
   DateTime? _lastFetchTime;
   VitalsRecord? _cachedVitals;
-  bool _permissionsChecked = false;
 
   /// Pull recent normalized vitals from connected Open-Wearables / Health Connect providers
   /// and convert them into PHIA's VitalsRecord model
@@ -215,7 +214,6 @@ class OpenWearablesService {
       if (hasPerm != true) {
         try {
           await health.requestAuthorization(types);
-          _permissionsChecked = true;
         } catch (_) {}
       }
 

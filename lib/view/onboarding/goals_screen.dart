@@ -57,7 +57,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isSelected ? PhiaColors.primaryLight.withOpacity(0.5) : PhiaColors.surface,
+          color: isSelected ? PhiaColors.primaryLight.withValues(alpha: 0.5) : PhiaColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? PhiaColors.primary : PhiaColors.borderSubtle,
@@ -65,7 +65,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -104,7 +104,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ),
                       Icon(
                         isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                        color: isSelected ? PhiaColors.primary : PhiaColors.textSecondary.withOpacity(0.4),
+                        color: isSelected ? PhiaColors.primary : PhiaColors.textSecondary.withValues(alpha: 0.4),
                         size: 20,
                       ),
                     ],
@@ -218,7 +218,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         border: Border.all(color: PhiaColors.borderSubtle),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -296,7 +296,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -316,7 +316,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         minimumSize: const Size(double.infinity, 52),
-                        shadowColor: PhiaColors.primary.withOpacity(0.3),
+                        shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                       ),
                       onPressed: () {
                         Navigator.pushNamed(context, '/complete');

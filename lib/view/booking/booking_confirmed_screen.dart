@@ -32,7 +32,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: PhiaColors.activeGreenBg,
                     shape: BoxShape.circle,
-                    border: Border.all(color: PhiaColors.activeGreen.withOpacity(0.4), width: 3),
+                    border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.4), width: 3),
                   ),
                   child: const Center(
                     child: Icon(
@@ -75,7 +75,7 @@ class BookingConfirmedScreen extends StatelessWidget {
                   border: Border.all(color: PhiaColors.borderSubtle, width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
