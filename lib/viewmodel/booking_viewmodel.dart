@@ -261,6 +261,22 @@ class BookingViewModel extends ChangeNotifier {
       };
       await healthRepository.saveAppointment(apptData);
 
+      // Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before consultation
+      try {
+        final parsedStart = DateTime.tryParse(finalStartStr) ?? calculatedStart;
+        await NotificationService.instance.scheduleAppointmentReminders(
+          appointmentId: appointmentId,
+          doctorName: practitionerName,
+          specialty: practitionerRole,
+          appointmentTime: parsedStart,
+          isVirtual: isVirtual,
+        );
+      } catch (notifErr) {
+        if (kDebugMode) {
+          print('[BookingViewModel] Failed to schedule appointment reminders: $notifErr');
+        }
+      }
+
       await fetchAppointments();
       
       return result;
@@ -450,6 +466,7 @@ class BookingViewModel extends ChangeNotifier {
 
     final int notificationId = id.hashCode.abs() % 100000;
     await NotificationService.instance.cancelNotification(notificationId);
+    await NotificationService.instance.cancelAppointmentReminders(id);
     await fetchAppointments();
     notifyListeners();
   }

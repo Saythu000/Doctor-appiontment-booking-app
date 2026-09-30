@@ -150,8 +150,8 @@ class HealthRepository implements IHealthRepository {
         caloriesKcal: calories,
         distanceMeters: distance != null ? distance * 1000.0 : (steps != null ? steps * 0.8 : null), // SQLite stores KM, API expects Meters
         totalActiveMinutes: activeMins?.toInt(),
-        restingHeartRate: (hr != null && hr > 0 && hr != 72) ? hr.toInt() : null,
-        heartRate: (hr != null && hr > 0 && hr != 72) ? hr.toInt() : null,
+        restingHeartRate: (hr != null && hr > 0) ? hr.toInt() : null,
+        heartRate: (hr != null && hr > 0) ? hr.toInt() : null,
         heartRateVariability: (hrv != null && hrv > 0 && hrv != 45.5) ? hrv : null,
         sleepMinutes: sleep != null ? (sleep * 60).toInt() : null,
         remSleepMinutes: sleep != null ? (sleep * 60 * 0.1875).toInt() : null,
@@ -242,8 +242,8 @@ class HealthRepository implements IHealthRepository {
     final db = await _dbHelper.database;
     await db.delete(
       'health_metrics',
-      where: 'type = ? AND (value = ? OR id LIKE ?)',
-      whereArgs: ['heart_rate', 72.0, 'synced_hr_%'],
+      where: 'type = ? AND (id LIKE "synthetic_%" OR id LIKE "mock_%")',
+      whereArgs: ['heart_rate'],
     );
   }
 

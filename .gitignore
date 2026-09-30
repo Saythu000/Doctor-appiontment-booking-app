@@ -49,3 +49,6 @@ app.*.map.json
 .omg/
 
 build_artifacts/
+*.apk
+android/build/
+android/app/build/

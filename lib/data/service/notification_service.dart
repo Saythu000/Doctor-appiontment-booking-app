@@ -187,6 +187,66 @@ class NotificationService {
     );
   }
 
+  /// Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before an appointment
+  Future<void> scheduleAppointmentReminders({
+    required String appointmentId,
+    required String doctorName,
+    required String specialty,
+    required DateTime appointmentTime,
+    required bool isVirtual,
+  }) async {
+    final int baseId = appointmentId.hashCode.abs() % 100000;
+    final now = DateTime.now();
+
+    final reminders = [
+      {
+        'id': baseId + 101,
+        'offsetMinutes': 60,
+        'title': 'Upcoming Consultation (1 Hour)',
+        'body': 'Your appointment with $doctorName ($specialty) begins in 1 hour.',
+      },
+      {
+        'id': baseId + 102,
+        'offsetMinutes': 30,
+        'title': 'Consultation in 30 Minutes',
+        'body': 'Reminder: Your appointment with $doctorName starts in 30 minutes.',
+      },
+      {
+        'id': baseId + 103,
+        'offsetMinutes': 10,
+        'title': 'Consultation in 10 Minutes',
+        'body': 'Get ready! Your ${isVirtual ? "virtual visit" : "in-person visit"} with $doctorName starts in 10 minutes.',
+      },
+    ];
+
+    for (final rem in reminders) {
+      final scheduledTime = appointmentTime.subtract(Duration(minutes: rem['offsetMinutes'] as int));
+      if (scheduledTime.isAfter(now)) {
+        await scheduleOneOffNotification(
+          id: rem['id'] as int,
+          title: rem['title'] as String,
+          body: rem['body'] as String,
+          scheduledDateTime: scheduledTime,
+        );
+        if (kDebugMode) {
+          print('[NotificationService] Scheduled reminder (${rem['offsetMinutes']}m before) for $doctorName at $scheduledTime (id: ${rem['id']})');
+        }
+      } else {
+        if (kDebugMode) {
+          print('[NotificationService] Skipped reminder (${rem['offsetMinutes']}m before) as $scheduledTime is in the past.');
+        }
+      }
+    }
+  }
+
+  /// Cancel all 3 appointment reminders
+  Future<void> cancelAppointmentReminders(String appointmentId) async {
+    final int baseId = appointmentId.hashCode.abs() % 100000;
+    await cancelNotification(baseId + 101);
+    await cancelNotification(baseId + 102);
+    await cancelNotification(baseId + 103);
+  }
+
   /// Schedule daily or weekly medication / vitals check alarms
   Future<void> scheduleReminderNotifications({
     required String reminderId,

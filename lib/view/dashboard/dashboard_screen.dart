@@ -899,19 +899,6 @@ class DashboardScreen extends StatelessWidget {
                       subtitle: (activityVM.dashboardMinHr != null && activityVM.dashboardMaxHr != null)
                           ? '${activityVM.dashboardMinHr} - ${activityVM.dashboardMaxHr} bpm'
                           : null,
-                      status: activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr > 0
-                          ? 'Live BLE'
-                          : (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0
-                              ? 'Measuring...'
-                              : (activityVM.dashboardHr > 0
-                                  ? (activityVM.isOpenWearablesSynced ? 'Health Connect' : 'Recorded')
-                                  : 'Pending')),
-                      statusColor: (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0)
-                          ? PhiaColors.amberWarning
-                          : (activityVM.dashboardHr > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B)),
-                      statusBg: (activityVM.bleService.currentState == BleDeviceState.connected && activityVM.dashboardHr == 0)
-                          ? const Color(0xFFFEF3C7)
-                          : (activityVM.dashboardHr > 0 ? PhiaColors.activeGreenBg : const Color(0xFFF1F5F9)),
                       icon: Icons.favorite_rounded,
                       iconColor: PhiaColors.pulseRed,
                     ),
@@ -919,17 +906,12 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildVitalsTile(
-                      title: 'Heart Rate Var.',
-                      value: activityVM.dashboardHrv > 0
-                          ? activityVM.dashboardHrv.toStringAsFixed(0)
+                      title: 'Distance Walked',
+                      value: activityVM.dashboardDistanceKm > 0
+                          ? activityVM.dashboardDistanceKm.toStringAsFixed(1)
                           : '--',
-                      unit: 'ms',
-                      status: activityVM.dashboardHrv > 0
-                          ? (activityVM.isOpenWearablesSynced ? 'Health Connect' : 'Optimal')
-                          : (activityVM.bleService.currentState == BleDeviceState.connected ? 'Analyzing' : 'Pending'),
-                      statusColor: activityVM.dashboardHrv > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                      statusBg: activityVM.dashboardHrv > 0 ? PhiaColors.activeGreenBg : const Color(0xFFF1F5F9),
-                      icon: Icons.graphic_eq_rounded,
+                      unit: 'km',
+                      icon: Icons.straighten_rounded,
                       iconColor: PhiaColors.primary,
                     ),
                   ),
@@ -942,12 +924,12 @@ class DashboardScreen extends StatelessWidget {
                     child: _buildVitalsTile(
                       title: 'Sleep Architecture',
                       value: activityVM.currentSleep > 0
-                          ? '${activityVM.currentSleep.toStringAsFixed(1)}h'
+                          ? activityVM.currentSleep.toStringAsFixed(1)
                           : '--',
-                      unit: activityVM.currentSleep > 0 ? 'Watch Synced' : 'Pending Sync',
-                      status: activityVM.currentSleep > 0 ? 'Recorded' : 'Pending',
-                      statusColor: activityVM.currentSleep > 0 ? PhiaColors.navyAnchor : const Color(0xFF64748B),
-                      statusBg: activityVM.currentSleep > 0 ? PhiaColors.primaryLight : const Color(0xFFF1F5F9),
+                      unit: 'h',
+                      subtitle: (activityVM.deepSleepMinutes > 0 || activityVM.lightSleepMinutes > 0)
+                          ? '${activityVM.deepSleepMinutes}m Deep • ${activityVM.lightSleepMinutes}m Light'
+                          : null,
                       icon: Icons.bedtime_rounded,
                       iconColor: const Color(0xFF4BAAE5),
                     ),
@@ -960,15 +942,6 @@ class DashboardScreen extends StatelessWidget {
                           ? '${activityVM.dashboardSpo2!.toInt()}'
                           : '--',
                       unit: '% SpO2',
-                      status: activityVM.dashboardSpo2 != null && activityVM.dashboardSpo2! > 0
-                          ? (activityVM.dashboardSpo2! >= 95 ? 'Healthy' : 'Low')
-                          : 'Pending',
-                      statusColor: activityVM.dashboardSpo2 != null && activityVM.dashboardSpo2! >= 95
-                          ? const Color(0xFF15803D)
-                          : const Color(0xFFB45309),
-                      statusBg: activityVM.dashboardSpo2 != null && activityVM.dashboardSpo2! >= 95
-                          ? PhiaColors.activeGreenBg
-                          : const Color(0xFFFEF3C7),
                       icon: Icons.air_rounded,
                       iconColor: PhiaColors.primary,
                     ),
@@ -1333,9 +1306,6 @@ class DashboardScreen extends StatelessWidget {
     required String value,
     required String unit,
     String? subtitle,
-    required String status,
-    required Color statusColor,
-    required Color statusBg,
     required IconData icon,
     required Color iconColor,
   }) {
@@ -1356,33 +1326,13 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 16, color: iconColor),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  status,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
           ),
           const SizedBox(height: 10),
           Text(

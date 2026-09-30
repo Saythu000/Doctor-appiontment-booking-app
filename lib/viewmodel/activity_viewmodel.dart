@@ -250,6 +250,10 @@ class ActivityViewModel extends ChangeNotifier {
         HealthDataType.HEART_RATE_VARIABILITY_SDNN,
         HealthDataType.SLEEP_SESSION,
         HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+        HealthDataType.SLEEP_AWAKE,
         HealthDataType.ACTIVE_ENERGY_BURNED,
         HealthDataType.TOTAL_CALORIES_BURNED,
         HealthDataType.BASAL_ENERGY_BURNED,
@@ -309,7 +313,7 @@ class ActivityViewModel extends ChangeNotifier {
       if (weightMetric.isNotEmpty) {
         userWeight = weightMetric.first.value;
       } else {
-        final cachedWeight = await repository.getProfileValue('user_weight');
+        final cachedWeight = await repository.getProfileValue('user_weight') ?? await repository.getProfileValue('weight');
         if (cachedWeight != null && cachedWeight.isNotEmpty) {
           userWeight = double.tryParse(cachedWeight) ?? 0.0;
         }
@@ -319,7 +323,7 @@ class ActivityViewModel extends ChangeNotifier {
       if (heightMetric.isNotEmpty) {
         userHeight = heightMetric.first.value;
       } else {
-        final cachedHeight = await repository.getProfileValue('user_height');
+        final cachedHeight = await repository.getProfileValue('user_height') ?? await repository.getProfileValue('height');
         if (cachedHeight != null && cachedHeight.isNotEmpty) {
           userHeight = double.tryParse(cachedHeight) ?? 0.0;
         }
@@ -329,7 +333,7 @@ class ActivityViewModel extends ChangeNotifier {
       if (ageMetric.isNotEmpty) {
         userAge = ageMetric.first.value.toInt();
       } else {
-        final cachedAge = await repository.getProfileValue('user_age');
+        final cachedAge = await repository.getProfileValue('user_age') ?? await repository.getProfileValue('age');
         if (cachedAge != null && cachedAge.isNotEmpty) {
           userAge = int.tryParse(cachedAge) ?? 0;
         }
@@ -341,7 +345,7 @@ class ActivityViewModel extends ChangeNotifier {
       await repository.clearSyntheticHeartRate();
       final hr = await repository.getRecentMetrics('heart_rate');
       final double rawHr = hr.isNotEmpty ? _getTodayMetricValue(hr) : 0.0;
-      dashboardHr = (rawHr > 0 && rawHr != 72.0) ? rawHr : 0.0;
+      dashboardHr = rawHr > 0 ? rawHr : 0.0;
       
       final hrv = await repository.getRecentMetrics('hrv');
       final double rawHrv = hrv.isNotEmpty ? _getTodayMetricValue(hrv) : 0.0;
@@ -349,6 +353,9 @@ class ActivityViewModel extends ChangeNotifier {
 
       final distance = await repository.getRecentMetrics('distance');
       dashboardDistanceKm = distance.isNotEmpty ? _getTodayMetricValue(distance) : 0.0;
+      if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
+        dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
+      }
 
       final activeTime = await repository.getRecentMetrics('active_time');
       dashboardActiveTimeMins = activeTime.isNotEmpty ? _getTodayMetricValue(activeTime).toInt() : 0;
@@ -357,6 +364,16 @@ class ActivityViewModel extends ChangeNotifier {
       final sleep = await repository.getRecentMetrics('sleep');
       final double sleepVal = sleep.isNotEmpty ? _getTodayMetricValue(sleep) : 0.0;
       dashboardSleep = (sleepVal > 0 && sleepVal <= 18.0) ? sleepVal : 0.0;
+
+      final spo2Metrics = await repository.getRecentMetrics('blood_oxygen');
+      if (spo2Metrics.isNotEmpty) {
+        dashboardSpo2 = spo2Metrics.first.value;
+      } else {
+        final altSpo2 = await repository.getRecentMetrics('oxygen_saturation');
+        if (altSpo2.isNotEmpty) {
+          dashboardSpo2 = altSpo2.first.value;
+        }
+      }
 
       final calories = await repository.getRecentMetrics('calories');
       dashboardCalories = calories.isNotEmpty ? _getTodayMetricValue(calories) : 0.0;
@@ -398,45 +415,80 @@ class ActivityViewModel extends ChangeNotifier {
         }
         if (latest.distanceMeters != null && latest.distanceMeters! > 0) {
           dashboardDistanceKm = latest.distanceMeters! / 1000.0;
+        } else if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
+          dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
         }
         if (latest.totalActiveMinutes != null && latest.totalActiveMinutes! > 0) {
           dashboardActiveTimeMins = latest.totalActiveMinutes!;
         }
-        if (latest.heartRate != null && latest.heartRate! > 0 && latest.heartRate != 72) {
+        // Only hydrate Resting HR from today's remote record if recorded today
+        bool isRecordToday = false;
+        if (latest.recordedAt != null) {
+          final recDate = DateTime.tryParse(latest.recordedAt!);
+          if (recDate != null) {
+            final now = DateTime.now();
+            isRecordToday = recDate.year == now.year && recDate.month == now.month && recDate.day == now.day;
+          }
+        } else if (latest.date != null) {
+          final now = DateTime.now();
+          final todayPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+          isRecordToday = latest.date!.startsWith(todayPrefix);
+        }
+
+        if (isRecordToday && latest.heartRate != null && latest.heartRate! > 0) {
           dashboardHr = latest.heartRate!.toDouble();
         }
-        if (latest.heartRateVariability != null && latest.heartRateVariability! > 0.0 && latest.heartRateVariability != 45.5) {
+        if (isRecordToday && latest.heartRateVariability != null && latest.heartRateVariability! > 0.0 && latest.heartRateVariability != 45.5) {
           dashboardHrv = latest.heartRateVariability!;
         }
-        if (latest.weightKg != null && latest.weightKg! > 0) {
-          userWeight = latest.weightKg!;
-          await repository.saveMetric(HealthMetric(
-            id: 'weight_${DateTime.now().millisecondsSinceEpoch}',
-            type: 'weight',
-            value: latest.weightKg!,
-            timestamp: DateTime.now(),
-            isSynced: true,
-          ));
-        }
-        if (latest.heightCm != null && latest.heightCm! > 0) {
-          userHeight = latest.heightCm!;
-          await repository.saveMetric(HealthMetric(
-            id: 'height_${DateTime.now().millisecondsSinceEpoch}',
-            type: 'height',
-            value: latest.heightCm!,
-            timestamp: DateTime.now(),
-            isSynced: true,
-          ));
-        }
-        if (latest.age != null && latest.age! > 0) {
-          userAge = latest.age!;
-          await repository.saveMetric(HealthMetric(
-            id: 'age_${DateTime.now().millisecondsSinceEpoch}',
-            type: 'age',
-            value: latest.age!.toDouble(),
-            timestamp: DateTime.now(),
-            isSynced: true,
-          ));
+        // Scan across remote vitals history to hydrate clinical baseline metrics (weight, height, age)
+        for (final r in records) {
+          if (userWeight == 0 && r.weightKg != null && r.weightKg! > 0) {
+            userWeight = r.weightKg!;
+            await repository.saveProfileValue('user_weight', userWeight.toString());
+            await repository.saveProfileValue('weight', userWeight.toString());
+            await repository.saveMetric(HealthMetric(
+              id: 'weight_${DateTime.now().millisecondsSinceEpoch}',
+              type: 'weight',
+              value: userWeight,
+              timestamp: DateTime.now(),
+              isSynced: true,
+            ));
+          }
+          if (userHeight == 0 && r.heightCm != null && r.heightCm! > 0) {
+            userHeight = r.heightCm!;
+            await repository.saveProfileValue('user_height', userHeight.toString());
+            await repository.saveProfileValue('height', userHeight.toString());
+            await repository.saveMetric(HealthMetric(
+              id: 'height_${DateTime.now().millisecondsSinceEpoch}',
+              type: 'height',
+              value: userHeight,
+              timestamp: DateTime.now(),
+              isSynced: true,
+            ));
+          }
+          if (userAge == 0 && r.age != null && r.age! > 0) {
+            userAge = r.age!;
+            await repository.saveProfileValue('user_age', userAge.toString());
+            await repository.saveProfileValue('age', userAge.toString());
+            await repository.saveMetric(HealthMetric(
+              id: 'age_${DateTime.now().millisecondsSinceEpoch}',
+              type: 'age',
+              value: userAge.toDouble(),
+              timestamp: DateTime.now(),
+              isSynced: true,
+            ));
+          }
+          if ((dashboardSpo2 == null || dashboardSpo2! <= 0) && r.oxygenSaturation != null && r.oxygenSaturation! > 0) {
+            dashboardSpo2 = r.oxygenSaturation!;
+            await repository.saveMetric(HealthMetric(
+              id: 'synced_spo2_${DateTime.now().millisecondsSinceEpoch}',
+              type: 'blood_oxygen',
+              value: dashboardSpo2!,
+              timestamp: DateTime.now(),
+            ));
+          }
+          if (userWeight > 0 && userHeight > 0 && userAge > 0 && dashboardSpo2 != null && dashboardSpo2! > 0) break;
         }
         if (userAge == 0) {
           final dobStr = await repository.getProfileValue('birth_date');
@@ -857,12 +909,8 @@ class ActivityViewModel extends ChangeNotifier {
       if (cloudVitals != null) {
         // Update Resting HR or HR only if real values are reported
         final realHr = cloudVitals.restingHeartRate ?? cloudVitals.heartRate;
-        if (realHr != null && realHr > 0 && realHr != 72) {
+        if (realHr != null && realHr > 0) {
           dashboardHr = realHr.toDouble();
-        } else if (bleService.currentState != BleDeviceState.connected) {
-          if (dashboardHr == 72.0) {
-            dashboardHr = 0.0;
-          }
         }
 
         dashboardMinHr = cloudVitals.minHeartRate;
@@ -876,6 +924,7 @@ class ActivityViewModel extends ChangeNotifier {
           }
         }
 
+        final now = DateTime.now();
         if (cloudVitals.sleepMinutes != null) {
           liveSleep = cloudVitals.sleepMinutes! / 60.0;
           dashboardSleep = liveSleep;
@@ -883,6 +932,12 @@ class ActivityViewModel extends ChangeNotifier {
           lightSleepMinutes = cloudVitals.lightSleepMinutes ?? 0;
           remSleepMinutes = cloudVitals.remSleepMinutes ?? 0;
           awakeMinutes = cloudVitals.awakeMinutes ?? 0;
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_sleep_${now.millisecondsSinceEpoch}',
+            type: 'sleep',
+            value: dashboardSleep,
+            timestamp: now,
+          ));
         }
 
         if (cloudVitals.steps != null && cloudVitals.steps! > 0) {
@@ -892,7 +947,6 @@ class ActivityViewModel extends ChangeNotifier {
 
         if (cloudVitals.caloriesKcal != null && cloudVitals.caloriesKcal! > 0) {
           dashboardCalories = cloudVitals.caloriesKcal!;
-          final now = DateTime.now();
           await repository.saveMetric(HealthMetric(
             id: 'synced_cal_${now.millisecondsSinceEpoch}',
             type: 'calories',
@@ -904,7 +958,6 @@ class ActivityViewModel extends ChangeNotifier {
         if (cloudVitals.totalActiveMinutes != null && cloudVitals.totalActiveMinutes! > 0) {
           dashboardActiveTimeMins = cloudVitals.totalActiveMinutes!;
           liveActiveMins = cloudVitals.totalActiveMinutes!;
-          final now = DateTime.now();
           await repository.saveMetric(HealthMetric(
             id: 'synced_active_${now.millisecondsSinceEpoch}',
             type: 'active_time',
@@ -913,16 +966,59 @@ class ActivityViewModel extends ChangeNotifier {
           ));
         }
 
+        if (cloudVitals.distanceMeters != null && cloudVitals.distanceMeters! > 0) {
+          dashboardDistanceKm = cloudVitals.distanceMeters! / 1000.0;
+        } else if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
+          dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
+        }
+        if (dashboardDistanceKm > 0) {
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_dist_${now.millisecondsSinceEpoch}',
+            type: 'distance',
+            value: dashboardDistanceKm,
+            timestamp: now,
+          ));
+        }
+
         if (cloudVitals.oxygenSaturation != null && cloudVitals.oxygenSaturation! > 0) {
           dashboardSpo2 = cloudVitals.oxygenSaturation!;
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_spo2_${now.millisecondsSinceEpoch}',
+            type: 'blood_oxygen',
+            value: dashboardSpo2!,
+            timestamp: now,
+          ));
+        }
+
+        if (cloudVitals.heightCm != null && cloudVitals.heightCm! > 0) {
+          userHeight = cloudVitals.heightCm!;
+          await repository.saveProfileValue('user_height', userHeight.toString());
+          await repository.saveProfileValue('height', userHeight.toString());
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_height_${now.millisecondsSinceEpoch}',
+            type: 'height',
+            value: userHeight,
+            timestamp: now,
+          ));
+        }
+
+        if (cloudVitals.weightKg != null && cloudVitals.weightKg! > 0) {
+          userWeight = cloudVitals.weightKg!;
+          await repository.saveProfileValue('user_weight', userWeight.toString());
+          await repository.saveProfileValue('weight', userWeight.toString());
+          await repository.saveMetric(HealthMetric(
+            id: 'synced_weight_${now.millisecondsSinceEpoch}',
+            type: 'weight',
+            value: userWeight,
+            timestamp: now,
+          ));
         }
 
         isOpenWearablesSynced = true;
         syncedProviderName = providerName ?? 'Android Health Connect';
 
         // Persist heart rate metric locally ONLY if real data was measured
-        final now = DateTime.now();
-        if (realHr != null && realHr > 0 && realHr != 72) {
+        if (realHr != null && realHr > 0) {
           await repository.saveMetric(HealthMetric(
             id: 'synced_hr_${now.millisecondsSinceEpoch}',
             type: 'heart_rate',
@@ -932,7 +1028,22 @@ class ActivityViewModel extends ChangeNotifier {
         }
 
         // Stream merged vitals record to FHIR Server with exact, unchanged schema
-        await vitalsRepository.submitVitals(cloudVitals, userId: userId, orgId: orgId);
+        // Merge baseline clinical metrics (height, weight, age, gender) so wearable sync never overrides them with nulls
+        final cachedGender = await repository.getProfileValue('user_gender') ?? await repository.getProfileValue('gender');
+        final mergedVitals = cloudVitals.copyWith(
+          heightCm: (cloudVitals.heightCm != null && cloudVitals.heightCm! > 0)
+              ? cloudVitals.heightCm
+              : (userHeight > 0 ? userHeight : null),
+          weightKg: (cloudVitals.weightKg != null && cloudVitals.weightKg! > 0)
+              ? cloudVitals.weightKg
+              : (userWeight > 0 ? userWeight : null),
+          age: (cloudVitals.age != null && cloudVitals.age! > 0)
+              ? cloudVitals.age
+              : (userAge > 0 ? userAge : null),
+          gender: cloudVitals.gender ?? cachedGender,
+        );
+
+        await vitalsRepository.submitVitals(mergedVitals, userId: userId, orgId: orgId);
         notifyListeners();
         return true;
       }
