@@ -272,9 +272,6 @@ class AuthViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('[AuthViewModel] Auto-login verification failed: $e');
       }
-      // If validation fails (e.g. session expired or offline with no server response),
-      // we clean up and fall back to local/offline default state.
-      await signOut();
       return false;
     }
   }

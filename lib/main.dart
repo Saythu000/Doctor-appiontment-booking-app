@@ -30,6 +30,10 @@ import 'viewmodel/profile_viewmodel.dart';
 import 'viewmodel/booking_viewmodel.dart';
 import 'viewmodel/settings_viewmodel.dart';
 import 'viewmodel/auth_viewmodel.dart';
+import 'viewmodel/intake_viewmodel.dart';
+import 'data/service/intake_service.dart';
+import 'view/intake/intake_chat_screen.dart';
+import 'view/intake/intake_completion_screen.dart';
 import 'data/repository/auth_repository.dart';
 import 'data/service/notification_service.dart';
 
@@ -78,6 +82,11 @@ void main() async {
           create: (_) => AuthViewModel(
             authRepository: AuthRepository(),
             healthRepository: HealthRepository(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => IntakeViewModel(
+            intakeService: IntakeService(),
           ),
         ),
       ],
@@ -149,6 +158,8 @@ class PhiaApp extends StatelessWidget {
         '/vitals_thresholds': (context) => const VitalsThresholdsScreen(),
         '/general_settings': (context) => const GeneralSettingsScreen(),
         '/appointment_history': (context) => const AppointmentHistoryScreen(),
+        '/intake': (context) => const IntakeChatScreen(),
+        '/intake_completion': (context) => const IntakeCompletionScreen(),
       },
     ),
     );

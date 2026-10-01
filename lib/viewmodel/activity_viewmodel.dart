@@ -245,6 +245,7 @@ class ActivityViewModel extends ChangeNotifier {
         HealthDataType.TOTAL_CALORIES_BURNED,
         HealthDataType.BASAL_ENERGY_BURNED,
         HealthDataType.DISTANCE_WALKING_RUNNING,
+        HealthDataType.DISTANCE_DELTA,
         HealthDataType.BLOOD_OXYGEN,
         HealthDataType.WORKOUT,
       ];
@@ -337,9 +338,6 @@ class ActivityViewModel extends ChangeNotifier {
 
       final distance = await repository.getRecentMetrics('distance');
       dashboardDistanceKm = distance.isNotEmpty ? _getTodayMetricValue(distance) : 0.0;
-      if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
-        dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
-      }
 
       final activeTime = await repository.getRecentMetrics('active_time');
       dashboardActiveTimeMins = activeTime.isNotEmpty ? _getTodayMetricValue(activeTime).toInt() : 0;
@@ -399,8 +397,6 @@ class ActivityViewModel extends ChangeNotifier {
         }
         if (latest.distanceMeters != null && latest.distanceMeters! > 0) {
           dashboardDistanceKm = latest.distanceMeters! / 1000.0;
-        } else if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
-          dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
         }
         if (latest.totalActiveMinutes != null && latest.totalActiveMinutes! > 0) {
           dashboardActiveTimeMins = latest.totalActiveMinutes!;
@@ -499,7 +495,7 @@ class ActivityViewModel extends ChangeNotifier {
     }
 
     // 3. Auto-query Health Connect on launch so fresh watch vitals immediately reflect on dashboard
-    syncOpenWearablesVitals('Android Health Connect');
+    await syncOpenWearablesVitals('Android Health Connect');
 
     // Setup seamless recurring auto-sync (every 5 minutes) so telemetry stays updated automatically
     _autoSyncTimer?.cancel();
@@ -669,7 +665,7 @@ class ActivityViewModel extends ChangeNotifier {
           VitalsRecord(
             steps: steps,
             caloriesKcal: calories.toDouble(),
-            distanceMeters: steps * 0.8,
+            distanceMeters: (dashboardDistanceKm > 0) ? (dashboardDistanceKm * 1000.0) : null,
             totalActiveMinutes: activeMins,
             restingHeartRate: dashboardHr > 0 ? dashboardHr.toInt() : null,
             heartRate: dashboardHr > 0 ? dashboardHr.toInt() : null,
@@ -936,7 +932,7 @@ class ActivityViewModel extends ChangeNotifier {
           ));
         }
 
-        if (cloudVitals.totalActiveMinutes != null && cloudVitals.totalActiveMinutes! > 0) {
+        if (cloudVitals.totalActiveMinutes != null) {
           dashboardActiveTimeMins = cloudVitals.totalActiveMinutes!;
           liveActiveMins = cloudVitals.totalActiveMinutes!;
           await repository.saveMetric(HealthMetric(
@@ -947,12 +943,8 @@ class ActivityViewModel extends ChangeNotifier {
           ));
         }
 
-        if (cloudVitals.distanceMeters != null && cloudVitals.distanceMeters! > 0) {
+        if (cloudVitals.distanceMeters != null) {
           dashboardDistanceKm = cloudVitals.distanceMeters! / 1000.0;
-        } else if (dashboardDistanceKm <= 0.0 && dashboardSteps > 0) {
-          dashboardDistanceKm = (dashboardSteps * 0.762) / 1000.0;
-        }
-        if (dashboardDistanceKm > 0) {
           await repository.saveMetric(HealthMetric(
             id: 'synced_dist_${now.millisecondsSinceEpoch}',
             type: 'distance',

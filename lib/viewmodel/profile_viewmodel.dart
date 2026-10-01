@@ -20,6 +20,9 @@ class ProfileViewModel extends ChangeNotifier {
     fetchOrInitProfile();
   }
 
+  /// FHIR Patient ID for linking clinical records and intake reports
+  int? get patientFhirId => currentProfile?.id;
+
   void resetState() {
     currentProfile = null;
     profileImagePath = null;

@@ -352,31 +352,7 @@ class BookingViewModel extends ChangeNotifier {
             }
           }
 
-          var start = appt['start']?.toString() ?? '';
-          final createdAtStr = appt['created_at']?.toString();
-
-          // If the appointment status is active ('booked' or 'pending'), but start is in the past,
-          // check if it was created recently (within the last 48 hours).
-          // If so, project the appointment to today/tomorrow at the slot's time so it accurately shows as upcoming.
-          final parsedStart = DateTime.tryParse(start);
-          if (parsedStart != null && parsedStart.isBefore(DateTime.now()) && createdAtStr != null) {
-            final parsedCreated = DateTime.tryParse(createdAtStr);
-            if (parsedCreated != null && parsedCreated.isAfter(DateTime.now().subtract(const Duration(days: 2)))) {
-              final nowLocal = DateTime.now();
-              final slotLocal = parsedStart.toLocal();
-              var adjusted = DateTime(
-                nowLocal.year,
-                nowLocal.month,
-                nowLocal.day,
-                slotLocal.hour,
-                slotLocal.minute,
-              );
-              if (adjusted.isBefore(nowLocal)) {
-                adjusted = adjusted.add(const Duration(days: 1));
-              }
-              start = adjusted.toIso8601String();
-            }
-          }
+          final start = appt['start']?.toString() ?? '';
 
           final type = appt['appointment_type_display']?.toString() ?? 'Consultation';
           final isVirtual = appt['appointment_type_code']?.toString().toUpperCase() == 'VIRTUAL' ? 1 : 0;

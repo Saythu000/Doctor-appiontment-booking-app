@@ -54,24 +54,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (mounted && !_isRedirecting) {
       _isRedirecting = true;
-      if (isAuthenticated) {
-        final profileVM = context.read<ProfileViewModel>();
-        await profileVM.fetchOrInitProfile();
-        if (mounted) {
-          final profile = profileVM.currentProfile;
-          final bool hasProfile = profile != null &&
-              profile.name != null &&
-              profile.name!.isNotEmpty &&
-              profile.name!.first.givenName.isNotEmpty;
+      final profileVM = context.read<ProfileViewModel>();
+      await profileVM.fetchOrInitProfile();
+      if (mounted) {
+        final profile = profileVM.currentProfile;
+        final bool hasProfile = profile != null &&
+            profile.name != null &&
+            profile.name!.isNotEmpty &&
+            profile.name!.first.givenName.isNotEmpty;
 
-          if (hasProfile) {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/profile_setup');
-          }
+        if (isAuthenticated || hasProfile) {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/welcome');
         }
-      } else {
-        Navigator.pushReplacementNamed(context, '/welcome');
       }
     }
   }

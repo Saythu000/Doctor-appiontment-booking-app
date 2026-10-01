@@ -43,10 +43,6 @@ class DashboardScreen extends StatelessWidget {
       } catch (_) {}
     }
 
-    // Fallback: If no future consultation found, show the latest booked appointment
-    if (nearestUpcoming == null && bookingVM.appointmentsList.isNotEmpty) {
-      nearestUpcoming = bookingVM.appointmentsList.first;
-    }
 
     void showCancelConfirmation(BuildContext context, String id, String doctorName) {
       showDialog(
@@ -673,6 +669,104 @@ class DashboardScreen extends StatelessWidget {
                         ),
                 ),
               ),
+              const SizedBox(height: 14),
+
+              // CARD 1.5: AI PRE-VISIT CLINICAL INTAKE (Text Chat)
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F4C81), Color(0xFF1E6B9B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F4C81).withOpacity(0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.of(context).pushNamed('/intake');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.smart_toy_outlined,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'AI Pre-Visit Clinical Intake',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.tealAccent.shade400,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        '2 MIN',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F4C81),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Describe symptoms to Dr. PHIA AI before seeing the doctor',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.85),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
 
               // CARD 2: ENERGY METER / BODY BATTERY (boAt Parity)
@@ -908,8 +1002,8 @@ class DashboardScreen extends StatelessWidget {
                     child: _buildVitalsTile(
                       title: 'Distance Walked',
                       value: activityVM.dashboardDistanceKm > 0
-                          ? activityVM.dashboardDistanceKm.toStringAsFixed(1)
-                          : '--',
+                          ? activityVM.dashboardDistanceKm.toStringAsFixed(2)
+                          : '0.00',
                       unit: 'km',
                       icon: Icons.straighten_rounded,
                       iconColor: PhiaColors.primary,

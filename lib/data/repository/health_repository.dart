@@ -149,7 +149,7 @@ class HealthRepository implements IHealthRepository {
       final record = VitalsRecord(
         steps: steps?.toInt(),
         caloriesKcal: calories,
-        distanceMeters: distance != null ? distance * 1000.0 : (steps != null ? steps * 0.8 : null), // SQLite stores KM, API expects Meters
+        distanceMeters: (distance != null && distance > 0) ? distance * 1000.0 : null, // Pure recorded distance in meters, zero formulas
         totalActiveMinutes: activeMins?.toInt(),
         restingHeartRate: (hr != null && hr > 0) ? hr.toInt() : null,
         heartRate: (hr != null && hr > 0) ? hr.toInt() : null,

@@ -115,7 +115,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                   iconColor: const Color(0xFF4BAAE5),
                   iconBg: PhiaColors.primaryLight,
                   label: 'Distance Walked',
-                  value: activityVM.dashboardDistanceKm > 0 ? '${activityVM.dashboardDistanceKm.toStringAsFixed(1)} km' : '--',
+                  value: '${activityVM.dashboardDistanceKm.toStringAsFixed(2)} km',
                 ),
               ],
             ),

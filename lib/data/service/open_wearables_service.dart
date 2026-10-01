@@ -201,6 +201,7 @@ class OpenWearablesService {
         HealthDataType.TOTAL_CALORIES_BURNED,
         HealthDataType.BASAL_ENERGY_BURNED,
         HealthDataType.DISTANCE_WALKING_RUNNING,
+        HealthDataType.DISTANCE_DELTA,
         HealthDataType.BLOOD_OXYGEN,
         HealthDataType.WORKOUT,
         HealthDataType.HEIGHT,
@@ -310,6 +311,8 @@ class OpenWearablesService {
         int realRemSleepMinutes = 0;
         int realAwakeMinutes = 0;
         int realWorkoutMinutes = 0;
+        int googleFitActiveMinutes = 0;
+        int wearableActiveMinutes = 0;
         int totalActiveSeconds = 0;
         final minuteStepCounts = <String, int>{};
         String detectedAppSource = 'Android Health Connect';
@@ -405,10 +408,12 @@ class OpenWearablesService {
                 realBasalCalories += val;
               }
             }
-          } else if (dp.type == HealthDataType.DISTANCE_WALKING_RUNNING) {
+          } else if (dp.type == HealthDataType.DISTANCE_WALKING_RUNNING ||
+                     dp.type == HealthDataType.DISTANCE_DELTA) {
             if (dp.value is NumericHealthValue && !dp.dateTo.isBefore(todayStart)) {
               final distVal = (dp.value as NumericHealthValue).numericValue.toDouble();
-              final isFit = dp.sourceName.toLowerCase().contains('fitness');
+              final src = dp.sourceName.toLowerCase();
+              final isFit = src.contains('fitness') || src.contains('fit') || src.contains('google');
               if (isFit) {
                 googleFitDistance += distVal;
               } else {
@@ -418,7 +423,14 @@ class OpenWearablesService {
             }
           } else if (dp.type == HealthDataType.WORKOUT) {
             if (!dp.dateTo.isBefore(todayStart)) {
-              realWorkoutMinutes += dp.dateTo.difference(dp.dateFrom).inMinutes;
+              final workoutDur = dp.dateTo.difference(dp.dateFrom).inMinutes;
+              final isFit = dp.sourceName.toLowerCase().contains('fitness');
+              if (isFit) {
+                googleFitActiveMinutes += workoutDur;
+              } else {
+                wearableActiveMinutes += workoutDur;
+              }
+              realWorkoutMinutes += workoutDur;
             }
           } else if (dp.type == HealthDataType.STEPS) {
             if (!dp.dateFrom.isBefore(todayStart)) {
@@ -433,11 +445,11 @@ class OpenWearablesService {
               } else {
                 wearableSteps += count;
               }
-              // Track minute bucket for Google Fit Move Minutes calculation
-              // Google Fit awards 1 Move Minute for each minute with active movement (cadence >= 15 steps/min)
+              // Google Fit awards 1 Move Minute for each minute with sustained brisk/active movement (cadence >= 60 steps/min)
+              // Casual indoor shuffling (<60 steps/min) is not counted by Google Fit.
               final bucketKey = '${dp.dateFrom.year}-${dp.dateFrom.month}-${dp.dateFrom.day} ${dp.dateFrom.hour}:${dp.dateFrom.minute}';
               minuteStepCounts[bucketKey] = (minuteStepCounts[bucketKey] ?? 0) + count;
-              if (cadence >= 15.0) {
+              if (cadence >= 60.0) {
                 totalActiveSeconds += durSec;
               }
             }
@@ -486,13 +498,6 @@ class OpenWearablesService {
           }
         }
 
-        // Align distance: Prioritize Google Fit if present, otherwise wearable/aggregate
-        if (googleFitDistance > 0) {
-          realDistance = googleFitDistance;
-        } else if (wearableDistance > 0) {
-          realDistance = wearableDistance;
-        }
-
         final double realCalories = realTotalCalories > 0
             ? realTotalCalories
             : (realActiveCalories + realBasalCalories);
@@ -519,22 +524,30 @@ class OpenWearablesService {
           } catch (_) {}
         }
 
-        // If Health Connect didn't provide explicit GPS distance records, calculate from real steps
-        // using standard human stride length (~0.762 meters / 2.5 ft per step)
-        if (realDistance <= 0.0 && realSteps > 0) {
-          realDistance = realSteps * 0.762;
+        // Align distance: Pure extracted distance directly from Google Fit (or wearable).
+        // Zero synthetic formulas or stride estimations.
+        if (googleFitDistance > 0) {
+          realDistance = googleFitDistance;
+        } else if (wearableDistance > 0) {
+          realDistance = wearableDistance;
         }
 
-        // Calculate real active minutes matching Google Fit's Move Minutes
-        // Google Fit awards Move Minutes for minutes with continuous movement (steps >= 15/min) or workout sessions
-        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 15).length;
-        int realActiveMinutes = realWorkoutMinutes > 0
-            ? realWorkoutMinutes
-            : (moveMinutesFromBuckets > 0
-                ? moveMinutesFromBuckets
-                : (totalActiveSeconds / 60.0).round());
-        if (realActiveMinutes == 0 && realSteps > 0) {
-          realActiveMinutes = (realSteps / 65.0).round().clamp(1, 1440);
+        // Calculate real active minutes directly matching Google Fit's Move Minutes:
+        // 1. Explicit workout sessions (walks, runs, workouts tracked in Google Fit or wearable)
+        // 2. Continuous brisk movement periods (cadence >= 60 steps/min sustained for >= 1 minute)
+        // Note: Casual indoor shuffling (< 150 steps without sustained pace) generates 0 Move Min in Google Fit.
+        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 60).length;
+        int realActiveMinutes = 0;
+        if (googleFitActiveMinutes > 0) {
+          realActiveMinutes = googleFitActiveMinutes;
+        } else if (wearableActiveMinutes > 0) {
+          realActiveMinutes = wearableActiveMinutes;
+        } else if (realWorkoutMinutes > 0) {
+          realActiveMinutes = realWorkoutMinutes;
+        } else if (totalActiveSeconds >= 60) {
+          realActiveMinutes = (totalActiveSeconds / 60.0).round();
+        } else if (moveMinutesFromBuckets > 0) {
+          realActiveMinutes = moveMinutesFromBuckets;
         }
 
         if (kDebugMode) {
@@ -549,8 +562,8 @@ class OpenWearablesService {
           final record = VitalsRecord(
             steps: realSteps > 0 ? realSteps : null,
             caloriesKcal: realCalories > 0 ? realCalories : null,
-            totalActiveMinutes: realActiveMinutes > 0 ? realActiveMinutes : null,
-            distanceMeters: realDistance > 0 ? realDistance : null,
+            totalActiveMinutes: realActiveMinutes,
+            distanceMeters: realDistance,
             restingHeartRate: realRestingHr ?? realLiveHr,
             heartRate: realLiveHr ?? realRestingHr,
             minHeartRate: realMinHr,
