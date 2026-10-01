@@ -35,11 +35,14 @@ import 'data/service/notification_service.dart';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'data/service/vitals_foreground_service.dart';
+import 'data/service/background_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FlutterForegroundTask.initCommunicationPort();
   VitalsForegroundService.init();
+  await BackgroundSyncService.initialize();
+  await BackgroundSyncService.schedulePeriodicSync();
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermissions();
   

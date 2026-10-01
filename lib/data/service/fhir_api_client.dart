@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -166,25 +165,19 @@ class FhirApiClient {
             options.headers['Authorization'] = 'Bearer $_token';
           }
           if (kDebugMode) {
-            print('[FHIR API] REQUEST: ${options.method} ${options.uri}');
-            if (options.data != null) {
-              print('[FHIR API] PAYLOAD: ${jsonEncode(options.data)}');
-            }
+            print('[FHIR API] REQUEST: ${options.method} ${options.path}');
           }
           return handler.next(options);
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            print('[FHIR API] RESPONSE [${response.statusCode}]: ${response.data}');
+            print('[FHIR API] RESPONSE [${response.statusCode}] ${response.requestOptions.path}');
           }
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            print('[FHIR API] ERROR [${e.response?.statusCode}]: ${e.message}');
-            if (e.response?.data != null) {
-              print('[FHIR API] ERROR RESPONSE: ${e.response?.data}');
-            }
+            print('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.message}');
           }
 
           // If token expired and a refresher is registered, refresh token and retry request once

@@ -52,3 +52,4 @@ build_artifacts/
 *.apk
 android/build/
 android/app/build/
+build_output/

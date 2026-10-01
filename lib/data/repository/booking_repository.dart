@@ -117,7 +117,7 @@ class BookingRepository {
       };
 
       if (kDebugMode) {
-        print('[BookingRepository] POST /api/v1/appointments/book: $payload');
+        print('[BookingRepository] Submitting appointment booking request...');
       }
 
       final response = await _apiClient.client.post(
@@ -141,7 +141,7 @@ class BookingRepository {
       throw Exception('Booking failed with status ${response.statusCode}');
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingRepository] POST /api/v1/appointments/book failed: $e');
+        print('[BookingRepository] Appointment booking request failed');
       }
       rethrow;
     }
@@ -157,12 +157,12 @@ class BookingRepository {
         },
       );
       if (kDebugMode) {
-        print('[BookingRepository] consultation/create success: ${resp.data}');
+        print('[BookingRepository] Consultation room created successfully');
       }
       return resp.statusCode == 200 || resp.statusCode == 201;
     } catch (e) {
       if (kDebugMode) {
-        print('[BookingRepository] consultation/create (non-critical): $e');
+        print('[BookingRepository] consultation/create (non-critical error)');
       }
       return false;
     }

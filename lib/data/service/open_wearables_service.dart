@@ -498,7 +498,7 @@ class OpenWearablesService {
             : (realActiveCalories + realBasalCalories);
 
         if (kDebugMode) {
-          print('[OpenWearablesService] Aggregated calories for today: total=$realTotalCalories, active=$realActiveCalories, basal=$realBasalCalories => finalCalories=$realCalories');
+          print('[OpenWearablesService] Aggregated calories for today calculated');
         }
 
         realSleepMinutes = realSleepMinutes.clamp(0, 1440);
@@ -538,7 +538,7 @@ class OpenWearablesService {
         }
 
         if (kDebugMode) {
-          print('[OpenWearablesService] Active minutes for today: workout=$realWorkoutMinutes, buckets=$moveMinutesFromBuckets, totalActiveSec=$totalActiveSeconds => finalActiveMinutes=$realActiveMinutes');
+          print('[OpenWearablesService] Active minutes for today calculated successfully');
         }
 
         lastSyncSource = detectedAppSource;

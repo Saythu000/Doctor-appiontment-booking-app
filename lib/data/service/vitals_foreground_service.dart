@@ -91,8 +91,8 @@ class VitalsForegroundService {
         eventAction: ForegroundTaskEventAction.repeat(15 * 60000), // 15 minutes
         autoRunOnBoot: false,
         autoRunOnMyPackageReplaced: true,
-        allowWakeLock: true,
-        allowWifiLock: true,
+        allowWakeLock: false,
+        allowWifiLock: false,
       ),
     );
   }

@@ -12,7 +12,6 @@ import '../../data/repository/vitals_repository.dart';
 import '../../data/service/notification_service.dart';
 import '../../data/service/ble_heart_rate_service.dart';
 import '../../data/service/open_wearables_service.dart';
-import '../../data/service/vitals_foreground_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:health/health.dart';
 
@@ -225,18 +224,6 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
-    // D. Request Camera (Flash/BPM Vital Sensing)
-    try {
-      final cameraStatus = await Permission.camera.request();
-      if (kDebugMode) {
-        print('[ActivityViewModel] Camera status: ${cameraStatus.name}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to request camera permission: $e');
-      }
-    }
-
     // Small delay so Android OS dismisses earlier permission dialogs cleanly before Health Connect modal
     await Future.delayed(const Duration(milliseconds: 600));
 
@@ -285,9 +272,6 @@ class ActivityViewModel extends ChangeNotifier {
     if (hasActivityPermission) {
       await startStepsTracking();
     }
-    
-    // Start background sync service
-    VitalsForegroundService.start();
 
     // Always initialize dashboard after permission check (fallback stats load if denied)
     await initDashboard();
@@ -525,9 +509,6 @@ class ActivityViewModel extends ChangeNotifier {
       }
       syncOpenWearablesVitals('Android Health Connect');
     });
-
-    // Start background sync service to keep syncing even when app is minimized
-    VitalsForegroundService.start();
 
     // Run vitals warning checks against thresholds
     await checkVitalsThresholds();

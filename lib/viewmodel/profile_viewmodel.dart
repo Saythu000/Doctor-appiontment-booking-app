@@ -18,7 +18,6 @@ class ProfileViewModel extends ChangeNotifier {
     required this.healthRepository,
   }) {
     fetchOrInitProfile();
-    _startBackgroundSyncTimer();
   }
 
   void resetState() {
@@ -319,13 +318,7 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
-  void _startBackgroundSyncTimer() {
-    _backgroundSyncTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
-      _performSilentBackgroundSync();
-    });
-  }
-
-  Future<void> _performSilentBackgroundSync() async {
+  Future<void> performSilentBackgroundSync() async {
     try {
       if (currentProfile != null) {
         await healthRepository.uploadPendingMetrics();

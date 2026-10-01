@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../domain/model/health_metrics.dart';
 import '../../domain/repository/i_health_repository.dart';
 import '../database/sqflite_database.dart';
+import '../service/secure_storage_service.dart';
 import 'vitals_repository.dart';
 import '../../domain/model/vitals_payload.dart';
 
@@ -283,8 +284,37 @@ class HealthRepository implements IHealthRepository {
     return null;
   }
 
-  // --- Settings Table Helpers ---
+  static const Set<String> _secureKeys = {
+    'iam_session_token',
+    'iam_jwt_token',
+  };
+
+  // --- Settings Table Helpers with Secure Storage Routing ---
   Future<String?> getSetting(String key) async {
+    if (_secureKeys.contains(key)) {
+      final secureVal = await SecureStorageService().readSecure(key);
+      if (secureVal != null && secureVal.isNotEmpty) {
+        return secureVal;
+      }
+      // Backward-compatibility: Check legacy SQLite app_settings
+      final db = await _dbHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'app_settings',
+        where: 'key = ?',
+        whereArgs: [key],
+      );
+      if (maps.isNotEmpty) {
+        final legacyVal = maps.first['value'] as String;
+        if (legacyVal.isNotEmpty) {
+          // Migrate into secure storage and scrub from SQLite
+          await SecureStorageService().writeSecure(key, legacyVal);
+          await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
+          return legacyVal;
+        }
+      }
+      return null;
+    }
+
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'app_settings',
@@ -298,6 +328,18 @@ class HealthRepository implements IHealthRepository {
   }
 
   Future<void> saveSetting(String key, String value) async {
+    if (_secureKeys.contains(key)) {
+      if (value.isEmpty) {
+        await SecureStorageService().deleteSecure(key);
+      } else {
+        await SecureStorageService().writeSecure(key, value);
+      }
+      // Ensure key is scrubbed from plaintext SQLite
+      final db = await _dbHelper.database;
+      await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
+      return;
+    }
+
     final db = await _dbHelper.database;
     await db.insert(
       'app_settings',
