@@ -10,8 +10,8 @@ class ApiConstants {
 
   // Python AI Agent Service URLs
   // Configured with standard environment defaults, overridable at runtime
-  static const String defaultIntakeAgentUrl = 'https://app.drgodly.com/api/agent/intake';
-  static const String defaultAssessmentPlanAgentUrl = 'https://app.drgodly.com/api/agent/assessment';
+  static const String defaultIntakeAgentUrl = 'https://agents.drgodly.com/api/agent/intake';
+  static const String defaultAssessmentPlanAgentUrl = 'https://agents.drgodly.com/api/agent/assessment';
 
   // Intake REST Endpoints on appBaseUrl
   static const String intakeCreatePath = '/api/intake/create';
