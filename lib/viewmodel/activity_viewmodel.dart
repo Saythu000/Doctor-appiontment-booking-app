@@ -248,6 +248,8 @@ class ActivityViewModel extends ChangeNotifier {
         HealthDataType.DISTANCE_DELTA,
         HealthDataType.BLOOD_OXYGEN,
         HealthDataType.WORKOUT,
+        HealthDataType.ACTIVITY_INTENSITY,
+        HealthDataType.EXERCISE_TIME,
       ];
       final health = Health();
       await health.configure();

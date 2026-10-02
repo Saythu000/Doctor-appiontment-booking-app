@@ -204,6 +204,8 @@ class OpenWearablesService {
         HealthDataType.DISTANCE_DELTA,
         HealthDataType.BLOOD_OXYGEN,
         HealthDataType.WORKOUT,
+        HealthDataType.ACTIVITY_INTENSITY,
+        HealthDataType.EXERCISE_TIME,
         HealthDataType.HEIGHT,
         HealthDataType.WEIGHT,
       ];
@@ -311,6 +313,7 @@ class OpenWearablesService {
         int realRemSleepMinutes = 0;
         int realAwakeMinutes = 0;
         int realWorkoutMinutes = 0;
+        int recordedActiveMinutes = 0;
         int googleFitActiveMinutes = 0;
         int wearableActiveMinutes = 0;
         int totalActiveSeconds = 0;
@@ -420,6 +423,23 @@ class OpenWearablesService {
                 wearableDistance += distVal;
               }
               realDistance += distVal;
+            }
+          } else if (dp.type == HealthDataType.ACTIVITY_INTENSITY || dp.type == HealthDataType.EXERCISE_TIME) {
+            if (!dp.dateTo.isBefore(todayStart)) {
+              int mins = 0;
+              if (dp.value is NumericHealthValue) {
+                mins = (dp.value as NumericHealthValue).numericValue.toInt();
+              }
+              if (mins <= 0) {
+                mins = dp.dateTo.difference(dp.dateFrom).inMinutes;
+              }
+              final isFit = dp.sourceName.toLowerCase().contains('fit') || dp.sourceName.toLowerCase().contains('google');
+              if (isFit) {
+                googleFitActiveMinutes += mins;
+              } else {
+                wearableActiveMinutes += mins;
+              }
+              recordedActiveMinutes += mins;
             }
           } else if (dp.type == HealthDataType.WORKOUT) {
             if (!dp.dateTo.isBefore(todayStart)) {
@@ -533,21 +553,23 @@ class OpenWearablesService {
         }
 
         // Calculate real active minutes directly matching Google Fit's Move Minutes:
-        // 1. Explicit workout sessions (walks, runs, workouts tracked in Google Fit or wearable)
-        // 2. Continuous brisk movement periods (cadence >= 60 steps/min sustained for >= 1 minute)
-        // Note: Casual indoor shuffling (< 150 steps without sustained pace) generates 0 Move Min in Google Fit.
-        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 60).length;
+        // 1. Direct recorded Move/Active Minutes from Google Fit / Health Connect (ACTIVITY_INTENSITY / EXERCISE_TIME)
+        // 2. Explicit workout sessions (walks, runs, workouts tracked in Google Fit or wearable)
+        // 3. Continuous active movement periods (matching Google Fit's standard Move Minute threshold of >= 30 steps/min)
+        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 30).length;
         int realActiveMinutes = 0;
         if (googleFitActiveMinutes > 0) {
           realActiveMinutes = googleFitActiveMinutes;
+        } else if (recordedActiveMinutes > 0) {
+          realActiveMinutes = recordedActiveMinutes;
         } else if (wearableActiveMinutes > 0) {
           realActiveMinutes = wearableActiveMinutes;
         } else if (realWorkoutMinutes > 0) {
           realActiveMinutes = realWorkoutMinutes;
-        } else if (totalActiveSeconds >= 60) {
-          realActiveMinutes = (totalActiveSeconds / 60.0).round();
         } else if (moveMinutesFromBuckets > 0) {
           realActiveMinutes = moveMinutesFromBuckets;
+        } else if (totalActiveSeconds >= 60) {
+          realActiveMinutes = (totalActiveSeconds / 60.0).round();
         }
 
         if (kDebugMode) {
