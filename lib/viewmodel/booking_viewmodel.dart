@@ -5,6 +5,7 @@ import '../../domain/model/patient_profile.dart';
 import '../../data/repository/booking_repository.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/profile_repository.dart';
+import '../core/constants/api_constants.dart';
 import '../data/service/fhir_api_client.dart';
 import '../data/service/notification_service.dart';
 
@@ -54,7 +55,8 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final orgId = await healthRepository.getSetting('iam_org_id');
+      final rawOrgId = await healthRepository.getSetting('iam_org_id');
+      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : ApiConstants.defaultOrganizationId;
       specialists = await bookingRepository.getActivePractitionerRoles(orgId: orgId);
     } catch (e) {
       if (kDebugMode) {
@@ -72,7 +74,8 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final orgId = await healthRepository.getSetting('iam_org_id');
+      final rawOrgId = await healthRepository.getSetting('iam_org_id');
+      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : ApiConstants.defaultOrganizationId;
       final dateStr = date.toIso8601String().split('T')[0];
       availableSlots = await bookingRepository.getAvailableSlots(
         practitionerRoleId: practitionerRoleId,
@@ -108,7 +111,11 @@ class BookingViewModel extends ChangeNotifier {
     try {
       // Fetch profile to get patient details
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
-      final orgId = await healthRepository.getSetting('iam_org_id') ?? '';
+      var orgId = await healthRepository.getSetting('iam_org_id') ?? '';
+      if (orgId.isEmpty) {
+        orgId = ApiConstants.defaultOrganizationId;
+        await healthRepository.saveSetting('iam_org_id', orgId);
+      }
       PlainPatient? profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
       profile ??= await profileRepository.createInitialProfile(userId: userId, orgId: orgId);
 
@@ -250,6 +257,7 @@ class BookingViewModel extends ChangeNotifier {
       }
 
       final appointmentId = result['appointment_id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final bookingInitialStatus = (result['status']?.toString().toLowerCase() == 'booked') ? 'pending' : (result['status']?.toString().toLowerCase() ?? 'pending');
       final apptData = {
         'id': appointmentId,
         'practitioner_name': practitionerName,
@@ -258,6 +266,7 @@ class BookingViewModel extends ChangeNotifier {
         'start_time': finalStartStr,
         'type': isVirtual ? 'Virtual Consultation' : 'In-Person Visit',
         'is_virtual': isVirtual ? 1 : 0,
+        'status': bookingInitialStatus,
       };
       await healthRepository.saveAppointment(apptData);
 
@@ -311,7 +320,10 @@ class BookingViewModel extends ChangeNotifier {
   Future<void> fetchAppointments() async {
     try {
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
-      final orgId = await healthRepository.getSetting('iam_org_id') ?? '';
+      var orgId = await healthRepository.getSetting('iam_org_id') ?? '';
+      if (orgId.isEmpty) {
+        orgId = ApiConstants.defaultOrganizationId;
+      }
       int? patientId;
       try {
         final profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
@@ -369,6 +381,18 @@ class BookingViewModel extends ChangeNotifier {
             image = 'assets/doctors/doctor_3.png';
           }
 
+          // Normalize status into 4 core lifecycle states: pending, booked, rescheduled, cancelled
+          String normalizedStatus = 'pending';
+          if (status == 'booked' || status == 'confirmed' || status == 'arrived' || status == 'fulfilled' || status == 'checked-in') {
+            normalizedStatus = 'booked';
+          } else if (status.contains('resched')) {
+            normalizedStatus = 'rescheduled';
+          } else if (status == 'cancelled' || status == 'canceled') {
+            normalizedStatus = 'cancelled';
+          } else {
+            normalizedStatus = 'pending';
+          }
+
           await healthRepository.saveAppointment({
             'id': id,
             'practitioner_name': practitionerName,
@@ -377,6 +401,7 @@ class BookingViewModel extends ChangeNotifier {
             'start_time': start,
             'type': type,
             'is_virtual': isVirtual,
+            'status': normalizedStatus,
           });
         }
       }

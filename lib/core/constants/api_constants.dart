@@ -8,6 +8,9 @@ class ApiConstants {
   // DrGodly FHIR Middleware URL
   static const String fhirGqlUrl = 'https://fhirgql.drgodly.com';
 
+  // DrGodly Default Tenant Organization ID
+  static const String defaultOrganizationId = '0fb41e50-82a4-461e-96c7-bd11359d892d';
+
   // Python AI Agent Service URLs
   // Configured with standard environment defaults, overridable at runtime
   static const String defaultIntakeAgentUrl = 'https://agents.drgodly.com/api/agent/intake';

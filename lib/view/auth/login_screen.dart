@@ -47,6 +47,42 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _handlePkceLogin(BuildContext context) async {
+    final authVM = Provider.of<AuthViewModel>(context, listen: false);
+    final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
+    final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    final success = await authVM.loginWithPKCE(context: context);
+    if (!mounted) return;
+
+    if (success) {
+      activityVM.resetState();
+      profileVM.resetState();
+      await profileVM.fetchOrInitProfile();
+      await activityVM.initDashboard();
+      final profile = profileVM.currentProfile;
+      final bool hasProfile = profile != null &&
+          profile.name != null &&
+          profile.name!.isNotEmpty &&
+          profile.name!.first.givenName.isNotEmpty;
+
+      if (hasProfile) {
+        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
+      } else {
+        navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
+      }
+    } else if (authVM.errorMessage != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(authVM.errorMessage!),
+          backgroundColor: PhiaColors.pulseRed,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
@@ -147,6 +183,60 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // Option A: Primary OAuth 2.0 PKCE Flow
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: PhiaColors.navyAnchor,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(color: PhiaColors.primary, width: 1.2),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                            ),
+                            onPressed: authVM.isLoading ? null : () => _handlePkceLogin(context),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.shield_outlined, color: PhiaColors.primaryLight, size: 20),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    'Continue with DrGodly IAM (OAuth PKCE)',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              const Expanded(child: Divider(color: PhiaColors.borderSubtle)),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                child: Text(
+                                  _isLoginMode ? 'OR SIGN IN WITH EMAIL' : 'OR REGISTER WITH EMAIL',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: PhiaColors.textMuted,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                              const Expanded(child: Divider(color: PhiaColors.borderSubtle)),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+
                           // Full Name (Registration only)
                           if (!_isLoginMode) ...[
                             _buildInputLabel('FULL NAME'),
@@ -353,7 +443,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       _nameController.clear();
                       _emailController.clear();
                       _passwordController.clear();
-                      authVM.signOut();
                     });
                   },
                   child: RichText(

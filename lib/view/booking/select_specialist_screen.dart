@@ -30,6 +30,10 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
   @override
   Widget build(BuildContext context) {
     final bookingVM = Provider.of<BookingViewModel>(context);
+    final navArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final bool intakeCompleted = navArgs?['intakeCompleted'] == true;
+    final int? passedIntakeId = navArgs?['intakeId'] as int?;
+    final dynamic passedClinicalReport = navArgs?['clinicalReport'];
 
     // Dynamically derive specialties from onboarded doctors
     final Set<String> dynamicSet = {};
@@ -104,7 +108,34 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 12),
+            if (intakeCompleted)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Clinical intake completed. Select a specialist to schedule your consultation.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF166534),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
             // Search Bar
             Padding(
@@ -253,7 +284,13 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, idx) {
-                        return _buildCleanDoctorCard(context, filtered[idx]);
+                        return _buildCleanDoctorCard(
+                          context,
+                          filtered[idx],
+                          intakeCompleted: intakeCompleted,
+                          intakeId: passedIntakeId,
+                          clinicalReport: passedClinicalReport,
+                        );
                       },
                     ),
                   );
@@ -266,7 +303,13 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
     );
   }
 
-  Widget _buildCleanDoctorCard(BuildContext context, PractitionerRoleBooking pr) {
+  Widget _buildCleanDoctorCard(
+    BuildContext context,
+    PractitionerRoleBooking pr, {
+    bool intakeCompleted = false,
+    int? intakeId,
+    dynamic clinicalReport,
+  }) {
     final detail = pr.practitionerDetail;
     final String name = detail?.fullName ?? pr.practitionerDisplay ?? 'Clinical Specialist';
     final rawSpecialty = pr.specialties.isNotEmpty ? pr.specialties.first : 'General Practitioner';
@@ -415,17 +458,31 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/booking_date_time',
-                    arguments: {
-                      'specialist': pr,
-                      'name': name,
-                      'role': specialty,
-                      'accentColor': badgeColor,
-                      'imageUrl': imageUrl,
-                    },
-                  );
+                  if (intakeCompleted) {
+                    Navigator.pushNamed(
+                      context,
+                      '/booking_date_time',
+                      arguments: {
+                        'specialist': pr,
+                        'name': name,
+                        'role': specialty,
+                        'accentColor': badgeColor,
+                        'imageUrl': imageUrl,
+                        'intakeCompleted': true,
+                        'intakeId': intakeId,
+                        'clinicalReport': clinicalReport,
+                      },
+                    );
+                  } else {
+                    _showBookingOptionsModal(
+                      context,
+                      specialist: pr,
+                      name: name,
+                      role: specialty,
+                      accentColor: badgeColor,
+                      imageUrl: imageUrl,
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: PhiaColors.primary,
@@ -445,6 +502,291 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showBookingOptionsModal(
+    BuildContext context, {
+    required dynamic specialist,
+    required String name,
+    required String role,
+    required Color accentColor,
+    required String imageUrl,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SafeNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    fallbackIcon: Icons.person,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: PhiaColors.navyAnchor,
+                        ),
+                      ),
+                      Text(
+                        role,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: PhiaColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Select Booking Option',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: PhiaColors.navyAnchor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Choose how you would like to prepare for your consultation with $name:',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: PhiaColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Option 1: With AI Intake
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(
+                  context,
+                  '/intake',
+                  arguments: {
+                    'specialist': specialist,
+                    'name': name,
+                    'role': role,
+                    'accentColor': accentColor,
+                    'imageUrl': imageUrl,
+                  },
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF86EFAC), width: 1.5),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDCFCE7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.smart_toy_rounded,
+                        color: Color(0xFF16A34A),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'With AI Intake',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF14532D),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16A34A),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'RECOMMENDED • 2 MIN',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Describe your symptoms to DrGodly so your doctor receives an organized clinical briefing before your visit.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF166534),
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: Color(0xFF16A34A),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Option 2: Without AI Intake
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(
+                  context,
+                  '/booking_date_time',
+                  arguments: {
+                    'specialist': specialist,
+                    'name': name,
+                    'role': role,
+                    'accentColor': accentColor,
+                    'imageUrl': imageUrl,
+                  },
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.calendar_month_rounded,
+                        color: PhiaColors.navyAnchor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Without AI Intake',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: PhiaColors.navyAnchor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF64748B),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'DIRECT BOOKING',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Skip AI symptom intake and proceed directly to choose your consultation date and time slot.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: PhiaColors.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: PhiaColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

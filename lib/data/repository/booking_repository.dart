@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/constants/api_constants.dart';
 import '../../domain/model/booking_models.dart';
 import '../service/fhir_api_client.dart';
 
@@ -103,12 +104,13 @@ class BookingRepository {
     required String patientName,
   }) async {
     try {
+      final effectiveOrgId = orgId.isNotEmpty ? orgId : ApiConstants.defaultOrganizationId;
       final payload = {
         'practitioner_id': practitionerId,
         'slot_id': slotId,
         'patient_id': patientId,
         if (userId != null && userId.isNotEmpty) 'user_id': userId,
-        if (orgId.isNotEmpty) 'org_id': orgId,
+        'org_id': effectiveOrgId,
         'appointment_type_display': appointmentTypeDisplay,
         if (practitionerName.isNotEmpty) 'practitioner_display': practitionerName,
         if (patientName.isNotEmpty) 'patient_display': patientName,
@@ -199,6 +201,7 @@ class BookingRepository {
     int? patientId,
   }) async {
     try {
+      final effectiveOrgId = orgId.isNotEmpty ? orgId : ApiConstants.defaultOrganizationId;
       final List<Map<String, dynamic>> results = [];
 
       // 1. First attempt: /api/v1/appointments/me (official scoped endpoint)
@@ -222,7 +225,7 @@ class BookingRepository {
             '/api/v1/appointments/',
             queryParameters: {
               'patient_id': patientId,
-              if (orgId.isNotEmpty) 'org_id': orgId,
+              'org_id': effectiveOrgId,
               'limit': 100,
             },
           );
@@ -249,7 +252,7 @@ class BookingRepository {
           '/api/v1/appointments/',
           queryParameters: {
             'user_id': userId,
-            if (orgId.isNotEmpty) 'org_id': orgId,
+            'org_id': effectiveOrgId,
             'limit': 100,
           },
         );

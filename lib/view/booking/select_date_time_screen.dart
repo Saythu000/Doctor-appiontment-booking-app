@@ -673,6 +673,9 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                 'slot_id': _selectedSlotId,
                                 'imageUrl': specialistImageUrl,
                                 'isVirtual': _isVirtualMode,
+                                if (args['intakeCompleted'] == true) 'intakeCompleted': true,
+                                if (args['intakeId'] != null) 'intakeId': args['intakeId'],
+                                if (args['clinicalReport'] != null) 'clinicalReport': args['clinicalReport'],
                               },
                             );
                           },

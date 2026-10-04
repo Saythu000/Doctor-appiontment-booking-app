@@ -116,6 +116,8 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
     return Consumer<IntakeViewModel>(
       builder: (context, vm, child) {
         // Auto-navigate to completion screen when completed
@@ -123,7 +125,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const IntakeCompletionScreen(),
+                builder: (_) => IntakeCompletionScreen(doctorArgs: doctorArgs),
               ),
             );
           });
@@ -160,7 +162,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: PhiaColors.primaryCard.withOpacity(0.12),
+                color: PhiaColors.primaryCard.withValues(alpha: 0.12),
                 child: const Row(
                   children: [
                     Icon(Icons.shield_outlined, size: 16, color: PhiaColors.primary),
@@ -213,7 +215,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  color: PhiaColors.primary.withOpacity(0.08),
+                  color: PhiaColors.primary.withValues(alpha: 0.08),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -245,7 +247,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: PhiaColors.pulseRed.withOpacity(0.1),
+                  color: PhiaColors.pulseRed.withValues(alpha: 0.1),
                   child: Text(
                     vm.errorMessage!,
                     style: const TextStyle(
@@ -275,7 +277,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: PhiaColors.primaryCard.withOpacity(0.15),
+                color: PhiaColors.primaryCard.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -358,7 +360,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
               : Border.all(color: PhiaColors.borderSubtle, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -451,7 +453,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
             style: IconButton.styleFrom(
               backgroundColor: isBusy
                   ? Colors.grey.shade200
-                  : PhiaColors.primary.withOpacity(0.1),
+                  : PhiaColors.primary.withValues(alpha: 0.1),
             ),
           ),
         ],

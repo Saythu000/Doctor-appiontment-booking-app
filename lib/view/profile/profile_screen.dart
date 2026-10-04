@@ -798,6 +798,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
+                      title: 'Appointment History',
+                      value: '${bookingVM.appointmentsList.length} Consultations',
+                      onTap: () => Navigator.pushNamed(context, '/appointment_history'),
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildNavActionRow(
                       title: 'Preferred Language',
                       value: 'English (US)',
                       onTap: () => Navigator.pushNamed(context, '/general_settings'),

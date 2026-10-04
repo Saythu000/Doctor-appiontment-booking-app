@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
-import '../../core/theme/dot_matrix.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 
@@ -40,65 +39,43 @@ class AppointmentHistoryScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
-      body: Stack(
+      appBar: AppBar(
+        backgroundColor: PhiaColors.primary,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Appointment History',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
         children: [
-          const Positioned.fill(
-            child: DotMatrixBackground(child: SizedBox.shrink()),
-          ),
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'APPOINTMENT HISTORY',
-                        style: GoogleFonts.bebasNeue(
-                          fontSize: 22,
-                          color: Colors.white,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    children: [
-                      // Upcoming Section
-                      _buildSectionHeader('UPCOMING CONSULTATIONS'),
-                      if (upcomingAppts.isEmpty)
-                        _buildEmptyState('NO UPCOMING APPOINTMENTS')
-                      else
-                        ...upcomingAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: true)),
-                      
-                      const SizedBox(height: 32),
+          // Upcoming Section
+          _buildSectionHeader('UPCOMING CONSULTATIONS'),
+          if (upcomingAppts.isEmpty)
+            _buildEmptyState('No upcoming appointments scheduled')
+          else
+            ...upcomingAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: true)),
+          
+          const SizedBox(height: 28),
 
-                      // Past Section
-                      _buildSectionHeader('PAST CONSULTATION RECORD'),
-                      if (pastAppts.isEmpty)
-                        _buildEmptyState('NO PAST SESSIONS FOUND')
-                      else
-                        ...pastAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: false)),
-                      
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Past Section
+          _buildSectionHeader('PAST CONSULTATION RECORD'),
+          if (pastAppts.isEmpty)
+            _buildEmptyState('No past consultations found')
+          else
+            ...pastAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: false)),
+          
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -106,21 +83,25 @@ class AppointmentHistoryScreen extends StatelessWidget {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 14.0),
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
-            color: PhiaColors.skyBlue,
+            width: 4,
+            height: 14,
+            decoration: BoxDecoration(
+              color: PhiaColors.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             title,
-            style: GoogleFonts.bebasNeue(
-              fontSize: 16,
-              color: Colors.white,
-              letterSpacing: 1.5,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: PhiaColors.navyAnchor,
+              letterSpacing: 0.8,
             ),
           ),
         ],
@@ -133,15 +114,16 @@ class AppointmentHistoryScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
         color: PhiaColors.surface,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: PhiaColors.borderSubtle),
       ),
       child: Center(
         child: Text(
           message,
-          style: GoogleFonts.bebasNeue(
-            fontSize: 14,
-            color: Colors.white30,
-            letterSpacing: 1.0,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: PhiaColors.textMuted,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -169,15 +151,44 @@ class AppointmentHistoryScreen extends StatelessWidget {
     final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
     final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
+    final status = (appt['status'] as String? ?? 'pending').toLowerCase();
+    Color statusBg;
+    Color statusTextColor;
+    String statusLabel;
+    switch (status) {
+      case 'booked':
+      case 'confirmed':
+        statusBg = const Color(0xFFDCFCE7);
+        statusTextColor = const Color(0xFF15803D);
+        statusLabel = 'CONFIRMED';
+        break;
+      case 'rescheduled':
+        statusBg = const Color(0xFFEDE9FE);
+        statusTextColor = const Color(0xFF6D28D9);
+        statusLabel = 'RESCHEDULED';
+        break;
+      case 'cancelled':
+      case 'canceled':
+        statusBg = PhiaColors.pulseRedLight;
+        statusTextColor = PhiaColors.pulseRed;
+        statusLabel = 'CANCELLED';
+        break;
+      case 'pending':
+      default:
+        statusBg = const Color(0xFFFEF3C7);
+        statusTextColor = const Color(0xFFB45309);
+        statusLabel = 'PENDING';
+        break;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isUpcoming ? PhiaColors.surface : Colors.transparent,
+        color: PhiaColors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isUpcoming 
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.05),
+          color: isUpcoming ? PhiaColors.borderSubtle : PhiaColors.borderSubtle.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -186,53 +197,75 @@ class AppointmentHistoryScreen extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Doctor Avatar (Grayscale)
-              Container(
-                width: 48,
-                height: 60,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  image: DecorationImage(
+              // Doctor Avatar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  color: PhiaColors.surfaceSubtle,
+                  child: Image(
                     image: getImageProvider(imageUrl, fallback: 'assets/doctors/doctor_1.png'),
                     fit: BoxFit.cover,
-                    colorFilter: const ColorFilter.matrix(<double>[
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0.2126, 0.7152, 0.0722, 0, -20,
-                      0,      0,      0,      1, 0,
-                    ]),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               // Doctor details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: PhiaColors.primaryLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isVirtual ? 'VIDEO CONSULTATION' : 'IN-CLINIC VISIT',
+                            style: GoogleFonts.inter(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: statusTextColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     Text(
-                      isVirtual ? 'VIRTUAL CONSULTATION' : 'IN-PERSON VISIT',
-                      style: GoogleFonts.inter(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: isUpcoming ? PhiaColors.skyBlue : Colors.white30,
-                        letterSpacing: 0.5,
+                      name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: PhiaColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      name.toUpperCase(),
-                      style: GoogleFonts.bebasNeue(
-                        fontSize: 18,
-                        color: isUpcoming ? Colors.white : Colors.white60,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    Text(
-                      role.toUpperCase(),
+                      role,
                       style: GoogleFonts.inter(
-                        fontSize: 9,
-                        color: Colors.white38,
+                        fontSize: 11,
+                        color: PhiaColors.textSecondary,
                       ),
                     ),
                   ],
@@ -240,54 +273,60 @@ class AppointmentHistoryScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           // Time/Date row
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              color: PhiaColors.surfaceSubtle,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: PhiaColors.borderSubtle),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  dateFormatted,
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: isUpcoming ? Colors.white70 : Colors.white38,
-                    letterSpacing: 0.5,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 13, color: PhiaColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      dateFormatted,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: PhiaColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   timeFormatted,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 16,
-                    color: isUpcoming ? Colors.white : Colors.white38,
-                    letterSpacing: 0.5,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.primary,
                   ),
                 ),
               ],
             ),
           ),
           if (isUpcoming) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             OutlinedButton(
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.25)),
-                minimumSize: const Size(double.infinity, 40),
-                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                side: BorderSide(color: PhiaColors.pulseRed.withValues(alpha: 0.3)),
+                minimumSize: const Size(double.infinity, 38),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () {
                 _showCancelConfirmation(context, id, name);
               },
               child: Text(
-                'CANCEL CONSULTATION',
-                style: GoogleFonts.bebasNeue(
+                'Cancel Consultation',
+                style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: Colors.redAccent,
-                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w600,
+                  color: PhiaColors.pulseRed,
                 ),
               ),
             ),
@@ -302,55 +341,62 @@ class AppointmentHistoryScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.black,
-          shape: const Border(
-            top: BorderSide(color: Colors.redAccent, width: 2.0),
-          ),
+          backgroundColor: PhiaColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
-            'CANCEL APPOINTMENT',
-            style: GoogleFonts.bebasNeue(
-              fontSize: 20,
-              color: Colors.white,
-              letterSpacing: 2.0,
+            'Cancel Appointment',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: PhiaColors.navyAnchor,
             ),
           ),
           content: Text(
             'Are you sure you want to cancel your scheduled appointment with $doctorName?',
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: Colors.white70,
+              color: PhiaColors.textSecondary,
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'KEEP IT',
+                'Keep',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: PhiaColors.textMuted,
                 ),
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                backgroundColor: PhiaColors.pulseRed,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () {
-                context.read<BookingViewModel>().cancelAppointment(id);
+              onPressed: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Appointment with $doctorName cancelled.')),
-                );
+                final bookingVM = context.read<BookingViewModel>();
+                await bookingVM.cancelAppointment(id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Appointment cancelled',
+                        style: GoogleFonts.inter(),
+                      ),
+                      backgroundColor: PhiaColors.navyAnchor,
+                    ),
+                  );
+                }
               },
               child: Text(
-                'CANCEL',
-                style: GoogleFonts.bebasNeue(
-                  fontSize: 12,
-                  letterSpacing: 1.0,
+                'Cancel Visit',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
             ),

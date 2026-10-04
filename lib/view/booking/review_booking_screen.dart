@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../viewmodel/booking_viewmodel.dart';
+import '../../viewmodel/auth_viewmodel.dart';
+import '../../viewmodel/intake_viewmodel.dart';
 import '../../domain/model/booking_models.dart';
 
 class ReviewBookingScreen extends StatelessWidget {
@@ -226,7 +229,7 @@ class ReviewBookingScreen extends StatelessWidget {
                           if (time.toUpperCase().contains('PM') && hour < 12) hour += 12;
                           if (time.toUpperCase().contains('AM') && hour == 12) hour = 0;
 
-                          final int pId = specialist?.practitionerRefId ?? specialist?.id ?? 1;
+                          final int pId = specialist?.practitionerDetail?.id ?? specialist?.practitionerRefId ?? specialist?.id ?? 1;
 
                           try {
                             final result = await context.read<BookingViewModel>().executeBooking(
@@ -242,6 +245,28 @@ class ReviewBookingScreen extends StatelessWidget {
 
                             if (context.mounted) {
                               if (result.isNotEmpty && result['appointment_id'] != null) {
+                                final aptId = result['appointment_id'] is int
+                                    ? result['appointment_id'] as int
+                                    : int.tryParse(result['appointment_id'].toString()) ?? 0;
+                                final intakeVM = context.read<IntakeViewModel>();
+                                final authVM = context.read<AuthViewModel>();
+                                if (aptId > 0) {
+                                  try {
+                                    await intakeVM.linkToAppointment(
+                                      intakeRecordId: args['intakeId'] as int?,
+                                      fhirAppointmentId: aptId,
+                                      authToken: authVM.jwtToken ?? '',
+                                      orgId: (authVM.orgId != null && authVM.orgId!.isNotEmpty)
+                                          ? authVM.orgId
+                                          : ApiConstants.defaultOrganizationId,
+                                    );
+                                  } catch (e) {
+                                    debugPrint('[ReviewBookingScreen] Error linking intake to appointment: $e');
+                                  }
+                                }
+
+                                if (!context.mounted) return;
+
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
                                   '/booking_confirmed',

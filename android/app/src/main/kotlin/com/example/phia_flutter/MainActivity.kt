@@ -2,16 +2,19 @@ package com.example.phia_flutter
 
 import android.content.Intent
 import android.provider.CalendarContract
+import android.webkit.CookieManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.example.phia_flutter/calendar"
+    private val CALENDAR_CHANNEL = "com.example.phia_flutter/calendar"
+    private val COOKIE_CHANNEL = "com.example.phia_flutter/cookies"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CALENDAR_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "addToCalendar") {
                 val title = call.argument<String>("title")
                 val description = call.argument<String>("description")
@@ -37,5 +40,28 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, COOKIE_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "getCookies") {
+                val url = call.argument<String>("url") ?: "https://iam.drgodly.com"
+                try {
+                    val cookieManager = CookieManager.getInstance()
+                    val cookies = cookieManager.getCookie(url)
+                    result.success(cookies)
+                } catch (e: Exception) {
+                    result.error("COOKIE_ERROR", e.message, null)
+                }
+            } else if (call.method == "clearCookies") {
+                try {
+                    val cookieManager = CookieManager.getInstance()
+                    cookieManager.removeAllCookies { result.success(true) }
+                } catch (e: Exception) {
+                    result.error("COOKIE_ERROR", e.message, null)
+                }
+            } else {
+                result.notImplemented()
+            }
+        }
     }
 }
+

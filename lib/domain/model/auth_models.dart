@@ -82,3 +82,58 @@ class GetSessionResponse {
     );
   }
 }
+
+class OAuth2TokenResponse {
+  final String accessToken;
+  final String? refreshToken;
+  final String? idToken;
+  final String tokenType;
+  final int expiresIn;
+  final String? scope;
+
+  OAuth2TokenResponse({
+    required this.accessToken,
+    this.refreshToken,
+    this.idToken,
+    required this.tokenType,
+    required this.expiresIn,
+    this.scope,
+  });
+
+  factory OAuth2TokenResponse.fromJson(Map<String, dynamic> json) {
+    return OAuth2TokenResponse(
+      accessToken: (json['access_token'] ?? json['accessToken'] ?? '').toString(),
+      refreshToken: json['refresh_token'] as String?,
+      idToken: json['id_token'] as String?,
+      tokenType: (json['token_type'] as String?) ?? 'Bearer',
+      expiresIn: (json['expires_in'] as num?)?.toInt() ?? 3600,
+      scope: json['scope'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'id_token': idToken,
+      'token_type': tokenType,
+      'expires_in': expiresIn,
+      'scope': scope,
+    };
+  }
+}
+
+class OAuth2AuthResult {
+  final OAuth2TokenResponse tokens;
+  final User user;
+  final String? sessionJwt;
+  final String? cookies;
+
+  OAuth2AuthResult({
+    required this.tokens,
+    required this.user,
+    this.sessionJwt,
+    this.cookies,
+  });
+}
+

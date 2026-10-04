@@ -317,7 +317,10 @@ class OpenWearablesService {
         int googleFitActiveMinutes = 0;
         int wearableActiveMinutes = 0;
         int totalActiveSeconds = 0;
+        int googleFitActiveSeconds = 0;
         final minuteStepCounts = <String, int>{};
+        final googleFitMinuteStepCounts = <String, int>{};
+        final workoutIntervals = <Map<String, dynamic>>[];
         String detectedAppSource = 'Android Health Connect';
 
         DateTime? latestRestingHrDate;
@@ -444,33 +447,69 @@ class OpenWearablesService {
           } else if (dp.type == HealthDataType.WORKOUT) {
             if (!dp.dateTo.isBefore(todayStart)) {
               final workoutDur = dp.dateTo.difference(dp.dateFrom).inMinutes;
-              final isFit = dp.sourceName.toLowerCase().contains('fitness');
+              final isFit = dp.sourceName.toLowerCase().contains('fit') || dp.sourceName.toLowerCase().contains('google');
               if (isFit) {
                 googleFitActiveMinutes += workoutDur;
               } else {
                 wearableActiveMinutes += workoutDur;
               }
               realWorkoutMinutes += workoutDur;
+
+              final wStart = dp.dateFrom.isBefore(todayStart) ? todayStart : dp.dateFrom;
+              final wEnd = dp.dateTo.isAfter(now) ? now : dp.dateTo;
+              workoutIntervals.add({
+                'start': wStart,
+                'end': wEnd,
+                'isFit': isFit,
+                'source': dp.sourceName,
+              });
             }
           } else if (dp.type == HealthDataType.STEPS) {
-            if (!dp.dateFrom.isBefore(todayStart)) {
+            if (!dp.dateTo.isBefore(todayStart)) {
               final count = (dp.value is NumericHealthValue)
                   ? (dp.value as NumericHealthValue).numericValue.toInt()
                   : 0;
               final durSec = dp.dateTo.difference(dp.dateFrom).inSeconds;
               final cadence = durSec > 0 ? (count / (durSec / 60.0)) : count.toDouble();
-              final isFit = dp.sourceName.toLowerCase().contains('fitness');
+              final isFit = dp.sourceName.toLowerCase().contains('fit') || dp.sourceName.toLowerCase().contains('google');
               if (isFit) {
                 googleFitSteps += count;
               } else {
                 wearableSteps += count;
               }
-              // Google Fit awards 1 Move Minute for each minute with sustained brisk/active movement (cadence >= 60 steps/min)
-              // Casual indoor shuffling (<60 steps/min) is not counted by Google Fit.
-              final bucketKey = '${dp.dateFrom.year}-${dp.dateFrom.month}-${dp.dateFrom.day} ${dp.dateFrom.hour}:${dp.dateFrom.minute}';
-              minuteStepCounts[bucketKey] = (minuteStepCounts[bucketKey] ?? 0) + count;
-              if (cadence >= 60.0) {
-                totalActiveSeconds += durSec;
+              // Google Fit awards 1 Move Minute for each minute with at least 30 steps.
+              // Distribute steps across all minute buckets covered by the interval [dp.dateFrom, dp.dateTo]:
+              if (durSec > 0) {
+                DateTime cur = DateTime(dp.dateFrom.year, dp.dateFrom.month, dp.dateFrom.day, dp.dateFrom.hour, dp.dateFrom.minute);
+                final end = dp.dateTo;
+                while (!cur.isAfter(end)) {
+                  final nextMin = cur.add(const Duration(minutes: 1));
+                  final segStart = cur.isBefore(dp.dateFrom) ? dp.dateFrom : cur;
+                  final segEnd = nextMin.isAfter(end) ? end : nextMin;
+                  final segSec = segEnd.difference(segStart).inSeconds;
+                  if (segSec > 0 && !cur.isBefore(todayStart)) {
+                    final segSteps = (count * (segSec / durSec)).round();
+                    final bucketKey = '${cur.year}-${cur.month.toString().padLeft(2, '0')}-${cur.day.toString().padLeft(2, '0')} ${cur.hour.toString().padLeft(2, '0')}:${cur.minute.toString().padLeft(2, '0')}';
+                    minuteStepCounts[bucketKey] = (minuteStepCounts[bucketKey] ?? 0) + segSteps;
+                    if (isFit) {
+                      googleFitMinuteStepCounts[bucketKey] = (googleFitMinuteStepCounts[bucketKey] ?? 0) + segSteps;
+                    }
+                  }
+                  cur = nextMin;
+                }
+              } else if (!dp.dateFrom.isBefore(todayStart)) {
+                final bucketKey = '${dp.dateFrom.year}-${dp.dateFrom.month.toString().padLeft(2, '0')}-${dp.dateFrom.day.toString().padLeft(2, '0')} ${dp.dateFrom.hour.toString().padLeft(2, '0')}:${dp.dateFrom.minute.toString().padLeft(2, '0')}';
+                minuteStepCounts[bucketKey] = (minuteStepCounts[bucketKey] ?? 0) + count;
+                if (isFit) {
+                  googleFitMinuteStepCounts[bucketKey] = (googleFitMinuteStepCounts[bucketKey] ?? 0) + count;
+                }
+              }
+              if (cadence >= 30.0) {
+                if (isFit) {
+                  googleFitActiveSeconds += durSec;
+                } else {
+                  totalActiveSeconds += durSec;
+                }
               }
             }
           } else if (dp.type == HealthDataType.SLEEP_SESSION ||
@@ -553,12 +592,45 @@ class OpenWearablesService {
         }
 
         // Calculate real active minutes directly matching Google Fit's Move Minutes:
-        // 1. Direct recorded Move/Active Minutes from Google Fit / Health Connect (ACTIVITY_INTENSITY / EXERCISE_TIME)
-        // 2. Explicit workout sessions (walks, runs, workouts tracked in Google Fit or wearable)
-        // 3. Continuous active movement periods (matching Google Fit's standard Move Minute threshold of >= 30 steps/min)
-        final moveMinutesFromBuckets = minuteStepCounts.values.where((c) => c >= 30).length;
+        // 1. Primary standard: Google Fit Move Minutes calculated from 1-minute step buckets (>= 30 steps/min).
+        //    Google Fit awards exactly 1 Move Minute for every minute with at least 30 steps.
+        // 2. Non-step workout sessions (e.g., cycling, rowing, weight training) where steps were not tracked (< 50 steps in interval).
+        //    For walking/running workouts, step buckets already accurately reflect active vs paused minutes.
+        // 3. Robust fallbacks for sensors/wearables where granular minute step intervals are not exported.
+        final fitBuckets = googleFitMinuteStepCounts.isNotEmpty ? googleFitMinuteStepCounts : minuteStepCounts;
+        final Set<String> activeMinutesSet = {};
+
+        // Add all minutes meeting Google Fit's Move Minute threshold (>= 30 steps/min)
+        fitBuckets.forEach((bucketKey, stepsInMin) {
+          if (stepsInMin >= 30) {
+            activeMinutesSet.add(bucketKey);
+          }
+        });
+
+        // Add non-step workout minutes (e.g., stationary bike, yoga) that didn't generate steps
+        for (final w in workoutIntervals) {
+          final start = w['start'] as DateTime;
+          final end = w['end'] as DateTime;
+          DateTime cur = DateTime(start.year, start.month, start.day, start.hour, start.minute);
+          final sessionKeys = <String>[];
+          int stepsInSession = 0;
+          while (!cur.isAfter(end)) {
+            final key = '${cur.year}-${cur.month.toString().padLeft(2, '0')}-${cur.day.toString().padLeft(2, '0')} ${cur.hour.toString().padLeft(2, '0')}:${cur.minute.toString().padLeft(2, '0')}';
+            sessionKeys.add(key);
+            stepsInSession += (fitBuckets[key] ?? 0);
+            cur = cur.add(const Duration(minutes: 1));
+          }
+          // Only add workout minutes if it was a non-step workout (< 50 steps across the whole session).
+          // For walking/running workouts, active minutes are already precisely determined by the >= 30 steps rule.
+          if (stepsInSession < 50) {
+            activeMinutesSet.addAll(sessionKeys);
+          }
+        }
+
         int realActiveMinutes = 0;
-        if (googleFitActiveMinutes > 0) {
+        if (activeMinutesSet.isNotEmpty) {
+          realActiveMinutes = activeMinutesSet.length;
+        } else if (googleFitActiveMinutes > 0) {
           realActiveMinutes = googleFitActiveMinutes;
         } else if (recordedActiveMinutes > 0) {
           realActiveMinutes = recordedActiveMinutes;
@@ -566,14 +638,14 @@ class OpenWearablesService {
           realActiveMinutes = wearableActiveMinutes;
         } else if (realWorkoutMinutes > 0) {
           realActiveMinutes = realWorkoutMinutes;
-        } else if (moveMinutesFromBuckets > 0) {
-          realActiveMinutes = moveMinutesFromBuckets;
+        } else if (googleFitActiveSeconds >= 60) {
+          realActiveMinutes = (googleFitActiveSeconds / 60.0).round();
         } else if (totalActiveSeconds >= 60) {
           realActiveMinutes = (totalActiveSeconds / 60.0).round();
         }
 
         if (kDebugMode) {
-          print('[OpenWearablesService] Active minutes for today calculated successfully');
+          print('[OpenWearablesService] Active minutes for today: $realActiveMinutes (from ${activeMinutesSet.length} Move Min buckets, fitActiveMins=$googleFitActiveMinutes, recActiveMins=$recordedActiveMinutes, workoutMins=$realWorkoutMinutes)');
         }
 
         lastSyncSource = detectedAppSource;

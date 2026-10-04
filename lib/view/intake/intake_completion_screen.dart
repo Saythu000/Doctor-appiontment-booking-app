@@ -4,7 +4,8 @@ import '../../core/theme/colors.dart';
 import '../../viewmodel/intake_viewmodel.dart';
 
 class IntakeCompletionScreen extends StatelessWidget {
-  const IntakeCompletionScreen({super.key});
+  final Map<String, dynamic>? doctorArgs;
+  const IntakeCompletionScreen({super.key, this.doctorArgs});
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +70,7 @@ class IntakeCompletionScreen extends StatelessWidget {
                     border: Border.all(color: PhiaColors.borderSubtle),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -98,7 +99,7 @@ class IntakeCompletionScreen extends StatelessWidget {
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: (report.riskLevel!.toLowerCase() == 'high')
-                                    ? PhiaColors.pulseRed.withOpacity(0.12)
+                                    ? PhiaColors.pulseRed.withValues(alpha: 0.12)
                                     : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -173,13 +174,34 @@ class IntakeCompletionScreen extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.calendar_month_outlined, size: 20),
-                  label: const Text(
-                    'Book Doctor Appointment',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  label: Text(
+                    doctorArgs != null && doctorArgs!['name'] != null
+                        ? 'Continue Booking with ${doctorArgs!['name']}'
+                        : 'Book Doctor Appointment',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                   onPressed: () {
-                    // Navigate to specialist selection for booking
-                    Navigator.of(context).pushNamed('/booking_specialist');
+                    if (doctorArgs != null) {
+                      Navigator.of(context).pushNamed(
+                        '/booking_date_time',
+                        arguments: {
+                          ...doctorArgs!,
+                          'intakeCompleted': true,
+                          'intakeId': intakeVm.savedIntakeRecordId,
+                          'clinicalReport': intakeVm.clinicalReport,
+                        },
+                      );
+                    } else {
+                      // Navigate to specialist selection for booking with intake state
+                      Navigator.of(context).pushNamed(
+                        '/booking_specialist',
+                        arguments: {
+                          'intakeCompleted': true,
+                          'intakeId': intakeVm.savedIntakeRecordId,
+                          'clinicalReport': intakeVm.clinicalReport,
+                        },
+                      );
+                    }
                   },
                 ),
               ),

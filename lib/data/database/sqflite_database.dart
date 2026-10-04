@@ -19,7 +19,7 @@ class SqfliteDatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -87,7 +87,8 @@ class SqfliteDatabaseHelper {
         practitioner_image TEXT NOT NULL,
         start_time TEXT NOT NULL,
         type TEXT NOT NULL,
-        is_virtual INTEGER NOT NULL DEFAULT 1
+        is_virtual INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'pending'
       )
     ''');
 
@@ -146,7 +147,8 @@ class SqfliteDatabaseHelper {
           practitioner_image TEXT NOT NULL,
           start_time TEXT NOT NULL,
           type TEXT NOT NULL,
-          is_virtual INTEGER NOT NULL DEFAULT 1
+          is_virtual INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'pending'
         )
       ''');
     }
@@ -162,6 +164,12 @@ class SqfliteDatabaseHelper {
           is_read INTEGER NOT NULL DEFAULT 0
         )
       ''');
+    }
+
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE appointments ADD COLUMN status TEXT NOT NULL DEFAULT "pending"');
+      } catch (_) {}
     }
   }
 

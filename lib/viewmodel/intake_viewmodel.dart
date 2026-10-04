@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../data/service/intake_service.dart';
+import '../data/repository/health_repository.dart';
 import '../domain/model/intake_models.dart';
 
 enum IntakeState {
@@ -210,6 +211,9 @@ class IntakeViewModel extends ChangeNotifier {
 
     if (record != null) {
       _savedIntakeRecordId = record.id;
+      try {
+        await HealthRepository().saveSetting('last_intake_record_id', record.id.toString());
+      } catch (_) {}
 
       // Step 3: Section 5.2 - Save transcript + report, mark complete
       final success = await _intakeService.updateIntakeRecord(
@@ -239,17 +243,41 @@ class IntakeViewModel extends ChangeNotifier {
 
   /// Section 6.1: Link completed intake to newly booked appointment
   Future<bool> linkToAppointment({
+    int? intakeRecordId,
     required int fhirAppointmentId,
     required String authToken,
     String? orgId,
   }) async {
-    if (_savedIntakeRecordId == null) return false;
-    return await _intakeService.linkIntakeToAppointment(
-      id: _savedIntakeRecordId!,
+    int? intakeId = intakeRecordId ?? _savedIntakeRecordId;
+    if (intakeId == null) {
+      final savedStr = await HealthRepository().getSetting('last_intake_record_id');
+      if (savedStr != null && savedStr.isNotEmpty) {
+        intakeId = int.tryParse(savedStr);
+      }
+    }
+    if (intakeId == null) return false;
+
+    if (kDebugMode) {
+      print('[IntakeViewModel] Linking intake ID $intakeId to appointment $fhirAppointmentId');
+    }
+
+    final success = await _intakeService.linkIntakeToAppointment(
+      id: intakeId,
       fhirAppointmentId: fhirAppointmentId,
       authToken: authToken,
       orgId: orgId,
     );
+
+    if (success) {
+      if (kDebugMode) {
+        print('[IntakeViewModel] Successfully linked intake $intakeId to appointment $fhirAppointmentId');
+      }
+      _savedIntakeRecordId = null;
+      try {
+        await HealthRepository().saveSetting('last_intake_record_id', '');
+      } catch (_) {}
+    }
+    return success;
   }
 
   @override

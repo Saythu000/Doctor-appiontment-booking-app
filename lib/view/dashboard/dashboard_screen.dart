@@ -107,6 +107,8 @@ class DashboardScreen extends StatelessWidget {
       final startStr = appt['start_time'] as String;
       final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
 
+      final status = (appt['status']?.toString().toLowerCase()) ?? 'pending';
+
       String dateFormatted = '';
       String timeFormatted = '';
       try {
@@ -120,19 +122,69 @@ class DashboardScreen extends StatelessWidget {
       final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
       final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
+      // Status badge styling
+      Color statusBg;
+      Color statusTextColor;
+      String statusLabel;
+      switch (status) {
+        case 'booked':
+        case 'confirmed':
+          statusBg = const Color(0xFFDCFCE7);
+          statusTextColor = const Color(0xFF15803D);
+          statusLabel = 'CONFIRMED';
+          break;
+        case 'rescheduled':
+          statusBg = const Color(0xFFEDE9FE);
+          statusTextColor = const Color(0xFF6D28D9);
+          statusLabel = 'RESCHEDULED';
+          break;
+        case 'cancelled':
+        case 'canceled':
+          statusBg = PhiaColors.pulseRedLight;
+          statusTextColor = PhiaColors.pulseRed;
+          statusLabel = 'CANCELLED';
+          break;
+        case 'pending':
+        default:
+          statusBg = const Color(0xFFFEF3C7);
+          statusTextColor = const Color(0xFFB45309);
+          statusLabel = 'PENDING';
+          break;
+      }
+
       showDialog(
         context: context,
         builder: (context) {
           return AlertDialog(
             backgroundColor: PhiaColors.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(
-              'Consultation Details',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: PhiaColors.navyAnchor,
-              ),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Consultation Details',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.navyAnchor,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: statusTextColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -216,6 +268,42 @@ class DashboardScreen extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: PhiaColors.textPrimary,
                   ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'STATUS',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: PhiaColors.textMuted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: statusTextColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      status == 'booked'
+                          ? 'Confirmed by Doctor'
+                          : (status == 'pending'
+                              ? 'Awaiting Doctor Confirmation'
+                              : (status == 'rescheduled' ? 'Rescheduled' : 'Cancelled')),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: PhiaColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -496,20 +584,55 @@ class DashboardScreen extends StatelessWidget {
               _buildNavyCard(
                 title: 'Upcoming Consultations',
                 actionWidget: nearestUpcoming != null
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: PhiaColors.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'TELEHEALTH',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
+                    ? Builder(
+                        builder: (context) {
+                          final status = (nearestUpcoming!['status']?.toString().toLowerCase()) ?? 'pending';
+                          Color badgeBg;
+                          Color badgeTextColor;
+                          String badgeText;
+
+                          switch (status) {
+                            case 'booked':
+                            case 'confirmed':
+                              badgeBg = const Color(0xFFDCFCE7);
+                              badgeTextColor = const Color(0xFF15803D);
+                              badgeText = 'CONFIRMED';
+                              break;
+                            case 'rescheduled':
+                              badgeBg = const Color(0xFFEDE9FE);
+                              badgeTextColor = const Color(0xFF6D28D9);
+                              badgeText = 'RESCHEDULED';
+                              break;
+                            case 'cancelled':
+                            case 'canceled':
+                              badgeBg = PhiaColors.pulseRedLight;
+                              badgeTextColor = PhiaColors.pulseRed;
+                              badgeText = 'CANCELLED';
+                              break;
+                            case 'pending':
+                            default:
+                              badgeBg = const Color(0xFFFEF3C7);
+                              badgeTextColor = const Color(0xFFB45309);
+                              badgeText = 'PENDING';
+                              break;
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: badgeBg,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: badgeTextColor,
+                              ),
+                            ),
+                          );
+                        },
                       )
                     : null,
                 child: Padding(
@@ -634,7 +757,7 @@ class DashboardScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'No visits today',
+                                      'No upcoming consultations',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
@@ -683,7 +806,7 @@ class DashboardScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0F4C81).withOpacity(0.18),
+                      color: const Color(0xFF0F4C81).withValues(alpha: 0.18),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -703,7 +826,7 @@ class DashboardScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -720,7 +843,7 @@ class DashboardScreen extends StatelessWidget {
                                 Row(
                                   children: [
                                     Text(
-                                      'AI Pre-Visit Clinical Intake',
+                                      'DrGodly Pre-Visit Clinical Intake',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
@@ -747,10 +870,10 @@ class DashboardScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  'Describe symptoms to Dr. PHIA AI before seeing the doctor',
+                                  'Describe symptoms to DrGodly before seeing the doctor',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
-                                    color: Colors.white.withOpacity(0.85),
+                                    color: Colors.white.withValues(alpha: 0.85),
                                   ),
                                 ),
                               ],
@@ -769,106 +892,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // CARD 2: ENERGY METER / BODY BATTERY (boAt Parity)
-              _buildNavyCard(
-                title: 'Energy Meter & Body Battery',
-                actionWidget: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: activityVM.energyMeterScore > 0
-                        ? (activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning)
-                        : const Color(0xFF94A3B8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    activityVM.energyMeterScore > 0
-                        ? (activityVM.energyMeterScore >= 75 ? 'HIGH' : (activityVM.energyMeterScore >= 40 ? 'OPTIMAL' : 'DRAINED'))
-                        : 'PENDING',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: activityVM.energyMeterScore > 0 ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: activityVM.energyMeterScore > 0 ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.bolt_rounded,
-                          color: activityVM.energyMeterScore > 0 ? const Color(0xFF16A34A) : PhiaColors.textMuted,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  activityVM.energyMeterScore > 0 ? '${activityVM.energyMeterScore}' : '--',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w800,
-                                    color: PhiaColors.navyAnchor,
-                                  ),
-                                ),
-                                Text(
-                                  ' / 100',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: PhiaColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: activityVM.energyMeterScore > 0 ? (activityVM.energyMeterScore / 100.0) : 0.0,
-                                minHeight: 6,
-                                backgroundColor: PhiaColors.borderSubtle,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  activityVM.energyMeterScore > 0
-                                      ? (activityVM.energyMeterScore >= 60 ? PhiaColors.activeGreen : PhiaColors.amberWarning)
-                                      : PhiaColors.borderSubtle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              activityVM.energyMeterScore > 0
-                                  ? 'Energy readiness computed from sleep restorative depth and physical exertion.'
-                                  : 'Wear device or track activity to compute your energy readiness score.',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: PhiaColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // CARD 3: DAILY VITALITY PROGRESS (Navy Header Banner)
+              // CARD 2: DAILY VITALITY PROGRESS (Navy Header Banner)
               _buildNavyCard(
                 title: 'Daily Vitality Progress',
                 actionWidget: Row(
@@ -1016,7 +1040,7 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _buildVitalsTile(
-                      title: 'Sleep Architecture',
+                      title: 'Sleep Duration',
                       value: activityVM.currentSleep > 0
                           ? activityVM.currentSleep.toStringAsFixed(1)
                           : '--',
