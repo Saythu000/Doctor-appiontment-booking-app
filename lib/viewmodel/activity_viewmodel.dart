@@ -1,12 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../domain/model/health_metrics.dart';
 import '../../domain/model/vitals_payload.dart';
-import '../../data/service/pedometer_sensor.dart';
-import '../../data/service/gps_location_sensor.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/vitals_repository.dart';
 import '../../data/service/notification_service.dart';
@@ -16,8 +12,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:health/health.dart';
 
 class ActivityViewModel extends ChangeNotifier {
-  final PedometerSensor pedometer;
-  final GPSLocationSensor gps;
   final HealthRepository repository;
   final VitalsRepository vitalsRepository = VitalsRepository();
   final BleHeartRateService bleService = BleHeartRateService();
@@ -32,11 +26,7 @@ class ActivityViewModel extends ChangeNotifier {
   int liveSteps = 0;
   StreamSubscription<int>? _stepsSub;
 
-  // --- Runtime Permission Handler Status ---
-  bool hasActivityPermission = false;
-  bool hasLocationPermission = false;
-
-  // --- Sleep & Actigraphy State ---
+  // --- Sleep State ---
   double liveSleep = 0.0;
   double dashboardSleep = 0.0;
   int deepSleepMinutes = 0;
@@ -44,25 +34,9 @@ class ActivityViewModel extends ChangeNotifier {
   int remSleepMinutes = 0;
   int awakeMinutes = 0;
   double? dashboardSpo2;
-  StreamSubscription<UserAccelerometerEvent>? _sleepAccSub;
-  Timer? _actigraphyTimer;
 
   // --- Weekly Progress List ---
   List<int> weeklyCaloriesList = [0, 0, 0, 0, 0, 0, 0];
-
-  // --- Live GPS Workout State ---
-  bool isGpsTracking = false;
-  bool isGpsPaused = false;
-  int elapsedSeconds = 0;
-  double totalDistanceKm = 0.0;
-  double currentSpeedKmh = 0.0;
-  double gpsAccuracy = 0.0;
-  final List<Position> routeCoordinates = [];
-  
-  StreamSubscription<Position>? _gpsSub;
-  Timer? _stopwatchTimer;
-  Position? _lastGpsPosition;
-  String? _currentWorkoutId;
 
   // --- Dashboard Metrics Cache (SQLite Historical Reads) ---
   int dashboardSteps = 0;
@@ -92,7 +66,7 @@ class ActivityViewModel extends ChangeNotifier {
   // Calories strictly reflect synced data from Google Fit / Health Connect / Wearables (no mathematical formula fallback)
   int get currentCalories => dashboardCalories > 0 ? dashboardCalories.toInt() : 0;
   double get currentSleep => liveSleep > 0.0 ? liveSleep : (dashboardSleep > 0.0 ? dashboardSleep : 0.0);
-  bool get isStepSensorFallback => pedometer.isUsingAccelerometer;
+  bool get isStepSensorFallback => false;
 
   /// Energy Meter / Body Battery score computed from Sleep, Steps, and Activity (0-100)
   int get energyMeterScore {
@@ -124,8 +98,6 @@ class ActivityViewModel extends ChangeNotifier {
   DateTime? _lastBleFhirSyncTime;
 
   ActivityViewModel({
-    required this.pedometer,
-    required this.gps,
     required this.repository,
   }) {
     // Listen to real-time BLE Heart Rate packets (GATT 0x180D / 0x2A37)
@@ -198,34 +170,8 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
-    // B. Request Activity Recognition (Pedometer)
-    try {
-      final activityStatus = await Permission.activityRecognition.request();
-      hasActivityPermission = activityStatus.isGranted;
-      if (kDebugMode) {
-        print('[ActivityViewModel] Activity Recognition status: ${activityStatus.name}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to request activity recognition permission: $e');
-      }
-    }
-
-    // C. Request Location (GPS)
-    try {
-      final locationStatus = await Permission.locationWhenInUse.request();
-      hasLocationPermission = locationStatus.isGranted;
-      if (kDebugMode) {
-        print('[ActivityViewModel] Location status: ${locationStatus.name}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to request location permission: $e');
-      }
-    }
-
-    // Small delay so Android OS dismisses earlier permission dialogs cleanly before Health Connect modal
-    await Future.delayed(const Duration(milliseconds: 600));
+    // Small delay so Android OS initializes cleanly before Health Connect check
+    await Future.delayed(const Duration(milliseconds: 300));
 
     // E. Request Android Health Connect permissions popup directly on launch
     try {
@@ -271,12 +217,7 @@ class ActivityViewModel extends ChangeNotifier {
 
     notifyListeners();
 
-    // If activity recognition was granted, start native steps tracker immediately
-    if (hasActivityPermission) {
-      await startStepsTracking();
-    }
-
-    // Always initialize dashboard after permission check (fallback stats load if denied)
+    await startStepsTracking();
     await initDashboard();
   }
 
@@ -583,40 +524,10 @@ class ActivityViewModel extends ChangeNotifier {
     }
   }
 
-  // --- Runtime Permission Handler ---
-  Future<void> requestRuntimePermissions() async {
-    try {
-      // 1. Request Activity Recognition (Pedometer)
-      final activityStatus = await Permission.activityRecognition.request();
-      hasActivityPermission = activityStatus.isGranted;
-
-      // 2. Request Location (GPS)
-      final locationStatus = await Permission.locationWhenInUse.request();
-      hasLocationPermission = locationStatus.isGranted;
-
-      notifyListeners();
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Failed to request permissions: $e');
-      }
-    }
-  }
-
   Future<void> startStepsTracking() async {
-    // Request native Android runtime permissions first!
-    await requestRuntimePermissions();
-
     await _stepsSub?.cancel();
-    
-    // Periodically start Actigraphy Sleep tracking as well
     startSleepTracking();
-    
-    // Hardware sensor step tracking is completely disabled.
-    // Steps are exclusively retrieved from Google Fit / Health Connect via syncOpenWearablesVitals().
-    try {
-      await _stepsSub?.cancel();
-      _stepsSub = null;
-    } catch (_) {}
+    _stepsSub = null;
   }
 
   /// Persists height, weight, and age directly to the SQLite cache and triggers remote sync
@@ -732,130 +643,6 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
 
-
-  // --- GPS Workout Controller ---
-
-  Future<void> startGpsWorkout() async {
-    isGpsTracking = true;
-    isGpsPaused = false;
-    elapsedSeconds = 0;
-    totalDistanceKm = 0.0;
-    currentSpeedKmh = 0.0;
-    gpsAccuracy = 0.0;
-    _lastGpsPosition = null;
-    routeCoordinates.clear();
-    _currentWorkoutId = 'workout_${DateTime.now().millisecondsSinceEpoch}';
-    notifyListeners();
-
-    // Start workout stopwatch
-    _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!isGpsPaused) {
-        elapsedSeconds++;
-        notifyListeners();
-      }
-    });
-
-    try {
-      await gps.startSensor();
-      _gpsSub = gps.dataStream.listen((Position position) {
-        if (!isGpsPaused) {
-          gpsAccuracy = position.accuracy;
-          currentSpeedKmh = position.speed > 0 ? (position.speed * 3.6) : 0.0;
-
-          if (_lastGpsPosition != null) {
-            double distance = Geolocator.distanceBetween(
-              _lastGpsPosition!.latitude,
-              _lastGpsPosition!.longitude,
-              position.latitude,
-              position.longitude,
-            );
-            
-            if (position.accuracy < 15) {
-              totalDistanceKm += distance / 1000.0;
-              routeCoordinates.add(position);
-              
-              repository.saveRoutePoint(
-                workoutId: _currentWorkoutId!,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                speed: currentSpeedKmh,
-              );
-            }
-          } else {
-            routeCoordinates.add(position);
-          }
-          _lastGpsPosition = position;
-          notifyListeners();
-        }
-      });
-    } catch (e) {
-      await stopGpsWorkout();
-    }
-  }
-
-  void toggleGpsPause() {
-    isGpsPaused = !isGpsPaused;
-    notifyListeners();
-  }
-
-  Future<void> stopGpsWorkout() async {
-    isGpsTracking = false;
-    isGpsPaused = false;
-    _stopwatchTimer?.cancel();
-    _stopwatchTimer = null;
-    await _gpsSub?.cancel();
-    _gpsSub = null;
-
-    try {
-      await gps.stopSensor();
-
-      if (totalDistanceKm > 0.01) {
-        final timestamp = DateTime.now();
-        double activeMins = elapsedSeconds / 60.0;
-        double calculatedCalories = activeMins * 8.5; // ~8.5 kcal per running minute
-        double distanceMeters = totalDistanceKm * 1000.0;
-        
-        await repository.saveMetric(HealthMetric(
-          id: '${_currentWorkoutId}_dist',
-          type: 'distance',
-          value: totalDistanceKm,
-          timestamp: timestamp,
-        ));
-        
-        await repository.saveMetric(HealthMetric(
-          id: '${_currentWorkoutId}_time',
-          type: 'active_time',
-          value: activeMins,
-          timestamp: timestamp,
-        ));
-
-        try {
-          final userId = await repository.getSetting('iam_user_id') ?? '';
-          final orgId = await repository.getSetting('iam_org_id') ?? '';
-          await vitalsRepository.submitVitals(VitalsRecord(
-            distanceMeters: distanceMeters,
-            totalActiveMinutes: activeMins.toInt(),
-            caloriesKcal: calculatedCalories,
-          ), userId: userId, orgId: orgId);
-        } catch (e) {
-          if (kDebugMode) {
-            print('[ActivityViewModel] Live workout FHIR sync failed: $e');
-          }
-        }
-
-        dashboardDistanceKm = totalDistanceKm;
-        dashboardActiveTimeMins = activeMins.toInt();
-      }
-    } catch (e) {
-      // Safe swallow
-    }
-
-    _lastGpsPosition = null;
-    _currentWorkoutId = null;
-    notifyListeners();
-
-    repository.uploadPendingMetrics();
-  }
 
   // --- Bluetooth LE & Open-Wearables Integration Methods ---
 
@@ -1036,10 +823,6 @@ class ActivityViewModel extends ChangeNotifier {
     _bleHrSub?.cancel();
     _bleHrvSub?.cancel();
     _stepsSub?.cancel();
-    _gpsSub?.cancel();
-    _stopwatchTimer?.cancel();
-    _sleepAccSub?.cancel();
-    _actigraphyTimer?.cancel();
     _autoSyncTimer?.cancel();
     super.dispose();
   }

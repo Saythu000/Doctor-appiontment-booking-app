@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../../domain/model/intake_models.dart';
 
@@ -18,13 +18,19 @@ class IntakeStreamChunk {
   });
 }
 
+// ponytail: consolidated network stack onto single production Dio client; removed redundant package:http
 class IntakeService {
-  final http.Client _httpClient;
+  final Dio _dio;
   String _intakeAgentUrl = ApiConstants.defaultIntakeAgentUrl;
   String _assessmentPlanAgentUrl = ApiConstants.defaultAssessmentPlanAgentUrl;
   String _appBaseUrl = ApiConstants.appBaseUrl;
 
-  IntakeService({http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
+  IntakeService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 30),
+            ));
 
   /// Configure service URLs dynamically if environment requires
   void configure({
@@ -47,35 +53,36 @@ class IntakeService {
   // 1. STREAMING CHAT WITH AI INTAKE AGENT (Section 2)
   // =========================================================================
 
-  /// Stream a conversation turn to the Python AI agent.
+  /// Stream a conversation turn to the Python AI agent using Dio streaming.
   /// Yields [IntakeStreamChunk] items as tokens arrive.
   Stream<IntakeStreamChunk> streamChatTurn({
     required String message,
     required String? sessionId,
     required String authToken,
   }) async* {
-    final uri = Uri.parse(_intakeAgentUrl);
-    final request = http.Request('POST', uri);
-
-    request.headers.addAll({
-      'Authorization': 'Bearer $authToken',
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-    });
-
     final payload = {
       'message': message,
       'session_id': sessionId,
     };
-    request.body = jsonEncode(payload);
 
     if (kDebugMode) {
-      print('[IntakeService] POST $_intakeAgentUrl | session_id: $sessionId');
+      print('[IntakeService] POST $_intakeAgentUrl (Dio stream) | session_id: $sessionId');
     }
 
-    http.StreamedResponse streamedResponse;
+    Response<ResponseBody> response;
     try {
-      streamedResponse = await _httpClient.send(request);
+      response = await _dio.post<ResponseBody>(
+        _intakeAgentUrl,
+        data: payload,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+          },
+          responseType: ResponseType.stream,
+        ),
+      );
     } catch (e) {
       if (kDebugMode) {
         print('[IntakeService] Network error initiating stream: $e');
@@ -83,8 +90,8 @@ class IntakeService {
       rethrow;
     }
 
-    // 2.1 Strategy 1: Read session_id from response header if present
-    final headerSessionId = streamedResponse.headers['x-session-id'];
+    // Read session_id from response header if present
+    final headerSessionId = response.headers.value('x-session-id');
     if (headerSessionId != null && headerSessionId.isNotEmpty) {
       yield IntakeStreamChunk(
         type: 'session_header',
@@ -92,8 +99,12 @@ class IntakeService {
       );
     }
 
-    // 2.2 Read line-by-line newline-delimited stream
-    final lineStream = streamedResponse.stream
+    final responseBody = response.data;
+    if (responseBody == null) return;
+
+    // Read line-by-line newline-delimited stream
+    final lineStream = responseBody.stream
+        .cast<List<int>>()
         .transform(utf8.decoder)
         .transform(const LineSplitter());
 
@@ -101,7 +112,6 @@ class IntakeService {
       var trimmed = line.trim();
       if (trimmed.isEmpty) continue;
 
-      // Handle SSE-style "data: " prefix
       if (trimmed.startsWith('data:')) {
         trimmed = trimmed.substring(5).trim();
       }
@@ -124,7 +134,6 @@ class IntakeService {
             break;
 
           case 'agent_end':
-            // 2.1 Strategy 2: Extract session_id from agent_end chunk if available
             final chunkSessionId = data?['session_id']?.toString();
             yield IntakeStreamChunk(
               type: 'agent_end',
@@ -133,17 +142,14 @@ class IntakeService {
             break;
 
           case 'status_end':
-            // 3.1 Automatic completion signal from AI agent
             yield IntakeStreamChunk(type: 'status_end');
             break;
 
           case 'text_complete':
           default:
-            // Safe forward-compatible no-op
             break;
         }
       } catch (parseErr) {
-        // Forward-compatible parser: skip non-JSON or unrecognizable lines
         if (kDebugMode) {
           print('[IntakeService] Skipped unrecognized chunk: $trimmed');
         }
@@ -155,9 +161,6 @@ class IntakeService {
   // 2. GENERATE CLINICAL REPORT (Section 4)
   // =========================================================================
 
-  /// Generate clinical assessment report from full conversation transcript.
-  /// Strictly follows Section 4 formatting: "patient: ..." and "appointment-intake-agent: ...".
-  /// Non-blocking: Returns null on error so save flow is never halted.
   Future<Map<String, dynamic>?> generateClinicalReport({
     required List<IntakeChatMessage> conversation,
     required String authToken,
@@ -165,34 +168,37 @@ class IntakeService {
     try {
       final formattedConversation = conversation.map((msg) => msg.toAgentReportString()).toList();
 
-      final uri = Uri.parse(_assessmentPlanAgentUrl);
       if (kDebugMode) {
         print('[IntakeService] Generating assessment report: POST $_assessmentPlanAgentUrl');
       }
 
-      final response = await _httpClient.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'conversation': formattedConversation,
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await _dio.post(
+        _assessmentPlanAgentUrl,
+        data: {'conversation': formattedConversation},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $authToken',
+            'Content-Type': 'application/json',
+          },
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          return decoded;
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          return data;
+        } else if (data is String) {
+          final decoded = jsonDecode(data);
+          if (decoded is Map<String, dynamic>) return decoded;
         }
       } else {
         if (kDebugMode) {
-          print('[IntakeService] Assessment agent returned status ${response.statusCode}: ${response.body}');
+          print('[IntakeService] Assessment agent returned status ${response.statusCode}: ${response.data}');
         }
       }
     } catch (e) {
-      // Non-blocking rule: Section 4 explicitly dictates report failure must not block saving
       if (kDebugMode) {
         print('[IntakeService] Report generation non-fatal failure: $e');
       }
@@ -204,16 +210,14 @@ class IntakeService {
   // 3. DRGODLY REST ENDPOINTS: CREATE, UPDATE, LINK, ABANDON (Section 5 & 6)
   // =========================================================================
 
-  /// 5.1 Create intake record on DrGodly Next.js backend
-  /// POST {APP_BASE_URL}/api/intake/create
   Future<IntakeRecord?> createIntakeRecord({
     int? patientFhirId,
     required String authToken,
     String? orgId,
   }) async {
     try {
-      final uri = Uri.parse('$_appBaseUrl${ApiConstants.intakeCreatePath}');
-      final headers = {
+      final url = '$_appBaseUrl${ApiConstants.intakeCreatePath}';
+      final headers = <String, dynamic>{
         'Authorization': 'Bearer $authToken',
         'Content-Type': 'application/json',
       };
@@ -221,30 +225,26 @@ class IntakeService {
         headers['x-org-id'] = orgId;
       }
 
-      final payload = <String, dynamic>{
-        'mode': 'TEXT',
-      };
+      final payload = <String, dynamic>{'mode': 'TEXT'};
       if (patientFhirId != null) {
         payload['patient_fhir_id'] = patientFhirId;
       }
 
       if (kDebugMode) {
-        print('[IntakeService] Creating intake record: POST $uri');
+        print('[IntakeService] Creating intake record: POST $url');
       }
 
-      final response = await _httpClient.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _dio.post(
+        url,
+        data: payload,
+        options: Options(headers: headers),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : jsonDecode(response.data.toString()) as Map<String, dynamic>;
         return IntakeRecord.fromJson(data);
-      } else {
-        if (kDebugMode) {
-          print('[IntakeService] Create intake returned code ${response.statusCode}: ${response.body}');
-        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -254,8 +254,6 @@ class IntakeService {
     return null;
   }
 
-  /// 5.2 Save transcript + report, mark complete on DrGodly backend
-  /// POST {APP_BASE_URL}/api/intake/update
   Future<bool> updateIntakeRecord({
     required int id,
     required List<IntakeChatMessage> conversation,
@@ -264,8 +262,8 @@ class IntakeService {
     String? orgId,
   }) async {
     try {
-      final uri = Uri.parse('$_appBaseUrl${ApiConstants.intakeUpdatePath}');
-      final headers = {
+      final url = '$_appBaseUrl${ApiConstants.intakeUpdatePath}';
+      final headers = <String, dynamic>{
         'Authorization': 'Bearer $authToken',
         'Content-Type': 'application/json',
       };
@@ -282,22 +280,16 @@ class IntakeService {
       }
 
       if (kDebugMode) {
-        print('[IntakeService] Updating intake record $id to COMPLETED: POST $uri');
+        print('[IntakeService] Updating intake record $id to COMPLETED: POST $url');
       }
 
-      final response = await _httpClient.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _dio.post(
+        url,
+        data: payload,
+        options: Options(headers: headers),
+      );
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        if (kDebugMode) {
-          print('[IntakeService] Update intake returned code ${response.statusCode}: ${response.body}');
-        }
-      }
+      return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) {
         print('[IntakeService] Error updating intake record $id: $e');
@@ -306,16 +298,14 @@ class IntakeService {
     return false;
   }
 
-  /// 5.3 Abandon intake record if user dropped out during optional pre-create flow
-  /// POST {APP_BASE_URL}/api/intake/abandon
   Future<bool> abandonIntakeRecord({
     required int id,
     required String authToken,
     String? orgId,
   }) async {
     try {
-      final uri = Uri.parse('$_appBaseUrl${ApiConstants.intakeAbandonPath}');
-      final headers = {
+      final url = '$_appBaseUrl${ApiConstants.intakeAbandonPath}';
+      final headers = <String, dynamic>{
         'Authorization': 'Bearer $authToken',
         'Content-Type': 'application/json',
       };
@@ -323,11 +313,11 @@ class IntakeService {
         headers['x-org-id'] = orgId;
       }
 
-      final response = await _httpClient.post(
-        uri,
-        headers: headers,
-        body: jsonEncode({'id': id}),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _dio.post(
+        url,
+        data: {'id': id},
+        options: Options(headers: headers),
+      );
 
       return response.statusCode == 200;
     } catch (e) {
@@ -338,8 +328,6 @@ class IntakeService {
     }
   }
 
-  /// 6.1 Link completed intake record to booked FHIR appointment
-  /// POST {APP_BASE_URL}/api/intake/link
   Future<bool> linkIntakeToAppointment({
     required int id,
     required int fhirAppointmentId,
@@ -347,8 +335,8 @@ class IntakeService {
     String? orgId,
   }) async {
     try {
-      final uri = Uri.parse('$_appBaseUrl${ApiConstants.intakeLinkPath}');
-      final headers = {
+      final url = '$_appBaseUrl${ApiConstants.intakeLinkPath}';
+      final headers = <String, dynamic>{
         'Authorization': 'Bearer $authToken',
         'Content-Type': 'application/json',
       };
@@ -357,17 +345,17 @@ class IntakeService {
       }
 
       if (kDebugMode) {
-        print('[IntakeService] Linking intake $id to appointment $fhirAppointmentId: POST $uri');
+        print('[IntakeService] Linking intake $id to appointment $fhirAppointmentId: POST $url');
       }
 
-      final response = await _httpClient.post(
-        uri,
-        headers: headers,
-        body: jsonEncode({
+      final response = await _dio.post(
+        url,
+        data: {
           'id': id,
           'fhir_appointment_id': fhirAppointmentId,
-        }),
-      ).timeout(const Duration(seconds: 10));
+        },
+        options: Options(headers: headers),
+      );
 
       return response.statusCode == 200;
     } catch (e) {

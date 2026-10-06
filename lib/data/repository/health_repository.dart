@@ -2,16 +2,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../domain/model/health_metrics.dart';
-import '../../domain/repository/i_health_repository.dart';
 import '../database/sqflite_database.dart';
 import '../service/secure_storage_service.dart';
 import 'vitals_repository.dart';
 import '../../domain/model/vitals_payload.dart';
 
-class HealthRepository implements IHealthRepository {
+// ponytail: concrete production repository; eliminated redundant single-implementation IHealthRepository interface
+class HealthRepository {
   final SqfliteDatabaseHelper _dbHelper = SqfliteDatabaseHelper.instance;
 
-  @override
   Future<void> saveMetric(HealthMetric metric) async {
     final db = await _dbHelper.database;
     
@@ -184,50 +183,11 @@ class HealthRepository implements IHealthRepository {
     }
   }
 
-  // --- GPS Workout Route Helper Queries ---
-
-  Future<void> saveRoutePoint({
-    required String workoutId,
-    required double latitude,
-    required double longitude,
-    required double speed,
-  }) async {
-    final db = await _dbHelper.database;
-
-    final map = {
-      'workout_id': workoutId,
-      'latitude': latitude,
-      'longitude': longitude,
-      'speed': speed,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-
-    await db.insert(
-      'workout_route_points',
-      map,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> getRoutePoints(String workoutId) async {
-    final db = await _dbHelper.database;
-
-    return await db.query(
-      'workout_route_points',
-      where: 'workout_id = ?',
-      whereArgs: [workoutId],
-      orderBy: 'timestamp ASC',
-    );
-  }
-
-  @override
   Future<void> clearMetrics() async {
     final db = await _dbHelper.database;
     await db.delete('health_metrics');
-    await db.delete('workout_route_points');
   }
 
-  @override
   Future<void> clearProfile() async {
     final db = await _dbHelper.database;
     await db.execute('''

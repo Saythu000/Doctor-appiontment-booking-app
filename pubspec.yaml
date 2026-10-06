@@ -8,14 +8,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  sensors_plus: ^6.0.0
-  geolocator: ^13.0.1
   sqflite: ^2.3.0
   path: ^1.9.0
   provider: ^6.1.2
   google_fonts: ^6.2.1
   dio: ^5.7.0
-  http: ^1.2.2
   intl: ^0.20.2
   permission_handler: ^12.0.2
   flutter_local_notifications: ^17.2.2

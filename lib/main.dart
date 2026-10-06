@@ -5,8 +5,6 @@ import 'core/theme/typography.dart';
 import 'data/repository/health_repository.dart';
 import 'data/repository/profile_repository.dart';
 import 'data/repository/booking_repository.dart';
-import 'data/service/gps_location_sensor.dart';
-import 'data/service/pedometer_sensor.dart';
 import 'view/auth/login_screen.dart';
 import 'view/onboarding/welcome_screen.dart';
 import 'view/onboarding/profile_setup_screen.dart';
@@ -55,8 +53,6 @@ void main() async {
       providers: [
         ChangeNotifierProvider(
           create: (_) => ActivityViewModel(
-            pedometer: PedometerSensor(),
-            gps: GPSLocationSensor(),
             repository: HealthRepository(),
           ),
         ),
