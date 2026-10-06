@@ -8,11 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   sensors_plus: ^6.0.0
-  pedometer: ^4.2.0
   geolocator: ^13.0.1
-  camera: ^0.11.0
   sqflite: ^2.3.0
   path: ^1.9.0
   provider: ^6.1.2
@@ -32,7 +29,6 @@ dependencies:
   workmanager: ^0.10.10
   flutter_web_auth_2: ^4.1.0
   crypto: ^3.0.6
-  flutter_custom_tabs: ^2.6.0
   webview_flutter: ^4.14.1
 dev_dependencies:
   flutter_test:
@@ -43,12 +39,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/medical_onboarding_bg.png
     - assets/app_logo.jpeg
     - assets/avatars/avatar_1.png
-    - assets/avatars/avatar_2.png
-    - assets/avatars/avatar_3.png
-    - assets/avatars/avatar_4.png
     - assets/doctors/doctor_1.png
     - assets/doctors/doctor_2.png
     - assets/doctors/doctor_3.png
