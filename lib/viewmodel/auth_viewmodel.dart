@@ -408,52 +408,83 @@ class AuthViewModel extends ChangeNotifier {
 
       // Case B: User authenticated via session cookie
       final savedSessionToken = await healthRepository.getSetting('iam_session_token');
-      if (savedSessionToken == null || savedSessionToken.isEmpty) {
-        return false;
-      }
-
-      // Verify the session is still valid by requesting it again from the server
-      var sessionResponse = await authRepository.getSession(sessionCookie: savedSessionToken);
-      _sessionToken = savedSessionToken;
-      _user = sessionResponse.user;
-      _userId = sessionResponse.user.id;
-      _orgId = sessionResponse.session.activeOrganizationId;
-
-      // Resolve null or empty activeOrganizationId by choosing the first available organization
-      if (_orgId == null || _orgId!.isEmpty) {
-        final orgs = await authRepository.listOrganizations(sessionCookie: savedSessionToken);
-        if (orgs.isNotEmpty) {
-          final firstOrgId = orgs[0]['id'] as String;
-          await authRepository.setActiveOrganization(sessionCookie: savedSessionToken, organizationId: firstOrgId);
-          // Re-fetch session to get the populated active organization
-          sessionResponse = await authRepository.getSession(sessionCookie: savedSessionToken);
+      if (savedSessionToken != null && savedSessionToken.isNotEmpty) {
+        try {
+          // Verify the session is still valid by requesting it again from the server
+          var sessionResponse = await authRepository.getSession(sessionCookie: savedSessionToken);
+          _sessionToken = savedSessionToken;
+          _user = sessionResponse.user;
+          _userId = sessionResponse.user.id;
           _orgId = sessionResponse.session.activeOrganizationId;
+
+          // Resolve null or empty activeOrganizationId by choosing the first available organization
+          if (_orgId == null || _orgId!.isEmpty) {
+            final orgs = await authRepository.listOrganizations(sessionCookie: savedSessionToken);
+            if (orgs.isNotEmpty) {
+              final firstOrgId = orgs[0]['id'] as String;
+              await authRepository.setActiveOrganization(sessionCookie: savedSessionToken, organizationId: firstOrgId);
+              // Re-fetch session to get the populated active organization
+              sessionResponse = await authRepository.getSession(sessionCookie: savedSessionToken);
+              _orgId = sessionResponse.session.activeOrganizationId;
+            }
+          }
+
+          // Fetch a fresh JWT token
+          final jwt = await authRepository.getJwtToken(sessionCookie: savedSessionToken);
+          _jwtToken = jwt;
+
+          if (_orgId == null || _orgId!.isEmpty) {
+            final jwtOrg = _extractOrgIdFromJwt(jwt);
+            if (jwtOrg != null && jwtOrg.isNotEmpty) {
+              _orgId = jwtOrg;
+            }
+          }
+
+          // Save the updated credentials (which might have changed organization or JWT expires)
+          await _saveCredentials();
+
+          // Configure the FHIR API client for live server mode
+          FhirApiClient().configure(
+            baseUrl: 'https://fhirgql.drgodly.com',
+            token: _jwtToken,
+            isLiveMode: true,
+          );
+
+          notifyListeners();
+          return true;
+        } catch (sessErr) {
+          if (kDebugMode) {
+            print('[AuthViewModel] Session verification failed: $sessErr');
+          }
         }
       }
 
-      // Fetch a fresh JWT token
-      final jwt = await authRepository.getJwtToken(sessionCookie: savedSessionToken);
-      _jwtToken = jwt;
-
-      if (_orgId == null || _orgId!.isEmpty) {
-        final jwtOrg = _extractOrgIdFromJwt(jwt);
-        if (jwtOrg != null && jwtOrg.isNotEmpty) {
-          _orgId = jwtOrg;
+      // Case C: Fallback to stored JWT token if present
+      if (storedJwtToken != null && storedJwtToken.isNotEmpty) {
+        _jwtToken = storedJwtToken;
+        final savedUserId = await healthRepository.getSetting('iam_user_id');
+        final savedUserName = await healthRepository.getSetting('user_name');
+        final savedUserEmail = await healthRepository.getSetting('user_email');
+        final savedOrg = await healthRepository.getSetting('iam_org_id');
+        if (savedUserId != null && savedUserId.isNotEmpty) {
+          _userId = savedUserId;
+          _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
+          _user = User(
+            id: savedUserId,
+            email: savedUserEmail ?? '',
+            name: savedUserName ?? 'User',
+          );
+          FhirApiClient().configure(
+            baseUrl: 'https://fhirgql.drgodly.com',
+            token: _jwtToken,
+            isLiveMode: true,
+          );
+          notifyListeners();
+          return true;
         }
       }
 
-      // Save the updated credentials (which might have changed organization or JWT expires)
-      await _saveCredentials();
-
-      // Configure the FHIR API client for live server mode
-      FhirApiClient().configure(
-        baseUrl: 'https://fhirgql.drgodly.com',
-        token: _jwtToken,
-        isLiveMode: true,
-      );
-
-      notifyListeners();
-      return true;
+      return false;
     } catch (e) {
       if (kDebugMode) {
         print('[AuthViewModel] Auto-login verification failed: $e');

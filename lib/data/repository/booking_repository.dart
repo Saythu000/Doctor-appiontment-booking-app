@@ -26,26 +26,47 @@ class BookingRepository {
       if (response.statusCode == 200) {
         final data = response.data;
         final list = data['data'] as List?;
-        if (list == null || list.isEmpty) {
-          if (kDebugMode) {
-            print('[BookingRepository] Server active practitioner-roles directory returned empty.');
+        if (list != null && list.isNotEmpty) {
+          final List<PractitionerRoleBooking> roles = [];
+          for (var item in list) {
+            if (item is Map<String, dynamic>) {
+              roles.add(PractitionerRoleBooking.fromJson(item));
+            }
           }
-          return [];
-        }
-
-        final List<PractitionerRoleBooking> roles = [];
-        for (var item in list) {
-          if (item is Map<String, dynamic>) {
-            roles.add(PractitionerRoleBooking.fromJson(item));
+          if (roles.isNotEmpty) {
+            return roles;
           }
         }
-        return roles;
       }
+
+      // If org-scoped query returned empty and orgId was provided, fallback to platform query
+      if (orgId != null && orgId.isNotEmpty) {
+        debugPrint('[BookingRepository] Org $orgId returned 0 doctors, falling back to global query...');
+        final fallbackResp = await _apiClient.client.get(
+          '/api/v1/practitioner-roles/booking',
+          queryParameters: {
+            'active': 'true',
+            'limit': 50,
+          },
+        );
+        if (fallbackResp.statusCode == 200) {
+          final data = fallbackResp.data;
+          final list = data['data'] as List?;
+          if (list != null && list.isNotEmpty) {
+            final List<PractitionerRoleBooking> fallbackRoles = [];
+            for (var item in list) {
+              if (item is Map<String, dynamic>) {
+                fallbackRoles.add(PractitionerRoleBooking.fromJson(item));
+              }
+            }
+            return fallbackRoles;
+          }
+        }
+      }
+
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('[BookingRepository] Failed to fetch practitioner roles from /api/v1/practitioner-roles/booking: $e');
-      }
+      debugPrint('[BookingRepository] Failed to fetch practitioner roles from /api/v1/practitioner-roles/booking: $e');
       return [];
     }
   }

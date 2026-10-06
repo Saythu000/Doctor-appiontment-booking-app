@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../repository/health_repository.dart';
 
 class FhirApiClient {
   // Singleton pattern
@@ -8,6 +9,7 @@ class FhirApiClient {
   factory FhirApiClient() => _instance;
   FhirApiClient._internal() {
     _dio = Dio(BaseOptions(
+      baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
       headers: {
@@ -160,35 +162,32 @@ class FhirApiClient {
     // Request Interceptor to dynamically inject active JWT token
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
+        onRequest: (options, handler) async {
+          if (_token == null || _token!.isEmpty) {
+            try {
+              final saved = await HealthRepository().getSetting('iam_jwt_token');
+              if (saved != null && saved.isNotEmpty) {
+                _token = saved;
+              }
+            } catch (_) {}
+          }
           if (_token != null && _token!.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
-          if (kDebugMode) {
-            print('[FHIR API] REQUEST: ${options.method} ${options.path}');
-          }
+          debugPrint('[FHIR API] REQUEST: ${options.method} ${options.baseUrl}${options.path}');
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          if (kDebugMode) {
-            print('[FHIR API] RESPONSE [${response.statusCode}] ${response.requestOptions.path}');
-          }
+          debugPrint('[FHIR API] RESPONSE [${response.statusCode}] ${response.requestOptions.path}');
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
-          if (kDebugMode) {
-            print('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.message}');
-          }
+          debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.message} | data: ${e.response?.data}');
 
-          // If token expired and a refresher is registered, refresh token and retry request once
-          final errBody = e.response?.data?.toString() ?? '';
-          if (e.response?.statusCode == 401 &&
-              (errBody.contains('Token expired') || errBody.contains('expired')) &&
-              _tokenRefresher != null) {
+          // If 401 Unauthorized encountered and refresher is registered, refresh token and retry request once
+          if (e.response?.statusCode == 401 && _tokenRefresher != null) {
             try {
-              if (kDebugMode) {
-                print('[FHIR API] Token expired. Invoking automatic token refresh...');
-              }
+              debugPrint('[FHIR API] 401 Unauthorized encountered. Invoking automatic token refresh...');
               final freshToken = await _tokenRefresher!();
               if (freshToken != null && freshToken.isNotEmpty) {
                 _token = freshToken;
@@ -198,9 +197,7 @@ class FhirApiClient {
                 return handler.resolve(response);
               }
             } catch (refreshErr) {
-              if (kDebugMode) {
-                print('[FHIR API] Token refresh during retry failed: $refreshErr');
-              }
+              debugPrint('[FHIR API] Token refresh during retry failed: $refreshErr');
             }
           }
 

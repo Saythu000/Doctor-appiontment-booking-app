@@ -73,6 +73,21 @@ class PractitionerRoleBooking {
       orgId: json['org_id'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'active': active,
+      'practitioner_ref_id': practitionerRefId,
+      'practitioner_display': practitionerDisplay,
+      'organization_display': organizationDisplay,
+      'availability_exceptions': availabilityExceptions,
+      'specialty': specialties.map((s) => {'text': s}).toList(),
+      'availability': availability.map((a) => a.toJson()).toList(),
+      'practitioner_detail': practitionerDetail?.toJson(),
+      'org_id': orgId,
+    };
+  }
 }
 
 class PractitionerDetail {
@@ -131,6 +146,16 @@ class PractitionerDetail {
       qualifications: quals,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'gender': gender,
+      'name': {'text': fullName},
+      'photo_url': photoUrl,
+      'qualifications': qualifications.map((q) => q.toJson()).toList(),
+    };
+  }
 }
 
 class PractitionerQualification {
@@ -146,6 +171,14 @@ class PractitionerQualification {
       display: json['display'] ?? json['code_display'],
       text: json['text'] ?? json['code_display'] ?? json['display'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'code': code,
+      'display': display,
+      'text': text,
+    };
   }
 }
 
@@ -169,6 +202,13 @@ class PractitionerAvailability {
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       availableTimes: times,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'available_times': availableTimes.map((t) => t.toJson()).toList(),
+    };
   }
 }
 
@@ -196,6 +236,16 @@ class AvailableTimeSlot {
       availableStartTime: json['available_start_time'],
       availableEndTime: json['available_end_time'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'days_of_week': daysOfWeek,
+      'all_day': allDay,
+      'available_start_time': availableStartTime,
+      'available_end_time': availableEndTime,
+    };
   }
 }
 

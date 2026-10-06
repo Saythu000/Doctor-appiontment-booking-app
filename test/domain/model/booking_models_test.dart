@@ -46,5 +46,50 @@ void main() {
       expect(role.practitionerDetail?.fullName, equals('Dr. Sarah Connor'));
       expect(role.practitionerDetail?.qualifications.first.display, equals('MD, FACC'));
     });
+
+    test('PractitionerRoleBooking serialization and roundtrip', () {
+      final json = {
+        'id': 1,
+        'active': true,
+        'practitioner_display': 'Dr. Sarah Connor',
+        'specialty': [
+          {'text': 'Cardiology'},
+        ],
+        'availability': [
+          {
+            'id': 10,
+            'available_times': [
+              {
+                'id': 20,
+                'days_of_week': ['mon', 'tue'],
+                'all_day': false,
+                'available_start_time': '09:00:00',
+                'available_end_time': '17:00:00',
+              }
+            ]
+          }
+        ],
+        'practitioner_detail': {
+          'id': 55,
+          'gender': 'female',
+          'name': {'text': 'Dr. Sarah Connor'},
+          'qualifications': [
+            {'display': 'MD, FACC'}
+          ]
+        },
+        'org_id': 'default-org',
+      };
+
+      final role = PractitionerRoleBooking.fromJson(json);
+      final serialized = role.toJson();
+      final roundtrip = PractitionerRoleBooking.fromJson(serialized);
+
+      expect(roundtrip.id, equals(1));
+      expect(roundtrip.active, isTrue);
+      expect(roundtrip.orgId, equals('default-org'));
+      expect(roundtrip.specialties, contains('Cardiology'));
+      expect(roundtrip.practitionerDetail?.fullName, equals('Dr. Sarah Connor'));
+      expect(roundtrip.availability.first.availableTimes.first.daysOfWeek, contains('mon'));
+    });
   });
 }

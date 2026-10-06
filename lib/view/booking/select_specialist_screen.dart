@@ -224,7 +224,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             Expanded(
               child: Consumer<BookingViewModel>(
                 builder: (context, vm, child) {
-                  if (vm.isSpecialistsLoading) {
+                  if (vm.isSpecialistsLoading && vm.specialists.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(
                         color: PhiaColors.primary,

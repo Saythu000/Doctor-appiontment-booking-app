@@ -38,6 +38,7 @@ import 'data/service/notification_service.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'data/service/vitals_foreground_service.dart';
 import 'data/service/background_sync_service.dart';
+import 'data/service/fhir_api_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,16 @@ void main() async {
   await BackgroundSyncService.schedulePeriodicSync();
   await NotificationService.instance.init();
   await NotificationService.instance.requestPermissions();
+  
+  final healthRepo = HealthRepository();
+  final savedToken = await healthRepo.getSetting('iam_jwt_token');
+  if (savedToken != null && savedToken.isNotEmpty) {
+    FhirApiClient().configure(
+      baseUrl: 'https://fhirgql.drgodly.com',
+      token: savedToken,
+      isLiveMode: true,
+    );
+  }
   
   runApp(
     MultiProvider(

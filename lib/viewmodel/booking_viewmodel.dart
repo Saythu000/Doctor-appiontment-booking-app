@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../domain/model/booking_models.dart';
@@ -31,6 +32,32 @@ class BookingViewModel extends ChangeNotifier {
   }) {
     fetchAppointments();
     _loadLastBookingFromLocal();
+    _loadCachedSpecialists();
+  }
+
+  Future<void> _loadCachedSpecialists() async {
+    try {
+      final cachedJson = await healthRepository.getSetting('cached_specialists_json');
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        final decoded = jsonDecode(cachedJson) as List?;
+        if (decoded != null && decoded.isNotEmpty) {
+          final List<PractitionerRoleBooking> cachedList = [];
+          for (var item in decoded) {
+            if (item is Map<String, dynamic>) {
+              cachedList.add(PractitionerRoleBooking.fromJson(item));
+            }
+          }
+          if (cachedList.isNotEmpty) {
+            specialists = cachedList;
+            notifyListeners();
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[BookingViewModel] Error loading cached specialists: $e');
+      }
+    }
   }
 
   Future<void> _loadLastBookingFromLocal() async {
@@ -57,7 +84,12 @@ class BookingViewModel extends ChangeNotifier {
     try {
       final rawOrgId = await healthRepository.getSetting('iam_org_id');
       final orgId = (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : ApiConstants.defaultOrganizationId;
-      specialists = await bookingRepository.getActivePractitionerRoles(orgId: orgId);
+      final fetched = await bookingRepository.getActivePractitionerRoles(orgId: orgId);
+      if (fetched.isNotEmpty) {
+        specialists = fetched;
+        final jsonList = fetched.map((s) => s.toJson()).toList();
+        await healthRepository.saveSetting('cached_specialists_json', jsonEncode(jsonList));
+      }
     } catch (e) {
       if (kDebugMode) {
         print('[BookingViewModel] Failed to load specialists: $e');
