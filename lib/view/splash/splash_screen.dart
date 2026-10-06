@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/booking_viewmodel.dart';
+import '../../viewmodel/activity_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -55,7 +57,20 @@ class _SplashScreenState extends State<SplashScreen> {
     if (mounted && !_isRedirecting) {
       _isRedirecting = true;
       final profileVM = context.read<ProfileViewModel>();
-      await profileVM.fetchOrInitProfile();
+      final bookingVM = context.read<BookingViewModel>();
+      final activityVM = context.read<ActivityViewModel>();
+
+      if (isAuthenticated) {
+        await Future.wait([
+          profileVM.fetchOrInitProfile(),
+          bookingVM.fetchAppointments(),
+          bookingVM.fetchSpecialists(),
+          activityVM.initDashboard(),
+        ]);
+      } else {
+        await profileVM.fetchOrInitProfile();
+      }
+
       if (mounted) {
         final profile = profileVM.currentProfile;
         final bool hasProfile = profile != null &&

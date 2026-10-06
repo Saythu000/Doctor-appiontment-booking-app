@@ -28,6 +28,10 @@ class DashboardScreen extends StatelessWidget {
     final now = DateTime.now();
     for (var appt in bookingVM.appointmentsList) {
       try {
+        final status = (appt['status'] as String? ?? '').toLowerCase();
+        if (status == 'fulfilled' || status == 'noshow' || status == 'cancelled' || status == 'canceled') {
+          continue;
+        }
         final startStr = appt['start_time'] as String;
         final start = DateTime.parse(startStr).toLocal();
         if (start.isAfter(now)) {
@@ -592,6 +596,18 @@ class DashboardScreen extends StatelessWidget {
                           String badgeText;
 
                           switch (status) {
+                            case 'fulfilled':
+                            case 'completed':
+                              badgeBg = const Color(0xFFDCFCE7);
+                              badgeTextColor = const Color(0xFF15803D);
+                              badgeText = 'FULFILLED';
+                              break;
+                            case 'noshow':
+                            case 'no-show':
+                              badgeBg = const Color(0xFFF1F5F9);
+                              badgeTextColor = const Color(0xFF64748B);
+                              badgeText = 'MISSED';
+                              break;
                             case 'booked':
                             case 'confirmed':
                               badgeBg = const Color(0xFFDCFCE7);

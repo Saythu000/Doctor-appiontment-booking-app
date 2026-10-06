@@ -345,7 +345,7 @@ class BookingViewModel extends ChangeNotifier {
           if (id.isEmpty) continue;
 
           final status = appt['status']?.toString().toLowerCase() ?? '';
-          if (status == 'cancelled' || status == 'canceled' || status == 'entered-in-error' || status == 'noshow') {
+          if (status == 'entered-in-error') {
             continue;
           }
 
@@ -381,14 +381,28 @@ class BookingViewModel extends ChangeNotifier {
             image = 'assets/doctors/doctor_3.png';
           }
 
-          // Normalize status into 4 core lifecycle states: pending, booked, rescheduled, cancelled
+          // Normalize status into core lifecycle states: pending, booked, rescheduled, cancelled, fulfilled, noshow
           String normalizedStatus = 'pending';
-          if (status == 'booked' || status == 'confirmed' || status == 'arrived' || status == 'fulfilled' || status == 'checked-in') {
-            normalizedStatus = 'booked';
-          } else if (status.contains('resched')) {
-            normalizedStatus = 'rescheduled';
+          if (status == 'fulfilled' || status == 'completed') {
+            normalizedStatus = 'fulfilled';
+          } else if (status == 'noshow' || status == 'no-show') {
+            normalizedStatus = 'noshow';
           } else if (status == 'cancelled' || status == 'canceled') {
             normalizedStatus = 'cancelled';
+          } else if (status.contains('resched')) {
+            normalizedStatus = 'rescheduled';
+          } else if (status == 'booked' || status == 'confirmed' || status == 'arrived' || status == 'checked-in') {
+            // Check if consultation window has passed (e.g. 45 min after scheduled start time)
+            DateTime? apptStart;
+            try {
+              apptStart = DateTime.parse(start).toLocal();
+            } catch (_) {}
+
+            if (apptStart != null && apptStart.add(const Duration(minutes: 45)).isBefore(DateTime.now())) {
+              normalizedStatus = 'fulfilled';
+            } else {
+              normalizedStatus = 'booked';
+            }
           } else {
             normalizedStatus = 'pending';
           }

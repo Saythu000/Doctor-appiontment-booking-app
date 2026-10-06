@@ -20,8 +20,10 @@ class AppointmentHistoryScreen extends StatelessWidget {
 
     for (var appt in bookingVM.appointmentsList) {
       try {
+        final status = (appt['status'] as String? ?? '').toLowerCase();
         final startTime = DateTime.parse(appt['start_time'] as String).toLocal();
-        if (startTime.isAfter(now)) {
+        final isTerminated = status == 'fulfilled' || status == 'completed' || status == 'noshow' || status == 'no-show' || status == 'cancelled' || status == 'canceled';
+        if (startTime.isAfter(now) && !isTerminated) {
           upcomingAppts.add(appt);
         } else {
           pastAppts.add(appt);
@@ -156,6 +158,18 @@ class AppointmentHistoryScreen extends StatelessWidget {
     Color statusTextColor;
     String statusLabel;
     switch (status) {
+      case 'fulfilled':
+      case 'completed':
+        statusBg = const Color(0xFFDCFCE7);
+        statusTextColor = const Color(0xFF15803D);
+        statusLabel = 'FULFILLED';
+        break;
+      case 'noshow':
+      case 'no-show':
+        statusBg = const Color(0xFFF1F5F9);
+        statusTextColor = const Color(0xFF64748B);
+        statusLabel = 'MISSED';
+        break;
       case 'booked':
       case 'confirmed':
         statusBg = const Color(0xFFDCFCE7);

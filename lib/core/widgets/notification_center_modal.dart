@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../theme/colors.dart';
-import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 
 void showNotificationCenter(BuildContext context) {
@@ -24,31 +23,19 @@ class NotificationCenterModal extends StatefulWidget {
   State<NotificationCenterModal> createState() => _NotificationCenterModalState();
 }
 
-class _NotificationCenterModalState extends State<NotificationCenterModal> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _NotificationCenterModalState extends State<NotificationCenterModal> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SettingsViewModel>().fetchInAppNotifications();
     });
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final settingsVM = context.watch<SettingsViewModel>();
-    final bookingVM = context.watch<BookingViewModel>();
-
     final inAppLogs = settingsVM.inAppNotificationsList;
-    final appointments = bookingVM.appointmentsList;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
@@ -90,7 +77,7 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Notification Center',
+                      'Alerts & Notifications',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -106,36 +93,11 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
               ],
             ),
           ),
-          const SizedBox(height: 4),
+          const Divider(height: 1, color: PhiaColors.borderSubtle),
 
-          // Tab header (2 tabs: ALERTS and VISITS SCHEDULE)
-          TabBar(
-            controller: _tabController,
-            indicatorColor: PhiaColors.primary,
-            indicatorWeight: 2.5,
-            labelColor: PhiaColors.primary,
-            unselectedLabelColor: PhiaColors.textMuted,
-            labelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
-            unselectedLabelStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-            dividerColor: PhiaColors.borderSubtle,
-            tabs: const [
-              Tab(text: 'ALERTS'),
-              Tab(text: 'VISITS SCHEDULE'),
-            ],
-          ),
-
-          // Tab Views
+          // Alerts content directly
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // 1. Alerts logs
-                _buildAlertsSection(context, settingsVM, inAppLogs),
-
-                // 2. Upcoming appointment visits
-                _buildVisitsSection(context, appointments),
-              ],
-            ),
+            child: _buildAlertsSection(context, settingsVM, inAppLogs),
           ),
         ],
       ),
@@ -156,8 +118,16 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Text(
+                '${logs.length} ${logs.length == 1 ? 'Alert' : 'Alerts'}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: PhiaColors.textMuted,
+                ),
+              ),
               TextButton.icon(
                 onPressed: () => settingsVM.clearAllInAppNotifications(),
                 icon: const Icon(Icons.delete_sweep_rounded, color: PhiaColors.pulseRed, size: 16),
@@ -300,127 +270,6 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> with 
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildVisitsSection(BuildContext context, List<Map<String, dynamic>> appointments) {
-    if (appointments.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.calendar_today_rounded,
-        title: 'No Upcoming Appointments',
-        description: 'Schedule a virtual consultation or in-person checkup with a specialist.',
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-      itemCount: appointments.length,
-      itemBuilder: (context, index) {
-        final appt = appointments[index];
-        final name = appt['practitioner_name'] as String;
-        final role = appt['practitioner_role'] as String;
-        final startTimeStr = appt['start_time'] as String;
-        final type = appt['type'] as String;
-        final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
-
-        String formattedDate = '';
-        try {
-          final dt = DateTime.parse(startTimeStr).toLocal();
-          formattedDate = DateFormat('EEEE, MMMM d • h:mm a').format(dt);
-        } catch (_) {
-          formattedDate = startTimeStr;
-        }
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: PhiaColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: PhiaColors.borderSubtle),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: PhiaColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.medical_services_rounded, color: PhiaColors.primary, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isVirtual ? const Color(0xFFE0F2FE) : const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            type.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: isVirtual ? PhiaColors.primary : const Color(0xFF16A34A),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      name,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: PhiaColors.navyAnchor,
-                      ),
-                    ),
-                    Text(
-                      role,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: PhiaColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time_rounded, size: 14, color: PhiaColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          formattedDate,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: PhiaColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 

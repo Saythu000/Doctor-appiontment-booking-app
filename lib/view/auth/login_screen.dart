@@ -5,6 +5,7 @@ import '../../core/theme/colors.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/activity_viewmodel.dart';
+import '../../viewmodel/booking_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authVM = Provider.of<AuthViewModel>(context, listen: false);
     final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
     final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
+    final bookingVM = Provider.of<BookingViewModel>(context, listen: false);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -30,8 +32,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       activityVM.resetState();
       profileVM.resetState();
-      await profileVM.fetchOrInitProfile();
-      await activityVM.initDashboard();
+      
+      // Parallelize complete clinical and booking sync
+      await Future.wait([
+        profileVM.fetchOrInitProfile(),
+        activityVM.initDashboard(),
+        bookingVM.fetchAppointments(),
+        bookingVM.fetchSpecialists(),
+      ]);
+
       final profile = profileVM.currentProfile;
       final bool hasProfile = profile != null &&
           profile.name != null &&
