@@ -627,8 +627,6 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   Future<void> startSleepTracking() async {
-    await _sleepAccSub?.cancel();
-    _actigraphyTimer?.cancel();
     liveSleep = 0.0;
     
     // Read previous genuine sleep from database if any

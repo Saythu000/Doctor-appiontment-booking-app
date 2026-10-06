@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.verified_user_rounded, color: PhiaColors.emeraldGreen, size: 16),
+                      const Icon(Icons.verified_user_rounded, color: PhiaColors.activeGreen, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'HIPAA & OpenID Connect PKCE Compliant',

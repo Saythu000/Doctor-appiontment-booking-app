@@ -29,7 +29,6 @@ class HealthRepository {
     );
   }
 
-  @override
   Future<List<HealthMetric>> getRecentMetrics(String type) async {
     final db = await _dbHelper.database;
 
@@ -52,7 +51,6 @@ class HealthRepository {
     });
   }
 
-  @override
   Future<void> uploadPendingMetrics() async {
     final db = await _dbHelper.database;
 
@@ -208,7 +206,6 @@ class HealthRepository {
     );
   }
 
-  @override
   Future<void> saveProfileValue(String key, String value) async {
     final db = await _dbHelper.database;
     await db.execute('''
@@ -224,7 +221,6 @@ class HealthRepository {
     );
   }
 
-  @override
   Future<String?> getProfileValue(String key) async {
     final db = await _dbHelper.database;
     await db.execute('''
