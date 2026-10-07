@@ -34,10 +34,38 @@ class AppointmentHistoryScreen extends StatelessWidget {
       }
     }
 
-    // Sort upcoming ascending (nearest first)
-    upcomingAppts.sort((a, b) => a['start_time'].compareTo(b['start_time']));
-    // Sort past descending (most recent first)
-    pastAppts.sort((a, b) => b['start_time'].compareTo(a['start_time']));
+    // Sort upcoming: chronological ascending (nearest date first, earlier slot first)
+    upcomingAppts.sort((a, b) {
+      try {
+        final dtA = DateTime.parse(a['start_time'] as String).toLocal();
+        final dtB = DateTime.parse(b['start_time'] as String).toLocal();
+        return dtA.compareTo(dtB);
+      } catch (_) {
+        return (a['start_time'] ?? '').compareTo(b['start_time'] ?? '');
+      }
+    });
+
+    // ponytail: Sort past consultations with date descending (most recent days first) 
+    // and time ascending within each day (morning to evening chronological reading order)
+    pastAppts.sort((a, b) {
+      try {
+        final dtA = DateTime.parse(a['start_time'] as String).toLocal();
+        final dtB = DateTime.parse(b['start_time'] as String).toLocal();
+
+        final dateA = DateTime(dtA.year, dtA.month, dtA.day);
+        final dateB = DateTime(dtB.year, dtB.month, dtB.day);
+        final dateCompare = dateB.compareTo(dateA); // Newer date first
+
+        if (dateCompare != 0) return dateCompare;
+
+        // Same date: chronological time order (morning -> evening)
+        final timeA = dtA.hour * 60 + dtA.minute;
+        final timeB = dtB.hour * 60 + dtB.minute;
+        return timeA.compareTo(timeB);
+      } catch (_) {
+        return (b['start_time'] ?? '').compareTo(a['start_time'] ?? '');
+      }
+    });
 
     return Scaffold(
       backgroundColor: PhiaColors.background,
