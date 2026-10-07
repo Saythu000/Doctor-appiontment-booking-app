@@ -41,6 +41,7 @@ class _OAuthWebViewScreenState extends State<OAuthWebViewScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
+      ..clearCache()
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {

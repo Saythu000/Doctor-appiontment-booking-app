@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../core/constants/api_constants.dart';
 import '../data/repository/auth_repository.dart';
 import '../data/repository/health_repository.dart';
@@ -504,6 +505,13 @@ class AuthViewModel extends ChangeNotifier {
     // 2. Call Better-Auth sign-out API
     if (_sessionToken != null && _sessionToken!.isNotEmpty) {
       await authRepository.signOutBetterAuth(sessionCookie: _sessionToken);
+    }
+
+    // ponytail: Invalidate WebView session cookies so re-login starts completely fresh
+    try {
+      await WebViewCookieManager().clearCookies();
+    } catch (e) {
+      debugPrint('[AuthViewModel] Error clearing WebView cookies: $e');
     }
 
     // 3. Clear in-memory session tokens and state

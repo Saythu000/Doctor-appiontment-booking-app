@@ -81,15 +81,11 @@ class OpenWearablesService {
   // Singleton pattern
   static final OpenWearablesService _instance = OpenWearablesService._internal();
   factory OpenWearablesService() => _instance;
-  OpenWearablesService._internal() {
-    _dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {'Accept': 'application/json'},
-    ));
-  }
+  OpenWearablesService._internal();
 
-  late final Dio _dio;
+  // ponytail: consolidated network stack; Health Connect reads directly from local Android OS Provider.
+  // When cloud aggregator sync is activated, requests route through production Dio.
+  Dio? _dio;
   String _host = 'https://api.openwearables.io'; // Configurable Open-Wearables host
   String? _accessToken;
   String? _userId;
@@ -126,9 +122,14 @@ class OpenWearablesService {
     _host = host.replaceAll(RegExp(r'/$'), '');
     _userId = userId;
     _accessToken = accessToken;
-    _dio.options.baseUrl = _host;
+    _dio ??= Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {'Accept': 'application/json'},
+    ));
+    _dio!.options.baseUrl = _host;
     if (_accessToken != null) {
-      _dio.options.headers['Authorization'] = 'Bearer $_accessToken';
+      _dio!.options.headers['Authorization'] = 'Bearer $_accessToken';
     }
   }
 

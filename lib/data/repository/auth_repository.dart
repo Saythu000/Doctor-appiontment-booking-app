@@ -15,8 +15,8 @@ class AuthRepository {
 
   final Dio _dio = Dio(BaseOptions(
     baseUrl: 'https://iam.drgodly.com/api/auth',
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -512,10 +512,23 @@ class AuthRepository {
   }
 
   void _handleDioError(DioException e) {
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      throw Exception('Connection timed out. Please check your internet connection and try again.');
+    }
     if (e.response != null && e.response?.data != null) {
       final data = e.response?.data;
-      if (data is Map<String, dynamic> && data.containsKey('message')) {
-        throw Exception(data['message']);
+      if (data is Map<String, dynamic>) {
+        final serverMsg = data['error_description'] ??
+            data['message'] ??
+            data['detail'] ??
+            data['error'];
+        if (serverMsg != null && serverMsg.toString().isNotEmpty) {
+          throw Exception(serverMsg.toString());
+        }
+      } else if (data is String && data.isNotEmpty) {
+        throw Exception(data);
       }
     }
     throw Exception(e.message ?? 'An unexpected network error occurred.');
