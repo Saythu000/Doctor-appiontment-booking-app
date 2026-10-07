@@ -1,0 +1,1366 @@
+{
+  "total": 10,
+  "limit": 100,
+  "offset": 0,
+  "data": [
+    {
+      "id": 140000,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30000,
+      "practitioner_display": "Dr. Kalyan Kalwa",
+      "organization_type": "Organization",
+      "organization_id": 190000,
+      "organization_display": "Good Health 247",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 1,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 1,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394583002",
+          "coding_display": "Endocrinology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 1,
+          "reference_type": "Location",
+          "reference_id": 230000,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "Mayfair Apartments, 7th cross, Sachidananda Puram, Thazhambur, 600130, Chennai",
+          "address_city": "Thazhambur",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 1,
+          "reference_type": "HealthcareService",
+          "reference_id": 150000,
+          "reference_display": "Weight loss consultation",
+          "name": "Weight loss consultation",
+          "comment": "Dr. Kalyan Kalwa is an expert in weight loss, nutrition, fitness, and diabetes management.",
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 1,
+          "available_times": [
+            {
+              "id": 1,
+              "days_of_week": [],
+              "all_day": true,
+              "available_start_time": "09:00:00",
+              "available_end_time": "17:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-05T12:50:10.653098+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30000,
+        "gender": "male",
+        "birth_date": "1990-08-13",
+        "name": {
+          "text": "Dr. Kalyan Kalwa",
+          "family": "Kalwa",
+          "given": [
+            "Kalyan"
+          ],
+          "prefix": [
+            "Dr"
+          ],
+          "suffix": [
+            "MBBS",
+            "DPharm"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "9346317790",
+            "use": "mobile",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [
+          {
+            "code": "MBBS",
+            "display": "Bachelor of Medicine, Bachelor of Surgery",
+            "text": null,
+            "period_start": null,
+            "issuer": null,
+            "npi": null
+          }
+        ],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140001,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30002,
+      "practitioner_display": "Jitendra Dhakad",
+      "organization_type": "Organization",
+      "organization_id": 190000,
+      "organization_display": "Good Health 247",
+      "availability_exceptions": "Not available on public holidays.",
+      "identifier": [],
+      "code": [
+        {
+          "id": 2,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 2,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394583002",
+          "coding_display": "Endocrinology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 2,
+          "reference_type": "Location",
+          "reference_id": 230000,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "Mayfair Apartments, 7th cross, Sachidananda Puram, Thazhambur, 600130, Chennai",
+          "address_city": "Thazhambur",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 2,
+          "reference_type": "HealthcareService",
+          "reference_id": 150000,
+          "reference_display": "Weight loss consultation",
+          "name": "Weight loss consultation",
+          "comment": "Dr. Kalyan Kalwa is an expert in weight loss, nutrition, fitness, and diabetes management.",
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [
+        {
+          "id": 1,
+          "purpose_system": null,
+          "purpose_code": null,
+          "purpose_display": null,
+          "purpose_text": null,
+          "address_use": "work",
+          "address_type": "both",
+          "address_text": null,
+          "address_line": [],
+          "address_city": null,
+          "address_district": null,
+          "address_state": null,
+          "address_postal_code": null,
+          "address_country": null,
+          "address_period_start": null,
+          "address_period_end": null,
+          "organization_type": "Organization",
+          "organization_id": 190000,
+          "organization_display": "Good Health 247",
+          "period_start": null,
+          "period_end": null,
+          "names": [
+            {
+              "id": 1,
+              "use": "official",
+              "text": "Dr. Jitendra Dhakad",
+              "family": "Dhakad",
+              "given": [
+                "Jitendra"
+              ],
+              "prefix": [],
+              "suffix": [],
+              "period_start": null,
+              "period_end": null
+            }
+          ],
+          "telecoms": [
+            {
+              "id": 1,
+              "system": "phone",
+              "value": "+91 8107510252",
+              "use": "work",
+              "rank": null,
+              "period_start": null,
+              "period_end": null
+            }
+          ]
+        }
+      ],
+      "availability": [
+        {
+          "id": 2,
+          "available_times": [
+            {
+              "id": 2,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri"
+              ],
+              "all_day": false,
+              "available_start_time": "09:00:00",
+              "available_end_time": "12:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-09T06:15:43.648498+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30002,
+        "gender": "male",
+        "birth_date": "1998-01-01",
+        "name": {
+          "text": "Jitendra Dhakad",
+          "family": "Dhakad",
+          "given": [
+            "Jitendra"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MD"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "email",
+            "value": "jdhakad69@gmail.com",
+            "use": "work",
+            "rank": 1
+          },
+          {
+            "system": "phone",
+            "value": "+91 8107510252",
+            "use": "work",
+            "rank": 2
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140002,
+      "active": true,
+      "period_start": "2026-08-09T00:00:00+00:00",
+      "period_end": "2026-09-30T00:00:00+00:00",
+      "practitioner_ref_id": 30003,
+      "practitioner_display": "Parisha Yeole",
+      "organization_type": "Organization",
+      "organization_id": 190000,
+      "organization_display": "Good Health 247",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 3,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 3,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394582007",
+          "coding_display": "Dermatology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 3,
+          "reference_type": "Location",
+          "reference_id": 230000,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "Mayfair Apartments, 7th cross, Sachidananda Puram, Thazhambur, 600130, Chennai",
+          "address_city": "Thazhambur",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 3,
+          "reference_type": "HealthcareService",
+          "reference_id": 150001,
+          "reference_display": "Hairloss",
+          "name": "Hairloss",
+          "comment": "Consultation for Hairloss service.",
+          "appointment_required": null,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 3,
+          "available_times": [
+            {
+              "id": 3,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri"
+              ],
+              "all_day": null,
+              "available_start_time": "18:00:00",
+              "available_end_time": "21:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-09T13:52:06.517896+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30003,
+        "gender": "female",
+        "birth_date": "1999-08-09",
+        "name": {
+          "text": null,
+          "family": "Yeole",
+          "given": [
+            "Parisha"
+          ],
+          "prefix": [
+            "Dr"
+          ],
+          "suffix": [
+            "BDS"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "1234567890",
+            "use": null,
+            "rank": null
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": null
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": null
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140003,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30004,
+      "practitioner_display": "Doctor 1",
+      "organization_type": "Organization",
+      "organization_id": 190002,
+      "organization_display": "Test Organization",
+      "availability_exceptions": "Not available on public holidays.",
+      "identifier": [],
+      "code": [
+        {
+          "id": 4,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 4,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394814009",
+          "coding_display": "General practice (specialty)",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 4,
+          "reference_type": "Location",
+          "reference_id": 230001,
+          "reference_display": "Test Location",
+          "name": "Test Location",
+          "address_text": "123, abc street, test city, test dictrict, Tamilnadu, India, 589746",
+          "address_city": "test city",
+          "address_state": "TN",
+          "address_postal_code": "589746",
+          "address_country": "IN",
+          "phone": null
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 4,
+          "reference_type": "HealthcareService",
+          "reference_id": 150002,
+          "reference_display": "General Practic Consultation",
+          "name": "General Practic Consultation",
+          "comment": null,
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 4,
+          "available_times": [
+            {
+              "id": 4,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "all_day": null,
+              "available_start_time": "09:00:00",
+              "available_end_time": "21:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-16T03:17:54.950120+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30004,
+        "gender": "male",
+        "birth_date": "1974-06-16",
+        "name": {
+          "text": null,
+          "family": "1",
+          "given": [
+            "Doctor"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": []
+        },
+        "telecom": [
+          {
+            "system": "email",
+            "value": "doctor1@gmail.com",
+            "use": null,
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": null,
+            "preferred": null
+          },
+          {
+            "code": "hi",
+            "display": null,
+            "preferred": null
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140004,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30005,
+      "practitioner_display": "Doctor 2",
+      "organization_type": "Organization",
+      "organization_id": 190002,
+      "organization_display": "Test Organization",
+      "availability_exceptions": "Not available on public holidays.",
+      "identifier": [],
+      "code": [
+        {
+          "id": 5,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 5,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "408443003",
+          "coding_display": "General medical practice",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 5,
+          "reference_type": "Location",
+          "reference_id": 230001,
+          "reference_display": "Test Location",
+          "name": "Test Location",
+          "address_text": "123, abc street, test city, test dictrict, Tamilnadu, India, 589746",
+          "address_city": "test city",
+          "address_state": "TN",
+          "address_postal_code": "589746",
+          "address_country": "IN",
+          "phone": null
+        }
+      ],
+      "healthcare_service": [],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 5,
+          "available_times": [
+            {
+              "id": 5,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri"
+              ],
+              "all_day": null,
+              "available_start_time": "08:00:00",
+              "available_end_time": "17:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-28T08:58:19.708430+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30005,
+        "gender": "male",
+        "birth_date": "1986-10-23",
+        "name": {
+          "text": "Doctor 2",
+          "family": "2",
+          "given": [
+            "Doctor"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MD"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "email",
+            "value": "doctor2@gmail.com",
+            "use": "work",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140005,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30006,
+      "practitioner_display": "Dr. John Smith",
+      "organization_type": "Organization",
+      "organization_id": 190003,
+      "organization_display": "SIMS Hospitals",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 6,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 6,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394802001",
+          "coding_display": "General medicine",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 6,
+          "reference_type": "Location",
+          "reference_id": 230002,
+          "reference_display": "SIMS Hospital - Vadapalani",
+          "name": "SIMS Hospital - Vadapalani",
+          "address_text": "SIMS Hospital No. 1, Jawaharlal Nehru Salai (100 Feet Road),  Vadapalani, Chennai - 600026,  Tamil Nadu, India",
+          "address_city": "Chennai",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600026",
+          "address_country": "India",
+          "phone": "+(91) 44 2000 2001"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 5,
+          "reference_type": "HealthcareService",
+          "reference_id": 150003,
+          "reference_display": "General Medicine",
+          "name": "General Medicine",
+          "comment": null,
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": "Closed On Sundays"
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 6,
+          "available_times": [
+            {
+              "id": 6,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+              ],
+              "all_day": null,
+              "available_start_time": "08:00:00",
+              "available_end_time": "17:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "org_id": "0fb41e50-82a4-461e-96c7-bd11359d892d",
+      "created_at": "2026-08-30T06:32:44.057960+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30006,
+        "gender": "male",
+        "birth_date": "1970-01-14",
+        "name": {
+          "text": null,
+          "family": "Smith",
+          "given": [
+            "John"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": []
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+91 98989 97979",
+            "use": null,
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": null,
+            "preferred": null
+          }
+        ],
+        "qualifications": [
+          {
+            "code": "MD",
+            "display": "General Medicine",
+            "text": null,
+            "period_start": null,
+            "issuer": null,
+            "npi": null
+          }
+        ],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140006,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30007,
+      "practitioner_display": "Dr. Kalyan Kalwa",
+      "organization_type": "Organization",
+      "organization_id": 190005,
+      "organization_display": "Good Health Hospitals",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 7,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 7,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394814009",
+          "coding_display": "General practice (specialty)",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 7,
+          "reference_type": "Location",
+          "reference_id": 230003,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "123, Good Health City, Chennai, 600130",
+          "address_city": "Chennai",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "+91 9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 6,
+          "reference_type": "HealthcareService",
+          "reference_id": 150004,
+          "reference_display": "Outpatient Department (OPD)",
+          "name": "Outpatient Department (OPD)",
+          "comment": null,
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 7,
+          "available_times": [
+            {
+              "id": 7,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "all_day": true,
+              "available_start_time": "09:00:00",
+              "available_end_time": "22:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": null,
+      "org_id": "JA0SSq23L4WqDl2TKp1yPUJ48Q06xavU",
+      "created_at": "2026-09-20T09:43:15.261044+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30007,
+        "gender": "male",
+        "birth_date": "1974-07-18",
+        "name": {
+          "text": "Dr. Kalyan Kalwa",
+          "family": "Kalwa",
+          "given": [
+            "Kalyan"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MBBS"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+91 9346317790",
+            "use": "work",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140007,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30008,
+      "practitioner_display": "Dr. Easwara Moorthy",
+      "organization_type": "Organization",
+      "organization_id": 190005,
+      "organization_display": "Good Health Hospitals",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 8,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 8,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394579002",
+          "coding_display": "Cardiology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 8,
+          "reference_type": "Location",
+          "reference_id": 230003,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "123, Good Health City, Chennai, 600130",
+          "address_city": "Chennai",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "+91 9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 7,
+          "reference_type": "HealthcareService",
+          "reference_id": 150005,
+          "reference_display": "Inpatient Care",
+          "name": "Inpatient Care",
+          "comment": null,
+          "appointment_required": true,
+          "category": "Aged Care",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 8,
+          "available_times": [
+            {
+              "id": 8,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "all_day": true,
+              "available_start_time": "09:00:00",
+              "available_end_time": "22:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": null,
+      "org_id": "JA0SSq23L4WqDl2TKp1yPUJ48Q06xavU",
+      "created_at": "2026-09-20T09:53:05.330096+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30008,
+        "gender": "male",
+        "birth_date": "1974-06-12",
+        "name": {
+          "text": "Dr. Easwara Moorthy",
+          "family": "Moorthy",
+          "given": [
+            "Easwara"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MD"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+91 9346317790",
+            "use": "work",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140008,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30009,
+      "practitioner_display": "Dr. Saravanan S",
+      "organization_type": "Organization",
+      "organization_id": 190005,
+      "organization_display": "Good Health Hospitals",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 9,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 9,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394584008",
+          "coding_display": "Gastroenterology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 9,
+          "reference_type": "Location",
+          "reference_id": 230003,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "123, Good Health City, Chennai, 600130",
+          "address_city": "Chennai",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "+91 9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 8,
+          "reference_type": "HealthcareService",
+          "reference_id": 150004,
+          "reference_display": "Outpatient Department (OPD)",
+          "name": "Outpatient Department (OPD)",
+          "comment": null,
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 9,
+          "available_times": [
+            {
+              "id": 9,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "all_day": true,
+              "available_start_time": "09:00:00",
+              "available_end_time": "22:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": null,
+      "org_id": "JA0SSq23L4WqDl2TKp1yPUJ48Q06xavU",
+      "created_at": "2026-09-20T10:03:54.972522+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30009,
+        "gender": "male",
+        "birth_date": "1980-06-03",
+        "name": {
+          "text": "Dr. Saravanan S",
+          "family": "S",
+          "given": [
+            "Saravanan"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MD"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+91 9346317790",
+            "use": "work",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    },
+    {
+      "id": 140009,
+      "active": true,
+      "period_start": null,
+      "period_end": null,
+      "practitioner_ref_id": 30010,
+      "practitioner_display": "Dr. Mohit Verma",
+      "organization_type": "Organization",
+      "organization_id": 190005,
+      "organization_display": "Good Health Hospitals",
+      "availability_exceptions": null,
+      "identifier": [],
+      "code": [
+        {
+          "id": 10,
+          "coding_system": "http://terminology.hl7.org/CodeSystem/practitioner-role",
+          "coding_code": "doctor",
+          "coding_display": "Doctor",
+          "text": null
+        }
+      ],
+      "specialty": [
+        {
+          "id": 10,
+          "coding_system": "http://snomed.info/sct",
+          "coding_code": "394589003",
+          "coding_display": "Nephrology",
+          "text": null
+        }
+      ],
+      "location": [
+        {
+          "id": 10,
+          "reference_type": "Location",
+          "reference_id": 230003,
+          "reference_display": "Good Health 247",
+          "name": "Good Health 247",
+          "address_text": "123, Good Health City, Chennai, 600130",
+          "address_city": "Chennai",
+          "address_state": "Tamil Nadu",
+          "address_postal_code": "600130",
+          "address_country": "India",
+          "phone": "+91 9346317790"
+        }
+      ],
+      "healthcare_service": [
+        {
+          "id": 9,
+          "reference_type": "HealthcareService",
+          "reference_id": 150004,
+          "reference_display": "Outpatient Department (OPD)",
+          "name": "Outpatient Department (OPD)",
+          "comment": null,
+          "appointment_required": true,
+          "category": "General Practice",
+          "availability_exceptions": null
+        }
+      ],
+      "characteristic": [],
+      "communication": [],
+      "contact": [],
+      "availability": [
+        {
+          "id": 10,
+          "available_times": [
+            {
+              "id": 10,
+              "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "all_day": true,
+              "available_start_time": "09:00:00",
+              "available_end_time": "22:00:00"
+            }
+          ],
+          "not_available_times": []
+        }
+      ],
+      "endpoint": [],
+      "user_id": null,
+      "org_id": "JA0SSq23L4WqDl2TKp1yPUJ48Q06xavU",
+      "created_at": "2026-09-20T10:16:28.021128+00:00",
+      "updated_at": null,
+      "created_by": "1Umb5kzpNPQUqaVRVNc89NLyTly1LUBM",
+      "updated_by": null,
+      "practitioner_detail": {
+        "id": 30010,
+        "gender": "male",
+        "birth_date": "1970-06-24",
+        "name": {
+          "text": "Dr. Mohit Verma",
+          "family": "Verma",
+          "given": [
+            "Mohit"
+          ],
+          "prefix": [
+            "Dr."
+          ],
+          "suffix": [
+            "MD"
+          ]
+        },
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+91 9346317790",
+            "use": "work",
+            "rank": 1
+          }
+        ],
+        "languages": [
+          {
+            "code": "en-IN",
+            "display": "English (India)",
+            "preferred": true
+          },
+          {
+            "code": "hi",
+            "display": "Hindi",
+            "preferred": true
+          }
+        ],
+        "qualifications": [],
+        "photo_url": null
+      }
+    }
+  ]
+}

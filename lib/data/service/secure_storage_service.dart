@@ -7,23 +7,33 @@ class SecureStorageService {
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
-      resetOnError: true,
+      resetOnError: false,
     ),
   );
 
   Future<void> writeSecure(String key, String value) async {
-    await _storage.write(key: key, value: value);
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {}
   }
 
   Future<String?> readSecure(String key) async {
-    return await _storage.read(key: key);
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> deleteSecure(String key) async {
-    await _storage.delete(key: key);
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {}
   }
 
   Future<void> clearAll() async {
-    await _storage.deleteAll();
+    try {
+      await _storage.deleteAll();
+    } catch (_) {}
   }
 }

@@ -245,30 +245,15 @@ class HealthRepository {
     'iam_jwt_token',
   };
 
-  // --- Settings Table Helpers with Secure Storage Routing ---
+  // --- Settings Table Helpers with Secure Storage Routing & SQLite Resiliency ---
   Future<String?> getSetting(String key) async {
     if (_secureKeys.contains(key)) {
-      final secureVal = await SecureStorageService().readSecure(key);
-      if (secureVal != null && secureVal.isNotEmpty) {
-        return secureVal;
-      }
-      // Backward-compatibility: Check legacy SQLite app_settings
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        'app_settings',
-        where: 'key = ?',
-        whereArgs: [key],
-      );
-      if (maps.isNotEmpty) {
-        final legacyVal = maps.first['value'] as String;
-        if (legacyVal.isNotEmpty) {
-          // Migrate into secure storage and scrub from SQLite
-          await SecureStorageService().writeSecure(key, legacyVal);
-          await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
-          return legacyVal;
+      try {
+        final secureVal = await SecureStorageService().readSecure(key);
+        if (secureVal != null && secureVal.isNotEmpty) {
+          return secureVal;
         }
-      }
-      return null;
+      } catch (_) {}
     }
 
     final db = await _dbHelper.database;
@@ -278,25 +263,31 @@ class HealthRepository {
       whereArgs: [key],
     );
     if (maps.isNotEmpty) {
-      return maps.first['value'] as String;
+      final val = maps.first['value'] as String;
+      if (val.isNotEmpty) {
+        return val;
+      }
     }
     return null;
   }
 
   Future<void> saveSetting(String key, String value) async {
+    final db = await _dbHelper.database;
     if (_secureKeys.contains(key)) {
       if (value.isEmpty) {
         await SecureStorageService().deleteSecure(key);
+        await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
       } else {
         await SecureStorageService().writeSecure(key, value);
+        await db.insert(
+          'app_settings',
+          {'key': key, 'value': value},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
-      // Ensure key is scrubbed from plaintext SQLite
-      final db = await _dbHelper.database;
-      await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
       return;
     }
 
-    final db = await _dbHelper.database;
     await db.insert(
       'app_settings',
       {'key': key, 'value': value},
