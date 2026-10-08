@@ -46,7 +46,25 @@ class MainActivity : FlutterActivity() {
                 val url = call.argument<String>("url") ?: "https://iam.drgodly.com"
                 try {
                     val cookieManager = CookieManager.getInstance()
-                    val cookies = cookieManager.getCookie(url)
+                    cookieManager.flush()
+                    var cookies = cookieManager.getCookie(url)
+                    if (cookies.isNullOrEmpty() || !cookies.contains("better-auth")) {
+                        val candidates = listOf(
+                            "https://iam.drgodly.com/api/auth",
+                            "https://iam.drgodly.com/",
+                            "https://drgodly.com",
+                            ".drgodly.com"
+                        )
+                        for (candidate in candidates) {
+                            val c = cookieManager.getCookie(candidate)
+                            if (!c.isNullOrEmpty() && (cookies.isNullOrEmpty() || c.contains("better-auth"))) {
+                                cookies = c
+                                if (c.contains("__Secure-better-auth.session_token")) {
+                                    break
+                                }
+                            }
+                        }
+                    }
                     result.success(cookies)
                 } catch (e: Exception) {
                     result.error("COOKIE_ERROR", e.message, null)

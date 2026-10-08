@@ -74,12 +74,21 @@ class IntakeViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    // Ensure valid non-empty auth token
+    String effectiveToken = authToken;
+    if (effectiveToken.isEmpty) {
+      final storedJwt = await HealthRepository().getSetting('iam_jwt_token');
+      if (storedJwt != null && storedJwt.isNotEmpty) {
+        effectiveToken = storedJwt;
+      }
+    }
+
     try {
       // 2. Stream turn from AI intake agent
       final stream = _intakeService.streamChatTurn(
         message: trimmed,
         sessionId: _sessionId,
-        authToken: authToken,
+        authToken: effectiveToken,
       );
 
       _streamSubscription = stream.listen(
@@ -119,11 +128,9 @@ class IntakeViewModel extends ChangeNotifier {
           }
         },
         onError: (err) {
-          if (kDebugMode) {
-            print('[IntakeViewModel] Stream error: $err');
-          }
+          debugPrint('[IntakeViewModel] Stream error: $err');
           _commitAssistantMessage();
-          _errorMessage = 'Network connection interrupted. Please try again.';
+          _errorMessage = 'Stream error: ${err.toString().replaceFirst("Exception: ", "")}';
           _state = IntakeState.idle;
           notifyListeners();
         },
@@ -135,10 +142,8 @@ class IntakeViewModel extends ChangeNotifier {
         cancelOnError: true,
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('[IntakeViewModel] Failed to send message: $e');
-      }
-      _errorMessage = 'Failed to send message: $e';
+      debugPrint('[IntakeViewModel] Failed to send message: $e');
+      _errorMessage = 'Failed: ${e.toString().replaceFirst("Exception: ", "")}';
       _state = IntakeState.idle;
       notifyListeners();
     }
@@ -179,6 +184,15 @@ class IntakeViewModel extends ChangeNotifier {
       return;
     }
 
+    // Ensure valid non-empty auth token
+    String effectiveToken = authToken;
+    if (effectiveToken.isEmpty) {
+      final storedJwt = await HealthRepository().getSetting('iam_jwt_token');
+      if (storedJwt != null && storedJwt.isNotEmpty) {
+        effectiveToken = storedJwt;
+      }
+    }
+
     // Step 1: Section 4 - Generate clinical report (Non-blocking)
     _state = IntakeState.generatingReport;
     notifyListeners();
@@ -187,7 +201,7 @@ class IntakeViewModel extends ChangeNotifier {
     try {
       rawReport = await _intakeService.generateClinicalReport(
         conversation: _messages,
-        authToken: authToken,
+        authToken: effectiveToken,
       );
       if (rawReport != null) {
         _clinicalReport = IntakeClinicalReport.fromJson(rawReport);
@@ -205,7 +219,7 @@ class IntakeViewModel extends ChangeNotifier {
 
     final record = await _intakeService.createIntakeRecord(
       patientFhirId: patientFhirId,
-      authToken: authToken,
+      authToken: effectiveToken,
       orgId: orgId,
     );
 
@@ -220,7 +234,7 @@ class IntakeViewModel extends ChangeNotifier {
         id: record.id,
         conversation: _messages,
         report: rawReport,
-        authToken: authToken,
+        authToken: effectiveToken,
         orgId: orgId,
       );
 

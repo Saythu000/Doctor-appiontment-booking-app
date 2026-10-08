@@ -85,19 +85,22 @@ class AuthRepository {
 
     // Mint session JWT for FHIR using session cookies if captured
     String? sessionJwt;
-    if (result.cookies != null && result.cookies!.isNotEmpty) {
+    String? effectiveCookie = result.cookies;
+    if (effectiveCookie != null && effectiveCookie.isNotEmpty) {
+      if (!effectiveCookie.contains('__Secure-better-auth.session_token=') && effectiveCookie.contains('session_token=')) {
+        // Normalize name if needed
+      }
       try {
         final jwtResp = await _dio.get(
           '/token',
-          options: Options(headers: {'Cookie': result.cookies}),
+          options: Options(headers: {'Cookie': effectiveCookie}),
         );
         if (jwtResp.statusCode == 200 && jwtResp.data is Map) {
           sessionJwt = jwtResp.data['token'] as String?;
+          debugPrint('[AuthRepository] Successfully minted Session JWT from WebView cookie: ${sessionJwt?.substring(0, 15)}...');
         }
       } catch (e) {
-        if (kDebugMode) {
-          print('[AuthRepository] Failed to mint Session JWT from cookies: $e');
-        }
+        debugPrint('[AuthRepository] Failed to mint Session JWT from cookies: $e');
       }
     }
 

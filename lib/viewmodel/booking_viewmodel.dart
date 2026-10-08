@@ -78,6 +78,10 @@ class BookingViewModel extends ChangeNotifier {
 
   /// Fetch available specialists from FHIR server
   Future<void> fetchSpecialists() async {
+    // If memory cache is currently empty, ensure local SQLite cache is populated first
+    if (specialists.isEmpty) {
+      await _loadCachedSpecialists();
+    }
     isSpecialistsLoading = true;
     notifyListeners();
 
@@ -89,10 +93,15 @@ class BookingViewModel extends ChangeNotifier {
         specialists = fetched;
         final jsonList = fetched.map((s) => s.toJson()).toList();
         await healthRepository.saveSetting('cached_specialists_json', jsonEncode(jsonList));
+      } else if (specialists.isEmpty) {
+        await _loadCachedSpecialists();
       }
     } catch (e) {
       if (kDebugMode) {
         print('[BookingViewModel] Failed to load specialists: $e');
+      }
+      if (specialists.isEmpty) {
+        await _loadCachedSpecialists();
       }
     } finally {
       isSpecialistsLoading = false;

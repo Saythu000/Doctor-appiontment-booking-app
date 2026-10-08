@@ -137,7 +137,7 @@ class AuthViewModel extends ChangeNotifier {
         authResult = await authRepository.signInWithPKCE();
       }
 
-      // Step 2: Bind tokens (prioritizing Better-Auth Session JWT for FHIR middleware)
+      // Step 2: Bind tokens (Session JWT for FHIR/AI intake; OAuth 2.0 Access Token as fallback)
       _jwtToken = authResult.sessionJwt ?? authResult.tokens.accessToken;
       _refreshToken = authResult.tokens.refreshToken;
       _idToken = authResult.tokens.idToken;
@@ -148,8 +148,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       // Step 3: Extract organization ID from sessionJwt, id_token, access_token, or listOrganizations
-      _orgId = (authResult.sessionJwt != null ? _extractOrgIdFromJwt(authResult.sessionJwt!) : null) ??
-          _extractOrgIdFromJwt(authResult.tokens.idToken ?? authResult.tokens.accessToken);
+      _orgId = _extractOrgIdFromJwt(authResult.sessionJwt ?? authResult.tokens.idToken ?? authResult.tokens.accessToken);
       if (_orgId == null || _orgId!.isEmpty) {
         try {
           final orgs = await authRepository.listOrganizations(bearerToken: _jwtToken);
@@ -350,8 +349,8 @@ class AuthViewModel extends ChangeNotifier {
         _idToken = storedIdToken;
       }
 
-      // Case 1: User authenticated via session cookie (Primary DrGodly IAM session)
-      // Mints an authentic, fresh Better-Auth Session JWT required by FHIR Middleware and AI Intake
+      // Case 1: User authenticated via session cookie (Direct Better-Auth email/password or In-App OAuth session)
+      // This provides the active session and mints the authentic EdDSA Session JWT for FHIR and AI Intake.
       if (savedSessionToken != null && savedSessionToken.isNotEmpty) {
         try {
           var sessionResponse = await authRepository.getSession(sessionCookie: savedSessionToken);
@@ -412,12 +411,10 @@ class AuthViewModel extends ChangeNotifier {
       if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
         try {
           final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
-          _jwtToken = tokenResponse.accessToken;
           _refreshToken = tokenResponse.refreshToken ?? storedRefreshToken;
           if (tokenResponse.idToken != null && tokenResponse.idToken!.isNotEmpty) {
             _idToken = tokenResponse.idToken;
           }
-          await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
           if (tokenResponse.refreshToken != null) {
             await healthRepository.saveSetting('iam_refresh_token', _refreshToken!);
           }
@@ -425,10 +422,36 @@ class AuthViewModel extends ChangeNotifier {
             await healthRepository.saveSetting('iam_id_token', _idToken!);
           }
 
-          final user = await authRepository.getUserInfo(accessToken: _jwtToken!);
-          _user = user;
-          _userId = user.id;
-          _orgId = _extractOrgIdFromJwt(tokenResponse.idToken ?? _jwtToken!);
+          // Crucial: FHIR middleware and AI intake require Better-Auth EdDSA Session JWT.
+          // Never overwrite a valid stored Session JWT ('eyJ...') with an opaque OAuth access_token ('cfRg...').
+          if (storedJwtToken != null && storedJwtToken.isNotEmpty && storedJwtToken.startsWith('eyJ')) {
+            _jwtToken = storedJwtToken;
+          } else if (tokenResponse.idToken != null && tokenResponse.idToken!.startsWith('eyJ')) {
+            _jwtToken = tokenResponse.idToken;
+          } else {
+            _jwtToken = tokenResponse.accessToken;
+          }
+          await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
+
+          try {
+            final user = await authRepository.getUserInfo(accessToken: tokenResponse.accessToken);
+            _user = user;
+            _userId = user.id;
+          } catch (userErr) {
+            final savedUserId = await healthRepository.getSetting('iam_user_id');
+            final savedUserName = await healthRepository.getSetting('user_name');
+            final savedUserEmail = await healthRepository.getSetting('user_email');
+            if (savedUserId != null && savedUserId.isNotEmpty) {
+              _userId = savedUserId;
+              _user = User(
+                id: savedUserId,
+                email: savedUserEmail ?? '',
+                name: savedUserName ?? 'User',
+              );
+            }
+          }
+
+          _orgId = _extractOrgIdFromJwt(_jwtToken ?? tokenResponse.idToken ?? tokenResponse.accessToken);
           if (_orgId == null || _orgId!.isEmpty) {
             final savedOrg = await healthRepository.getSetting('iam_org_id');
             if (savedOrg != null && savedOrg.isNotEmpty) {
@@ -452,6 +475,31 @@ class AuthViewModel extends ChangeNotifier {
         } catch (pkceErr) {
           if (kDebugMode) {
             print('[AuthViewModel] PKCE token refresh during auto-login failed: $pkceErr');
+          }
+          // If refresh failed (e.g. offline/network unreachable), fallback to stored JWT if present
+          if (storedJwtToken != null && storedJwtToken.isNotEmpty) {
+            _jwtToken = storedJwtToken;
+            _refreshToken = storedRefreshToken;
+            final savedUserId = await healthRepository.getSetting('iam_user_id');
+            final savedUserName = await healthRepository.getSetting('user_name');
+            final savedUserEmail = await healthRepository.getSetting('user_email');
+            final savedOrg = await healthRepository.getSetting('iam_org_id');
+            if (savedUserId != null && savedUserId.isNotEmpty) {
+              _userId = savedUserId;
+              _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
+              _user = User(
+                id: savedUserId,
+                email: savedUserEmail ?? '',
+                name: savedUserName ?? 'User',
+              );
+              FhirApiClient().configure(
+                baseUrl: 'https://fhirgql.drgodly.com',
+                token: _jwtToken,
+                isLiveMode: true,
+              );
+              notifyListeners();
+              return true;
+            }
           }
         }
       }

@@ -18,30 +18,33 @@ class BookingRepository {
         queryParams['org_id'] = orgId;
       }
 
-      final response = await _apiClient.client.get(
-        '/api/v1/practitioner-roles/booking',
-        queryParameters: queryParams,
-      );
+      try {
+        final response = await _apiClient.client.get(
+          '/api/v1/practitioner-roles/booking',
+          queryParameters: queryParams,
+        );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final list = data['data'] as List?;
-        if (list != null && list.isNotEmpty) {
-          final List<PractitionerRoleBooking> roles = [];
-          for (var item in list) {
-            if (item is Map<String, dynamic>) {
-              roles.add(PractitionerRoleBooking.fromJson(item));
+        if (response.statusCode == 200) {
+          final data = response.data;
+          final list = data['data'] as List?;
+          if (list != null && list.isNotEmpty) {
+            final List<PractitionerRoleBooking> roles = [];
+            for (var item in list) {
+              if (item is Map<String, dynamic>) {
+                roles.add(PractitionerRoleBooking.fromJson(item));
+              }
+            }
+            if (roles.isNotEmpty) {
+              return roles;
             }
           }
-          if (roles.isNotEmpty) {
-            return roles;
-          }
         }
+      } catch (orgErr) {
+        debugPrint('[BookingRepository] Org-scoped query failed ($orgErr), trying platform fallback...');
       }
 
-      // If org-scoped query returned empty and orgId was provided, fallback to platform query
+      // If org-scoped query returned empty or threw an error, fallback to platform query
       if (orgId != null && orgId.isNotEmpty) {
-        debugPrint('[BookingRepository] Org $orgId returned 0 doctors, falling back to global query...');
         final fallbackResp = await _apiClient.client.get(
           '/api/v1/practitioner-roles/booking',
           queryParameters: {
@@ -88,20 +91,50 @@ class BookingRepository {
         queryParams['org_id'] = orgId;
       }
 
-      final response = await _apiClient.client.get(
-        '/api/v1/slots/',
-        queryParameters: queryParams,
-      );
+      try {
+        final response = await _apiClient.client.get(
+          '/api/v1/slots/',
+          queryParameters: queryParams,
+        );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final list = data['data'] as List?;
-        if (list == null) return [];
-        return list
-            .whereType<Map<String, dynamic>>()
-            .map((s) => BookingSlot.fromJson(s))
-            .toList();
+        if (response.statusCode == 200) {
+          final data = response.data;
+          final list = data['data'] as List?;
+          if (list != null && list.isNotEmpty) {
+            return list
+                .whereType<Map<String, dynamic>>()
+                .map((s) => BookingSlot.fromJson(s))
+                .toList();
+          }
+        }
+      } catch (orgSlotErr) {
+        debugPrint('[BookingRepository] Org-scoped slots query failed ($orgSlotErr), trying without org_id...');
       }
+
+      // Fallback without org_id if org-scoped query was empty or threw
+      if (orgId != null && orgId.isNotEmpty) {
+        final fallbackParams = <String, dynamic>{
+          'practitioner_role_id': practitionerRoleId,
+          if (dateString.isNotEmpty) 'date': dateString,
+          'status': 'free',
+          'limit': 100,
+        };
+        final fallbackResp = await _apiClient.client.get(
+          '/api/v1/slots/',
+          queryParameters: fallbackParams,
+        );
+        if (fallbackResp.statusCode == 200) {
+          final data = fallbackResp.data;
+          final list = data['data'] as List?;
+          if (list != null) {
+            return list
+                .whereType<Map<String, dynamic>>()
+                .map((s) => BookingSlot.fromJson(s))
+                .toList();
+          }
+        }
+      }
+
       return [];
     } catch (e) {
       if (kDebugMode) {
