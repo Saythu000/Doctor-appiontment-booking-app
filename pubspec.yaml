@@ -1,6 +1,6 @@
 name: phia_flutter
 description: "PHIA (Personal Health Insight Assistance) - Hardware-based sensor tracker."
-version: 1.0.21+21
+version: 0.0.1+1
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
