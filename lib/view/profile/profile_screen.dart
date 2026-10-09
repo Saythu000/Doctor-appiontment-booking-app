@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
-import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/auth_viewmodel.dart';
@@ -606,40 +605,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.white,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => showNotificationCenter(context),
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications_rounded, color: Colors.white),
-                if (bookingVM.appointmentsList.isNotEmpty)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: PhiaColors.pulseRed,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                      child: Text(
-                        '${bookingVM.appointmentsList.length}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: ListView(

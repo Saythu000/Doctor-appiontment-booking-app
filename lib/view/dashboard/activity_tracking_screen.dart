@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../core/widgets/notification_center_modal.dart';
 import '../../viewmodel/activity_viewmodel.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 
@@ -69,12 +68,6 @@ class ActivityTrackingScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () => showNotificationCenter(context),
-            icon: const Icon(Icons.notifications_rounded, color: Colors.white),
-          ),
-        ],
       ),
       body: SafeArea(
         child: ListView(
