@@ -96,6 +96,7 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   DateTime? _lastBleFhirSyncTime;
+  DateTime? _lastAbnormalHrAlertTime;
 
   ActivityViewModel({
     required this.repository,
@@ -130,6 +131,17 @@ class ActivityViewModel extends ChangeNotifier {
         value: bpm.toDouble(),
         timestamp: now,
       ));
+
+      // Trigger phone system notification if live HR is critically abnormal (>130 or <45)
+      if (bpm > 130 || bpm < 45) {
+        if (_lastAbnormalHrAlertTime == null || now.difference(_lastAbnormalHrAlertTime!).inMinutes >= 10) {
+          _lastAbnormalHrAlertTime = now;
+          await NotificationService.instance.showVitalsAlert(
+            title: 'Vitals Warning: Abnormal Heart Rate ⚠️',
+            body: 'Detected ${bpm > 130 ? "elevated" : "low"} heart rate of $bpm BPM. Please take a moment to rest.',
+          );
+        }
+      }
 
       // Throttle FHIR server POSTs to once every 15 seconds to avoid network spam
       if (_lastBleFhirSyncTime == null || now.difference(_lastBleFhirSyncTime!).inSeconds >= 15) {
@@ -464,13 +476,9 @@ class ActivityViewModel extends ChangeNotifier {
         final double minHr = hrThreshold['min'] ?? 50.0;
         final double maxHr = hrThreshold['max'] ?? 100.0;
         if (dashboardHr < minHr || dashboardHr > maxHr) {
-          await NotificationService.instance.showImmediateNotification(
-            id: 101,
+          await NotificationService.instance.showVitalsAlert(
             title: 'Vitals Warning: Heart Rate ⚠️',
             body: 'Your resting heart rate of ${dashboardHr.toStringAsFixed(0)} BPM is outside the safe range (${minHr.toStringAsFixed(0)}-${maxHr.toStringAsFixed(0)} BPM).',
-            channelId: 'vitals_warnings',
-            channelName: 'Vitals Warnings',
-            channelDesc: 'Alerts for vital signs outside healthy thresholds',
           );
         }
       }
@@ -487,13 +495,9 @@ class ActivityViewModel extends ChangeNotifier {
             final double maxSys = sysThreshold['max'] ?? 140.0;
             final double minSys = sysThreshold['min'] ?? 90.0;
             if (latest.bloodPressureSystolic! > maxSys || latest.bloodPressureSystolic! < minSys) {
-              await NotificationService.instance.showImmediateNotification(
-                id: 102,
+              await NotificationService.instance.showVitalsAlert(
                 title: 'Vitals Warning: Blood Pressure ⚠️',
                 body: 'Your Systolic Blood Pressure of ${latest.bloodPressureSystolic} mmHg is outside the safe limit (${minSys.toStringAsFixed(0)}-${maxSys.toStringAsFixed(0)} mmHg).',
-                channelId: 'vitals_warnings',
-                channelName: 'Vitals Warnings',
-                channelDesc: 'Alerts for vital signs outside healthy thresholds',
               );
             }
           }
@@ -505,13 +509,9 @@ class ActivityViewModel extends ChangeNotifier {
             final double maxDia = diaThreshold['max'] ?? 90.0;
             final double minDia = diaThreshold['min'] ?? 60.0;
             if (latest.bloodPressureDiastolic! > maxDia || latest.bloodPressureDiastolic! < minDia) {
-              await NotificationService.instance.showImmediateNotification(
-                id: 103,
+              await NotificationService.instance.showVitalsAlert(
                 title: 'Vitals Warning: Blood Pressure ⚠️',
                 body: 'Your Diastolic Blood Pressure of ${latest.bloodPressureDiastolic} mmHg is outside the safe limit (${minDia.toStringAsFixed(0)}-${maxDia.toStringAsFixed(0)} mmHg).',
-                channelId: 'vitals_warnings',
-                channelName: 'Vitals Warnings',
-                channelDesc: 'Alerts for vital signs outside healthy thresholds',
               );
             }
           }

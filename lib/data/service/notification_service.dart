@@ -134,6 +134,8 @@ class NotificationService {
       channelId: channelId,
       channelName: channelName,
       channelDesc: channelDesc,
+      importance: Importance.max,
+      priority: Priority.high,
     );
 
     await _localNotifications.show(id, title, body, details);
@@ -154,6 +156,40 @@ class NotificationService {
         print('[NotificationService] Failed to log immediate notification to SQLite: $e');
       }
     }
+  }
+
+  /// Trigger a phone system notification for critical vitals warnings
+  Future<void> showVitalsAlert({
+    required String title,
+    required String body,
+  }) async {
+    final int notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+    await showImmediateNotification(
+      id: notifId,
+      title: title,
+      body: body,
+      channelId: 'vitals_warnings',
+      channelName: 'Vitals Warnings',
+      channelDesc: 'Alerts for abnormal vital signs outside healthy thresholds',
+      type: 'VITALS_WARNING',
+    );
+  }
+
+  /// Trigger a phone system notification when appointment status changes (booked, cancelled, rescheduled)
+  Future<void> showAppointmentStatusAlert({
+    required String title,
+    required String body,
+  }) async {
+    final int notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+    await showImmediateNotification(
+      id: notifId,
+      title: title,
+      body: body,
+      channelId: 'appointment_status',
+      channelName: 'Appointment Status Updates',
+      channelDesc: 'Real-time notifications when appointments are confirmed, cancelled, or rescheduled',
+      type: 'APPOINTMENT_STATUS',
+    );
   }
 
   /// Schedule a one-off notification for a specific future date and time (e.g. Appointment)

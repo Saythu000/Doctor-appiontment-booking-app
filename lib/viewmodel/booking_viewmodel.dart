@@ -312,8 +312,14 @@ class BookingViewModel extends ChangeNotifier {
       await healthRepository.saveAppointment(apptData);
 
       // Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before consultation
+      // and trigger an immediate phone notification confirming the appointment
       try {
         final parsedStart = DateTime.tryParse(finalStartStr) ?? calculatedStart;
+        final formattedDate = DateFormat('EEE, MMM d @ h:mm a').format(parsedStart.toLocal());
+        await NotificationService.instance.showAppointmentStatusAlert(
+          title: 'Appointment Confirmed ✅',
+          body: 'Your consultation with $practitionerName on $formattedDate has been confirmed.',
+        );
         await NotificationService.instance.scheduleAppointmentReminders(
           appointmentId: appointmentId,
           doctorName: practitionerName,
@@ -344,10 +350,23 @@ class BookingViewModel extends ChangeNotifier {
   /// Reschedule an appointment to a new slot
   Future<bool> rescheduleAppointment(String appointmentId, int newSlotId) async {
     try {
+      // Look up appointment doctor name if available
+      String doctorName = 'Doctor';
+      try {
+        final found = appointmentsList.firstWhere((a) => a['id'] == appointmentId);
+        doctorName = found['practitioner_name'] ?? 'Doctor';
+      } catch (_) {}
+
       await bookingRepository.rescheduleAppointmentServer(
         appointmentId: appointmentId,
         newSlotId: newSlotId,
       );
+
+      await NotificationService.instance.showAppointmentStatusAlert(
+        title: 'Appointment Rescheduled 📅',
+        body: 'Your consultation with $doctorName has been rescheduled successfully.',
+      );
+
       await fetchAppointments();
       return true;
     } catch (e) {
@@ -464,21 +483,29 @@ class BookingViewModel extends ChangeNotifier {
     final now = DateTime.now();
     for (var appt in appointmentsList) {
       try {
+        final status = (appt['status'] as String? ?? '').toLowerCase();
+        if (status == 'cancelled' || status == 'canceled' || status == 'fulfilled' || status == 'completed' || status == 'noshow') {
+          continue;
+        }
+
         final startTimeStr = appt['start_time'] as String;
         final startTime = DateTime.parse(startTimeStr).toLocal();
         
         if (startTime.isAfter(now)) {
-          final notifyTime = startTime.subtract(const Duration(minutes: 30));
-          final int notificationId = appt['id'].hashCode.abs() % 100000;
-          final docName = appt['practitioner_name'] as String;
-          final type = appt['type'] as String;
+          final docName = appt['practitioner_name'] as String? ?? 'Specialist';
+          final role = appt['practitioner_role'] as String? ?? 'Specialist Care';
+          final isVirtual = (appt['is_virtual'] == 1);
+          final id = appt['id']?.toString() ?? '';
 
-          await NotificationService.instance.scheduleOneOffNotification(
-            id: notificationId,
-            title: 'Upcoming Appointment',
-            body: 'Your $type with $docName is in 30 minutes.',
-            scheduledDateTime: notifyTime,
-          );
+          if (id.isNotEmpty) {
+            await NotificationService.instance.scheduleAppointmentReminders(
+              appointmentId: id,
+              doctorName: docName,
+              specialty: role,
+              appointmentTime: startTime,
+              isVirtual: isVirtual,
+            );
+          }
         }
       } catch (e) {
         if (kDebugMode) {
@@ -491,6 +518,13 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   Future<void> cancelAppointment(String id) async {
+    // Look up the appointment to get doctor name before deleting
+    String doctorName = 'Doctor';
+    try {
+      final found = appointmentsList.firstWhere((a) => a['id'] == id);
+      doctorName = found['practitioner_name'] ?? 'Doctor';
+    } catch (_) {}
+
     try {
       if (!id.startsWith('mock_')) {
         await bookingRepository.cancelAppointmentServer(id);
@@ -511,6 +545,12 @@ class BookingViewModel extends ChangeNotifier {
       await healthRepository.saveProfileValue('last_booking_id', '');
       lastBookingConfirmed = null;
     }
+
+    // Trigger immediate phone notification confirming cancellation
+    await NotificationService.instance.showAppointmentStatusAlert(
+      title: 'Appointment Cancelled ❌',
+      body: 'Your consultation with $doctorName has been cancelled.',
+    );
 
     final int notificationId = id.hashCode.abs() % 100000;
     await NotificationService.instance.cancelNotification(notificationId);
