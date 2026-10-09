@@ -422,7 +422,7 @@ class BookingViewModel extends ChangeNotifier {
             image = 'assets/doctors/doctor_3.png';
           }
 
-          // Normalize status into core lifecycle states: pending, booked, rescheduled, cancelled, fulfilled, noshow
+          // Normalize status into core lifecycle states: pending, booked, confirmed, rescheduled, cancelled, fulfilled, noshow
           String normalizedStatus = 'pending';
           if (status == 'fulfilled' || status == 'completed') {
             normalizedStatus = 'fulfilled';
@@ -432,20 +432,12 @@ class BookingViewModel extends ChangeNotifier {
             normalizedStatus = 'cancelled';
           } else if (status.contains('resched')) {
             normalizedStatus = 'rescheduled';
-          } else if (status == 'booked' || status == 'confirmed' || status == 'arrived' || status == 'checked-in') {
-            // Check if consultation window has passed (e.g. 45 min after scheduled start time)
-            DateTime? apptStart;
-            try {
-              apptStart = DateTime.parse(start).toLocal();
-            } catch (_) {}
-
-            if (apptStart != null && apptStart.add(const Duration(minutes: 45)).isBefore(DateTime.now())) {
-              normalizedStatus = 'fulfilled';
-            } else {
-              normalizedStatus = 'booked';
-            }
+          } else if (status == 'confirmed') {
+            normalizedStatus = 'confirmed';
+          } else if (status == 'booked' || status == 'arrived' || status == 'checked-in') {
+            normalizedStatus = 'booked';
           } else {
-            normalizedStatus = 'pending';
+            normalizedStatus = status.isNotEmpty ? status : 'pending';
           }
 
           await healthRepository.saveAppointment({
