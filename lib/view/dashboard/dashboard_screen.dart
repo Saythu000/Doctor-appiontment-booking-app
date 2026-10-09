@@ -131,16 +131,32 @@ class DashboardScreen extends StatelessWidget {
       Color statusTextColor;
       String statusLabel;
       switch (status) {
-        case 'booked':
+        case 'fulfilled':
+        case 'completed':
+          statusBg = const Color(0xFFDCFCE7);
+          statusTextColor = const Color(0xFF15803D);
+          statusLabel = 'COMPLETED';
+          break;
+        case 'noshow':
+        case 'no-show':
+          statusBg = const Color(0xFFF1F5F9);
+          statusTextColor = const Color(0xFF64748B);
+          statusLabel = 'MISSED';
+          break;
         case 'confirmed':
           statusBg = const Color(0xFFDCFCE7);
           statusTextColor = const Color(0xFF15803D);
           statusLabel = 'CONFIRMED';
           break;
+        case 'booked':
+          statusBg = const Color(0xFFE0F2FE);
+          statusTextColor = const Color(0xFF0369A1);
+          statusLabel = 'BOOKED';
+          break;
         case 'rescheduled':
           statusBg = const Color(0xFFEDE9FE);
           statusTextColor = const Color(0xFF6D28D9);
-          statusLabel = 'RESCHEDULED';
+          statusLabel = 'BOOKED';
           break;
         case 'cancelled':
         case 'canceled':

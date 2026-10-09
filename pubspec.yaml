@@ -1,6 +1,6 @@
 name: phia_flutter
-description: "PHIA (Personal Health Insight Assistance) - Hardware-based sensor tracker."
-version: 0.0.1+1
+description: "DrGodly - Hardware-based sensor tracker and telehealth app."
+version: 0.0.1+2
 
 environment:
   sdk: '>=3.5.0 <4.0.0'

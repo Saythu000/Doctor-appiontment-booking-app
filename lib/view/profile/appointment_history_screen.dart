@@ -185,42 +185,54 @@ class AppointmentHistoryScreen extends StatelessWidget {
     Color statusBg;
     Color statusTextColor;
     String statusLabel;
-    switch (status) {
-      case 'fulfilled':
-      case 'completed':
-        statusBg = const Color(0xFFDCFCE7);
-        statusTextColor = const Color(0xFF15803D);
-        statusLabel = 'FULFILLED';
-        break;
-      case 'noshow':
-      case 'no-show':
-        statusBg = const Color(0xFFF1F5F9);
-        statusTextColor = const Color(0xFF64748B);
-        statusLabel = 'MISSED';
-        break;
-      case 'booked':
-      case 'confirmed':
-        statusBg = const Color(0xFFDCFCE7);
-        statusTextColor = const Color(0xFF15803D);
-        statusLabel = 'CONFIRMED';
-        break;
-      case 'rescheduled':
-        statusBg = const Color(0xFFEDE9FE);
-        statusTextColor = const Color(0xFF6D28D9);
-        statusLabel = 'RESCHEDULED';
-        break;
-      case 'cancelled':
-      case 'canceled':
+
+    if (!isUpcoming) {
+      // Past Consultations: Match Web application behavior
+      if (status == 'cancelled' || status == 'canceled') {
         statusBg = PhiaColors.pulseRedLight;
         statusTextColor = PhiaColors.pulseRed;
         statusLabel = 'CANCELLED';
-        break;
-      case 'pending':
-      default:
-        statusBg = const Color(0xFFFEF3C7);
-        statusTextColor = const Color(0xFFB45309);
-        statusLabel = 'PENDING';
-        break;
+      } else if (status == 'noshow' || status == 'no-show') {
+        statusBg = const Color(0xFFF1F5F9);
+        statusTextColor = const Color(0xFF64748B);
+        statusLabel = 'MISSED';
+      } else {
+        // Any elapsed consultation (booked, confirmed, fulfilled, completed) is COMPLETED
+        statusBg = const Color(0xFFDCFCE7);
+        statusTextColor = const Color(0xFF15803D);
+        statusLabel = 'COMPLETED';
+      }
+    } else {
+      // Upcoming Consultations: Active lifecycle states
+      switch (status) {
+        case 'confirmed':
+          statusBg = const Color(0xFFDCFCE7);
+          statusTextColor = const Color(0xFF15803D);
+          statusLabel = 'CONFIRMED';
+          break;
+        case 'booked':
+          statusBg = const Color(0xFFE0F2FE);
+          statusTextColor = const Color(0xFF0369A1);
+          statusLabel = 'BOOKED';
+          break;
+        case 'rescheduled':
+          statusBg = const Color(0xFFEDE9FE);
+          statusTextColor = const Color(0xFF6D28D9);
+          statusLabel = 'BOOKED';
+          break;
+        case 'cancelled':
+        case 'canceled':
+          statusBg = PhiaColors.pulseRedLight;
+          statusTextColor = PhiaColors.pulseRed;
+          statusLabel = 'CANCELLED';
+          break;
+        case 'pending':
+        default:
+          statusBg = const Color(0xFFFEF3C7);
+          statusTextColor = const Color(0xFFB45309);
+          statusLabel = 'PENDING';
+          break;
+      }
     }
 
     return Container(

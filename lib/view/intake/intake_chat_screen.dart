@@ -60,12 +60,34 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
 
     final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
 
+    // Extract patient details for first-turn context header
+    final patientProfile = profileVm.currentProfile;
+    final displayName = authVm.user?.name ?? patientProfile?.name?.firstOrNull?.fullName;
+    final birthDate = patientProfile?.birthDate;
+
+    String? email;
+    String? phone;
+    if (patientProfile?.telecom != null) {
+      for (final t in patientProfile!.telecom!) {
+        if (t.system == 'email' && email == null && t.value.isNotEmpty) {
+          email = t.value;
+        } else if (t.system == 'phone' && phone == null && t.value.isNotEmpty) {
+          phone = t.value;
+        }
+      }
+    }
+    email ??= authVm.user?.email;
+
     _textController.clear();
     intakeVm.sendMessage(
       text: text,
       authToken: token,
       patientFhirId: profileVm.patientFhirId,
       orgId: authVm.orgId,
+      patientName: displayName,
+      birthDate: birthDate,
+      email: email,
+      phone: phone,
     );
     _scrollToBottom();
   }

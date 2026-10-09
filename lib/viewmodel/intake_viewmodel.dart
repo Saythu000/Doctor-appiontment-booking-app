@@ -57,22 +57,70 @@ class IntakeViewModel extends ChangeNotifier {
   }
 
   /// Patient sends a message turn (Section 2)
+  /// Prepend patient context line on the very first message of a new session only (session_id: null).
   Future<void> sendMessage({
     required String text,
     required String authToken,
     int? patientFhirId,
     String? orgId,
+    String? patientName,
+    String? birthDate,
+    String? email,
+    String? phone,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || isBusy) return;
 
-    // 1. Append patient message to list
+    // 1. Append patient message to visible chat list (only the typed text!)
     final userMessage = IntakeChatMessage(role: 'user', content: trimmed);
     _messages.add(userMessage);
     _state = IntakeState.streaming;
     _currentStreamingText = '';
     _errorMessage = null;
     notifyListeners();
+
+    // 2. Prepend patient context on first message of a new session only
+    String outboundMessage = trimmed;
+    final bool isFirstTurn = _sessionId == null || _sessionId!.isEmpty;
+    if (isFirstTurn) {
+      final List<String> contextFields = [];
+
+      // name: Better Auth display name or fallback 'Patient'
+      final resolvedName = (patientName != null && patientName.trim().isNotEmpty)
+          ? patientName.trim()
+          : 'Patient';
+      contextFields.add('name=$resolvedName');
+
+      // age: Whole years computed from Patient.birth_date (e.g. YYYY-MM-DD)
+      if (birthDate != null && birthDate.trim().isNotEmpty) {
+        try {
+          final dob = DateTime.parse(birthDate.trim());
+          final now = DateTime.now();
+          int age = now.year - dob.year;
+          if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+            age--;
+          }
+          if (age >= 0 && age <= 130) {
+            contextFields.add('age=$age');
+          }
+        } catch (_) {}
+      }
+
+      // email: Lowest-rank email entry from telecom
+      if (email != null && email.trim().isNotEmpty) {
+        contextFields.add('email=${email.trim()}');
+      }
+
+      // phone: Lowest-rank phone entry from telecom
+      if (phone != null && phone.trim().isNotEmpty) {
+        contextFields.add('phone=${phone.trim()}');
+      }
+
+      if (contextFields.isNotEmpty) {
+        final contextPrefix = '[Patient context: ${contextFields.join(', ')}]';
+        outboundMessage = '$contextPrefix\n\n$trimmed';
+      }
+    }
 
     // Ensure valid non-empty auth token
     String effectiveToken = authToken;
@@ -84,9 +132,9 @@ class IntakeViewModel extends ChangeNotifier {
     }
 
     try {
-      // 2. Stream turn from AI intake agent
+      // 3. Stream turn from AI intake agent
       final stream = _intakeService.streamChatTurn(
-        message: trimmed,
+        message: outboundMessage,
         sessionId: _sessionId,
         authToken: effectiveToken,
       );
