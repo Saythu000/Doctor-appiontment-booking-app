@@ -560,14 +560,13 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             ),
             const SizedBox(height: 18),
 
-            // Option 1: With AI Intake
+            // Option 1: With AI Intake (Prompts for Voice Agent vs Chat Agent)
             InkWell(
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.pushNamed(
+                _showIntakeMethodModal(
                   context,
-                  '/intake',
-                  arguments: {
+                  doctorArgs: {
                     'specialist': specialist,
                     'name': name,
                     'role': role,
@@ -746,6 +745,214 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                       size: 14,
                       color: PhiaColors.textMuted,
                     ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showIntakeMethodModal(
+    BuildContext context, {
+    required Map<String, dynamic> doctorArgs,
+  }) {
+    final String doctorName = doctorArgs['name'] as String? ?? 'your specialist';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Choose AI Intake Method',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: PhiaColors.navyAnchor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'How would you like to complete your pre-visit symptom intake for $doctorName?',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: PhiaColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Option 1: AI Voice Agent
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(
+                  context,
+                  '/voice_intake',
+                  arguments: doctorArgs,
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F4C81), Color(0xFF1E6091)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F4C81).withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.mic, color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'AI Voice Agent',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.tealAccent.shade400,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'RECOMMENDED • FAST',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F4C81),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Hands-free, spoken pre-visit conversation with DrGodly Voice Assistant.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Option 2: AI Chat Agent
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pushNamed(
+                  context,
+                  '/intake',
+                  arguments: doctorArgs,
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: PhiaColors.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: PhiaColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: PhiaColors.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: PhiaColors.navyAnchor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chat Agent',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: PhiaColors.navyAnchor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Text-based interactive symptom questionnaire with AI intake assistant.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: PhiaColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, color: PhiaColors.textMuted, size: 16),
                   ],
                 ),
               ),

@@ -1,16 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../domain/model/intake_models.dart';
 import '../../viewmodel/intake_viewmodel.dart';
+import '../../viewmodel/voice_intake_viewmodel.dart';
 
 class IntakeCompletionScreen extends StatelessWidget {
   final Map<String, dynamic>? doctorArgs;
-  const IntakeCompletionScreen({super.key, this.doctorArgs});
+  final int? intakeId;
+  final IntakeClinicalReport? clinicalReport;
+  final int? appointmentId;
+
+  const IntakeCompletionScreen({
+    super.key,
+    this.doctorArgs,
+    this.intakeId,
+    this.clinicalReport,
+    this.appointmentId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final intakeVm = Provider.of<IntakeViewModel>(context);
-    final report = intakeVm.clinicalReport;
+    final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
+    final voiceVm = Provider.of<VoiceIntakeViewModel>(context, listen: false);
+
+    final effectiveReport = clinicalReport ?? intakeVm.clinicalReport ?? voiceVm.clinicalReport;
+    final effectiveIntakeId = intakeId ?? intakeVm.savedIntakeRecordId ?? voiceVm.savedIntakeRecordId;
+    final messagesCount = intakeVm.messages.isNotEmpty 
+        ? intakeVm.messages.length 
+        : voiceVm.committedMessages.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -50,7 +68,7 @@ class IntakeCompletionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Intake #${intakeVm.savedIntakeRecordId ?? 'Saved'} is saved and attached to your profile.',
+                'Intake #${effectiveIntakeId ?? 'Saved'} is saved and attached to your profile.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 13,
@@ -60,7 +78,7 @@ class IntakeCompletionScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Clinical Summary Card
-              if (report != null && report.clinicalOverview != null) ...[
+              if (effectiveReport != null && effectiveReport.clinicalOverview != null) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -93,22 +111,22 @@ class IntakeCompletionScreen extends StatelessWidget {
                             ),
                           ),
                           const Spacer(),
-                          if (report.riskLevel != null)
+                          if (effectiveReport.riskLevel != null)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (report.riskLevel!.toLowerCase() == 'high')
+                                color: (effectiveReport.riskLevel!.toLowerCase() == 'high')
                                     ? PhiaColors.pulseRed.withValues(alpha: 0.12)
                                     : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                'Risk: ${report.riskLevel!.toUpperCase()}',
+                                'Risk: ${effectiveReport.riskLevel!.toUpperCase()}',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: (report.riskLevel!.toLowerCase() == 'high')
+                                  color: (effectiveReport.riskLevel!.toLowerCase() == 'high')
                                       ? PhiaColors.pulseRed
                                       : Colors.green.shade700,
                                 ),
@@ -118,7 +136,7 @@ class IntakeCompletionScreen extends StatelessWidget {
                       ),
                       const Divider(height: 20),
                       Text(
-                        report.clinicalOverview!,
+                        effectiveReport.clinicalOverview!,
                         style: const TextStyle(
                           fontSize: 13,
                           color: PhiaColors.textPrimary,
@@ -147,7 +165,7 @@ class IntakeCompletionScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '${intakeVm.messages.length} conversation turns saved to medical record.',
+                        '$messagesCount conversation turns saved to medical record.',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -187,8 +205,8 @@ class IntakeCompletionScreen extends StatelessWidget {
                         arguments: {
                           ...doctorArgs!,
                           'intakeCompleted': true,
-                          'intakeId': intakeVm.savedIntakeRecordId,
-                          'clinicalReport': intakeVm.clinicalReport,
+                          'intakeId': effectiveIntakeId,
+                          'clinicalReport': effectiveReport,
                         },
                       );
                     } else {
@@ -197,8 +215,8 @@ class IntakeCompletionScreen extends StatelessWidget {
                         '/booking_specialist',
                         arguments: {
                           'intakeCompleted': true,
-                          'intakeId': intakeVm.savedIntakeRecordId,
-                          'clinicalReport': intakeVm.clinicalReport,
+                          'intakeId': effectiveIntakeId,
+                          'clinicalReport': effectiveReport,
                         },
                       );
                     }

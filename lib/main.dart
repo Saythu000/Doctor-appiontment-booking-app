@@ -32,6 +32,8 @@ import 'viewmodel/intake_viewmodel.dart';
 import 'data/service/intake_service.dart';
 import 'view/intake/intake_chat_screen.dart';
 import 'view/intake/intake_completion_screen.dart';
+import 'view/intake/voice_intake_screen.dart';
+import 'viewmodel/voice_intake_viewmodel.dart';
 import 'data/repository/auth_repository.dart';
 import 'data/service/notification_service.dart';
 
@@ -95,6 +97,9 @@ void main() async {
           create: (_) => IntakeViewModel(
             intakeService: IntakeService(),
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => VoiceIntakeViewModel(),
         ),
       ],
       child: const PhiaApp(),
@@ -166,6 +171,7 @@ class PhiaApp extends StatelessWidget {
         '/general_settings': (context) => const GeneralSettingsScreen(),
         '/appointment_history': (context) => const AppointmentHistoryScreen(),
         '/intake': (context) => const IntakeChatScreen(),
+        '/voice_intake': (context) => const VoiceIntakeScreen(),
         '/intake_completion': (context) => const IntakeCompletionScreen(),
       },
     ),

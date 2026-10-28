@@ -2,6 +2,10 @@
     <!-- Network Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Audio Permissions for Voice Intake Agent -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
     <!-- System Permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

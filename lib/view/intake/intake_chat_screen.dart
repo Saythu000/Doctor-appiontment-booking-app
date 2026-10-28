@@ -23,6 +23,11 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
+      final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
+      // Ensure patient profile is fully loaded for context header (§2.0)
+      if (profileVm.currentProfile == null) {
+        profileVm.fetchOrInitProfile();
+      }
       // If fresh screen, reset
       if (intakeVm.messages.isEmpty) {
         intakeVm.reset();
@@ -60,23 +65,24 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
 
     final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
 
-    // Extract patient details for first-turn context header
+    // Extract patient details for first-turn context header (text guide §2.0)
+    // 1. name: Better Auth display name or fallback to Patient.name / cached name
     final patientProfile = profileVm.currentProfile;
-    final displayName = authVm.user?.name ?? patientProfile?.name?.firstOrNull?.fullName;
+    final displayName = authVm.user?.name ??
+        (patientProfile?.primaryName.isNotEmpty == true ? patientProfile!.primaryName : null);
     final birthDate = patientProfile?.birthDate;
 
-    String? email;
-    String? phone;
-    if (patientProfile?.telecom != null) {
-      for (final t in patientProfile!.telecom!) {
-        if (t.system == 'email' && email == null && t.value.isNotEmpty) {
-          email = t.value;
-        } else if (t.system == 'phone' && phone == null && t.value.isNotEmpty) {
-          phone = t.value;
-        }
-      }
+    // 2. email: Lowest-rank email entry from telecom or auth account
+    String? email = patientProfile?.primaryEmail;
+    if (email == null || email.isEmpty) {
+      email = authVm.user?.email;
     }
-    email ??= authVm.user?.email;
+
+    // 3. phone: Lowest-rank phone entry from telecom
+    String? phone = patientProfile?.primaryPhone;
+    if (phone != null && phone.isEmpty) {
+      phone = null;
+    }
 
     _textController.clear();
     intakeVm.sendMessage(

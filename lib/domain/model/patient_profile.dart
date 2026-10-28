@@ -42,18 +42,25 @@ class PlainPatientTelecom {
   final String system;
   final String value;
   final String? use;
+  final int? rank;
 
   PlainPatientTelecom({
     required this.system,
     required this.value,
     this.use,
+    this.rank,
   });
 
   factory PlainPatientTelecom.fromJson(Map<String, dynamic> json) {
+    int? parsedRank;
+    if (json['rank'] != null) {
+      parsedRank = json['rank'] is int ? json['rank'] : int.tryParse(json['rank'].toString());
+    }
     return PlainPatientTelecom(
       system: json['system'] ?? '',
       value: json['value'] ?? '',
       use: json['use'],
+      rank: parsedRank,
     );
   }
 
@@ -62,6 +69,7 @@ class PlainPatientTelecom {
       'system': system,
       'value': value,
       if (use != null) 'use': use,
+      if (rank != null) 'rank': rank,
     };
   }
 }
@@ -173,21 +181,27 @@ class PlainPatient {
     return name!.first.fullName;
   }
 
-  /// Helper to get primary email contact
+  /// Helper to get primary email contact (lowest rank per colleague guide §2.0)
   String get primaryEmail {
     if (telecom == null) return '';
     try {
-      return telecom!.firstWhere((t) => t.system == 'email').value;
+      final emails = telecom!.where((t) => t.system == 'email' && t.value.isNotEmpty).toList();
+      if (emails.isEmpty) return '';
+      emails.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+      return emails.first.value;
     } catch (_) {
       return '';
     }
   }
 
-  /// Helper to get primary phone contact
+  /// Helper to get primary phone contact (lowest rank per colleague guide §2.0)
   String get primaryPhone {
     if (telecom == null) return '';
     try {
-      return telecom!.firstWhere((t) => t.system == 'phone').value;
+      final phones = telecom!.where((t) => t.system == 'phone' && t.value.isNotEmpty).toList();
+      if (phones.isEmpty) return '';
+      phones.sort((a, b) => (a.rank ?? 999).compareTo(b.rank ?? 999));
+      return phones.first.value;
     } catch (_) {
       return '';
     }

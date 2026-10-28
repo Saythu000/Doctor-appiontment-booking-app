@@ -15,6 +15,7 @@ class ApiConstants {
   // Configured with standard environment defaults, overridable at runtime
   static const String defaultIntakeAgentUrl = 'https://agents.drgodly.com/api/agent/intake';
   static const String defaultAssessmentPlanAgentUrl = 'https://agents.drgodly.com/api/agent/assessment';
+  static const String defaultIntakeVoiceAgentWsUrl = 'wss://agents.drgodly.com/ws/audio';
 
   // Intake REST Endpoints on appBaseUrl
   static const String intakeCreatePath = '/api/intake/create';

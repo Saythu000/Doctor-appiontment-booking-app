@@ -212,6 +212,7 @@ class IntakeService {
 
   Future<IntakeRecord?> createIntakeRecord({
     int? patientFhirId,
+    String mode = 'TEXT',
     required String authToken,
     String? orgId,
   }) async {
@@ -225,7 +226,7 @@ class IntakeService {
         headers['x-org-id'] = orgId;
       }
 
-      final payload = <String, dynamic>{'mode': 'TEXT'};
+      final payload = <String, dynamic>{'mode': mode};
       if (patientFhirId != null) {
         payload['patient_fhir_id'] = patientFhirId;
       }

@@ -29,6 +29,32 @@ class AuthViewModel extends ChangeNotifier {
     FhirApiClient().setTokenRefresher(refreshToken);
   }
 
+  /// Helper to check if a token string is a valid, unexpired 3-part JWT
+  static bool isJwtValid(String? token) {
+    if (token == null || token.isEmpty) return false;
+    final parts = token.split('.');
+    if (parts.length != 3) return false;
+    try {
+      var payloadB64 = parts[1];
+      while (payloadB64.length % 4 != 0) {
+        payloadB64 += '=';
+      }
+      final payloadJson = utf8.decode(base64Url.decode(payloadB64));
+      final Map<String, dynamic> data = jsonDecode(payloadJson);
+      final exp = data['exp'];
+      if (exp is num) {
+        final expiry = DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
+        // Add 10-second buffer
+        if (DateTime.now().isAfter(expiry.subtract(const Duration(seconds: 10)))) {
+          return false;
+        }
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Helper to decode activeOrganizationId, org_id, or organizations list from JWT token
   String? _extractOrgIdFromJwt(String jwt) {
     try {
@@ -88,7 +114,15 @@ class AuthViewModel extends ChangeNotifier {
     if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
       try {
         final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
-        _jwtToken = tokenResponse.accessToken;
+        if (isJwtValid(tokenResponse.idToken)) {
+          _jwtToken = tokenResponse.idToken;
+        } else {
+          _jwtToken = tokenResponse.accessToken;
+        }
+        if (tokenResponse.idToken != null) {
+          _idToken = tokenResponse.idToken;
+          await healthRepository.saveSetting('iam_id_token', _idToken!);
+        }
         if (tokenResponse.refreshToken != null && tokenResponse.refreshToken!.isNotEmpty) {
           _refreshToken = tokenResponse.refreshToken;
           await healthRepository.saveSetting('iam_refresh_token', _refreshToken!);
@@ -137,8 +171,14 @@ class AuthViewModel extends ChangeNotifier {
         authResult = await authRepository.signInWithPKCE();
       }
 
-      // Step 2: Bind tokens (Session JWT for FHIR/AI intake; OAuth 2.0 Access Token as fallback)
-      _jwtToken = authResult.sessionJwt ?? authResult.tokens.accessToken;
+      // Step 2: Bind tokens (Session JWT or OpenID id_token for FHIR/AI intake; OAuth 2.0 Access Token as fallback)
+      if (isJwtValid(authResult.sessionJwt)) {
+        _jwtToken = authResult.sessionJwt;
+      } else if (isJwtValid(authResult.tokens.idToken)) {
+        _jwtToken = authResult.tokens.idToken;
+      } else {
+        _jwtToken = authResult.tokens.accessToken;
+      }
       _refreshToken = authResult.tokens.refreshToken;
       _idToken = authResult.tokens.idToken;
       _user = authResult.user;
@@ -423,10 +463,10 @@ class AuthViewModel extends ChangeNotifier {
           }
 
           // Crucial: FHIR middleware and AI intake require Better-Auth EdDSA Session JWT.
-          // Never overwrite a valid stored Session JWT ('eyJ...') with an opaque OAuth access_token ('cfRg...').
-          if (storedJwtToken != null && storedJwtToken.isNotEmpty && storedJwtToken.startsWith('eyJ')) {
+          // Prioritize valid unexpired JWT: stored JWT -> fresh idToken -> fresh accessToken
+          if (isJwtValid(storedJwtToken)) {
             _jwtToken = storedJwtToken;
-          } else if (tokenResponse.idToken != null && tokenResponse.idToken!.startsWith('eyJ')) {
+          } else if (isJwtValid(tokenResponse.idToken)) {
             _jwtToken = tokenResponse.idToken;
           } else {
             _jwtToken = tokenResponse.accessToken;
