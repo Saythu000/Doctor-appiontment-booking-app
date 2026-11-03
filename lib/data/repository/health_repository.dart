@@ -96,6 +96,10 @@ class HealthRepository {
       double? distance;
       double? activeMins;
       double? sleep;
+      double? deepSleep;
+      double? lightSleep;
+      double? remSleep;
+      double? awakeSleep;
       double? hr;
       double? hrv;
       double? weight;
@@ -115,6 +119,14 @@ class HealthRepository {
           activeMins = value;
         } else if (type == 'sleep') {
           sleep = value;
+        } else if (type == 'deep_sleep') {
+          deepSleep = value;
+        } else if (type == 'light_sleep') {
+          lightSleep = value;
+        } else if (type == 'rem_sleep') {
+          remSleep = value;
+        } else if (type == 'awake_sleep') {
+          awakeSleep = value;
         } else if (type == 'heart_rate') {
           hr = value;
         } else if (type == 'hrv') {
@@ -142,7 +154,7 @@ class HealthRepository {
         if (ageMetric.isNotEmpty) age = ageMetric.first.value;
       }
 
-      // Compile consolidated daily vitals record
+      // Compile consolidated daily vitals record with genuine sleep metrics (no synthetic multipliers)
       final record = VitalsRecord(
         steps: steps?.toInt(),
         caloriesKcal: calories,
@@ -152,10 +164,10 @@ class HealthRepository {
         heartRate: (hr != null && hr > 0) ? hr.toInt() : null,
         heartRateVariability: (hrv != null && hrv > 0 && hrv != 45.5) ? hrv : null,
         sleepMinutes: sleep != null ? (sleep * 60).toInt() : null,
-        remSleepMinutes: sleep != null ? (sleep * 60 * 0.1875).toInt() : null,
-        deepSleepMinutes: sleep != null ? (sleep * 60 * 0.125).toInt() : null,
-        lightSleepMinutes: sleep != null ? (sleep * 60 * 0.5208).toInt() : null,
-        awakeMinutes: sleep != null ? (sleep * 60 * 0.0417).toInt() : null,
+        remSleepMinutes: remSleep?.toInt(),
+        deepSleepMinutes: deepSleep?.toInt(),
+        lightSleepMinutes: lightSleep?.toInt(),
+        awakeMinutes: awakeSleep?.toInt(),
         weightKg: weight,
         heightCm: height,
         age: age?.toInt(),

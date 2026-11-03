@@ -107,8 +107,39 @@ void main() async {
   );
 }
 
-class PhiaApp extends StatelessWidget {
+class PhiaApp extends StatefulWidget {
   const PhiaApp({super.key});
+
+  @override
+  State<PhiaApp> createState() => _PhiaAppState();
+}
+
+class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    final activityVm = context.read<ActivityViewModel>();
+    if (state == AppLifecycleState.resumed) {
+      activityVm.resumeAutoSync();
+    } else if (state == AppLifecycleState.paused ||
+               state == AppLifecycleState.inactive ||
+               state == AppLifecycleState.detached) {
+      activityVm.pauseAutoSync();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

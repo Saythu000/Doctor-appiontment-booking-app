@@ -185,7 +185,59 @@ class ActivityViewModel extends ChangeNotifier {
     // Small delay so Android OS initializes cleanly before Health Connect check
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // E. Request Android Health Connect permissions popup directly on launch
+    try {
+      final hasPrompted = await repository.getSetting('has_prompted_health_connect');
+      if (hasPrompted != 'true') {
+        final candidateTypes = [
+          HealthDataType.STEPS,
+          HealthDataType.HEART_RATE,
+          HealthDataType.RESTING_HEART_RATE,
+          HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
+          HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+          HealthDataType.SLEEP_SESSION,
+          HealthDataType.SLEEP_ASLEEP,
+          HealthDataType.SLEEP_LIGHT,
+          HealthDataType.SLEEP_DEEP,
+          HealthDataType.SLEEP_REM,
+          HealthDataType.SLEEP_AWAKE,
+          HealthDataType.ACTIVE_ENERGY_BURNED,
+          HealthDataType.TOTAL_CALORIES_BURNED,
+          HealthDataType.BASAL_ENERGY_BURNED,
+          HealthDataType.DISTANCE_WALKING_RUNNING,
+          HealthDataType.DISTANCE_DELTA,
+          HealthDataType.BLOOD_OXYGEN,
+          HealthDataType.WORKOUT,
+          HealthDataType.ACTIVITY_INTENSITY,
+          HealthDataType.EXERCISE_TIME,
+        ];
+        final health = Health();
+        await health.configure();
+        final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
+        bool? hasPerm;
+        try {
+          hasPerm = await health.hasPermissions(types);
+        } catch (_) {}
+        if (hasPerm != true) {
+          try {
+            await health.requestAuthorization(types);
+          } catch (_) {}
+        }
+        await repository.saveSetting('has_prompted_health_connect', 'true');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] Auto Health Connect permission request error: $e');
+      }
+    }
+
+    notifyListeners();
+
+    await startStepsTracking();
+    await initDashboard();
+  }
+
+  /// Explicitly request Health Connect authorization (e.g. from Pair Watch or Settings)
+  Future<bool> requestHealthConnectAuthorization() async {
     try {
       final candidateTypes = [
         HealthDataType.STEPS,
@@ -212,25 +264,16 @@ class ActivityViewModel extends ChangeNotifier {
       final health = Health();
       await health.configure();
       final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
-      bool? hasPerm;
-      try {
-        hasPerm = await health.hasPermissions(types);
-      } catch (_) {}
-      if (hasPerm != true) {
-        try {
-          await health.requestAuthorization(types);
-        } catch (_) {}
-      }
+      final granted = await health.requestAuthorization(types);
+      await repository.saveSetting('has_prompted_health_connect', 'true');
+      await syncOpenWearablesVitals('Android Health Connect');
+      return granted;
     } catch (e) {
       if (kDebugMode) {
-        print('[ActivityViewModel] Auto Health Connect permission request error: $e');
+        print('[ActivityViewModel] Error requesting Health Connect auth: $e');
       }
+      return false;
     }
-
-    notifyListeners();
-
-    await startStepsTracking();
-    await initDashboard();
   }
 
   double _getTodayMetricValue(List<HealthMetric> metrics) {
@@ -449,20 +492,37 @@ class ActivityViewModel extends ChangeNotifier {
       }
     }
 
-    // 3. Auto-query Health Connect on launch so fresh watch vitals immediately reflect on dashboard
-    await syncOpenWearablesVitals('Android Health Connect');
+    // 3. Auto-query Health Connect on launch and setup seamless recurring auto-sync
+    resumeAutoSync();
 
-    // Setup seamless recurring auto-sync (every 5 minutes) so telemetry stays updated automatically
-    _autoSyncTimer?.cancel();
+    // Run vitals warning checks against thresholds
+    await checkVitalsThresholds();
+  }
+
+  /// Pauses wearable auto-sync timer when the app is backgrounded to preserve battery
+  void pauseAutoSync() {
+    if (_autoSyncTimer != null) {
+      if (kDebugMode) {
+        print('[ActivityViewModel] App backgrounded/paused. Pausing wearable auto-sync timer.');
+      }
+      _autoSyncTimer?.cancel();
+      _autoSyncTimer = null;
+    }
+  }
+
+  /// Resumes wearable auto-sync timer when the app returns to foreground
+  void resumeAutoSync() {
+    if (_autoSyncTimer != null) return;
+    if (kDebugMode) {
+      print('[ActivityViewModel] App active/resumed. Resuming wearable auto-sync timer.');
+    }
+    syncOpenWearablesVitals('Android Health Connect');
     _autoSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       if (kDebugMode) {
         print('[ActivityViewModel] Triggering automatic 5-minute wearable sync...');
       }
       syncOpenWearablesVitals('Android Health Connect');
     });
-
-    // Run vitals warning checks against thresholds
-    await checkVitalsThresholds();
   }
 
   /// Evaluates vitals (HR, BP) against active warning thresholds and triggers system alerts
@@ -702,6 +762,38 @@ class ActivityViewModel extends ChangeNotifier {
             value: dashboardSleep,
             timestamp: now,
           ));
+          if (deepSleepMinutes > 0) {
+            await repository.saveMetric(HealthMetric(
+              id: 'synced_deep_sleep_${now.millisecondsSinceEpoch}',
+              type: 'deep_sleep',
+              value: deepSleepMinutes.toDouble(),
+              timestamp: now,
+            ));
+          }
+          if (lightSleepMinutes > 0) {
+            await repository.saveMetric(HealthMetric(
+              id: 'synced_light_sleep_${now.millisecondsSinceEpoch}',
+              type: 'light_sleep',
+              value: lightSleepMinutes.toDouble(),
+              timestamp: now,
+            ));
+          }
+          if (remSleepMinutes > 0) {
+            await repository.saveMetric(HealthMetric(
+              id: 'synced_rem_sleep_${now.millisecondsSinceEpoch}',
+              type: 'rem_sleep',
+              value: remSleepMinutes.toDouble(),
+              timestamp: now,
+            ));
+          }
+          if (awakeMinutes > 0) {
+            await repository.saveMetric(HealthMetric(
+              id: 'synced_awake_sleep_${now.millisecondsSinceEpoch}',
+              type: 'awake_sleep',
+              value: awakeMinutes.toDouble(),
+              timestamp: now,
+            ));
+          }
         }
 
         if (cloudVitals.steps != null && cloudVitals.steps! > 0) {

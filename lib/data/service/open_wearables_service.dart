@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
@@ -333,7 +334,7 @@ class OpenWearablesService {
           }
 
           if (dp.type == HealthDataType.RESTING_HEART_RATE) {
-            if (dp.value is NumericHealthValue) {
+            if (dp.value is NumericHealthValue && dp.dateTo.isAfter(todayStart)) {
               final val = (dp.value as NumericHealthValue).numericValue.toInt();
               if (latestRestingHrDate == null || dp.dateTo.isAfter(latestRestingHrDate)) {
                 latestRestingHrDate = dp.dateTo;
@@ -341,7 +342,7 @@ class OpenWearablesService {
               }
             }
           } else if (dp.type == HealthDataType.HEART_RATE) {
-            if (dp.value is NumericHealthValue) {
+            if (dp.value is NumericHealthValue && dp.dateTo.isAfter(todayStart)) {
               final val = (dp.value as NumericHealthValue).numericValue.toInt();
               if (latestLiveHrDate == null || dp.dateTo.isAfter(latestLiveHrDate)) {
                 latestLiveHrDate = dp.dateTo;
@@ -352,7 +353,8 @@ class OpenWearablesService {
             }
           } else if ((dp.type == HealthDataType.HEART_RATE_VARIABILITY_RMSSD ||
                       dp.type == HealthDataType.HEART_RATE_VARIABILITY_SDNN) &&
-                     realHrv == null) {
+                     realHrv == null &&
+                     dp.dateTo.isAfter(todayStart)) {
             if (dp.value is NumericHealthValue) {
               realHrv = (dp.value as NumericHealthValue).numericValue.toDouble();
             }
@@ -628,22 +630,31 @@ class OpenWearablesService {
           }
         }
 
-        int realActiveMinutes = 0;
-        if (activeMinutesSet.isNotEmpty) {
-          realActiveMinutes = activeMinutesSet.length;
-        } else if (googleFitActiveMinutes > 0) {
-          realActiveMinutes = googleFitActiveMinutes;
-        } else if (recordedActiveMinutes > 0) {
-          realActiveMinutes = recordedActiveMinutes;
-        } else if (wearableActiveMinutes > 0) {
-          realActiveMinutes = wearableActiveMinutes;
-        } else if (realWorkoutMinutes > 0) {
-          realActiveMinutes = realWorkoutMinutes;
-        } else if (googleFitActiveSeconds >= 60) {
-          realActiveMinutes = (googleFitActiveSeconds / 60.0).round();
-        } else if (totalActiveSeconds >= 60) {
-          realActiveMinutes = (totalActiveSeconds / 60.0).round();
+        // Multi-source reconciliation: ensure low-step workouts (e.g. cycling, swimming, yoga)
+        // are never overshadowed by a small bucket count from brief walks.
+        int candidateFromBuckets = activeMinutesSet.length;
+        int candidateFromRecorded = recordedActiveMinutes;
+        if (googleFitActiveMinutes > candidateFromRecorded) {
+          candidateFromRecorded = googleFitActiveMinutes;
         }
+        if (wearableActiveMinutes > candidateFromRecorded) {
+          candidateFromRecorded = wearableActiveMinutes;
+        }
+        if (realWorkoutMinutes > candidateFromRecorded) {
+          candidateFromRecorded = realWorkoutMinutes;
+        }
+
+        int candidateFromSeconds = 0;
+        if (googleFitActiveSeconds >= 60) {
+          candidateFromSeconds = (googleFitActiveSeconds / 60.0).round();
+        } else if (totalActiveSeconds >= 60) {
+          candidateFromSeconds = (totalActiveSeconds / 60.0).round();
+        }
+
+        final int realActiveMinutes = math.max(
+          candidateFromBuckets,
+          math.max(candidateFromRecorded, candidateFromSeconds),
+        );
 
         if (kDebugMode) {
           print('[OpenWearablesService] Active minutes for today: $realActiveMinutes (from ${activeMinutesSet.length} Move Min buckets, fitActiveMins=$googleFitActiveMinutes, recActiveMins=$recordedActiveMinutes, workoutMins=$realWorkoutMinutes)');

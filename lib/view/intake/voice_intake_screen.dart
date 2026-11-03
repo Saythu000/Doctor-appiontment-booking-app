@@ -228,15 +228,55 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Error banner
+            // Actionable Error banner
             if (voiceVm.errorMessage != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: Colors.red.shade50,
-                child: Text(
-                  voiceVm.errorMessage!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            voiceVm.errorMessage!,
+                            style: TextStyle(color: Colors.red.shade800, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                            Navigator.of(context).pushReplacementNamed(
+                              '/intake',
+                              arguments: doctorArgs,
+                            );
+                          },
+                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                          label: const Text('Switch to Chat Intake', style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F4C81),
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 

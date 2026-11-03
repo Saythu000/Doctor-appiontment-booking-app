@@ -27,6 +27,8 @@ class IntakeViewModel extends ChangeNotifier {
   IntakeClinicalReport? _clinicalReport;
   String _currentStreamingText = '';
   String? _errorMessage;
+  String? _lastUserMessage;
+  bool _canRetry = false;
   StreamSubscription<IntakeStreamChunk>? _streamSubscription;
 
   IntakeState get state => _state;
@@ -36,6 +38,8 @@ class IntakeViewModel extends ChangeNotifier {
   IntakeClinicalReport? get clinicalReport => _clinicalReport;
   String get currentStreamingText => _currentStreamingText;
   String? get errorMessage => _errorMessage;
+  bool get canRetry => _canRetry && _lastUserMessage != null && _lastUserMessage!.isNotEmpty;
+  String? get lastUserMessage => _lastUserMessage;
   bool get isStreaming => _state == IntakeState.streaming;
   bool get isBusy => _state == IntakeState.streaming ||
       _state == IntakeState.ending ||
@@ -53,6 +57,8 @@ class IntakeViewModel extends ChangeNotifier {
     _clinicalReport = null;
     _currentStreamingText = '';
     _errorMessage = null;
+    _lastUserMessage = null;
+    _canRetry = false;
     notifyListeners();
   }
 
@@ -70,6 +76,9 @@ class IntakeViewModel extends ChangeNotifier {
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || isBusy) return;
+
+    _lastUserMessage = trimmed;
+    _canRetry = false;
 
     // 1. Append patient message to visible chat list (only the typed text!)
     final userMessage = IntakeChatMessage(role: 'user', content: trimmed);
@@ -131,8 +140,100 @@ class IntakeViewModel extends ChangeNotifier {
       }
     }
 
+    await _startStreamingTurn(
+      outboundMessage: outboundMessage,
+      effectiveToken: effectiveToken,
+      authToken: authToken,
+      patientFhirId: patientFhirId,
+      orgId: orgId,
+    );
+  }
+
+  /// Retries the last failed message turn without duplicating user chat bubbles.
+  Future<void> retryLastMessage({
+    required String authToken,
+    int? patientFhirId,
+    String? orgId,
+    String? patientName,
+    String? birthDate,
+    String? email,
+    String? phone,
+  }) async {
+    if (_lastUserMessage == null || _lastUserMessage!.isEmpty || isBusy) return;
+
+    // If an incomplete assistant response was partially committed upon error, remove it
+    if (_messages.isNotEmpty && _messages.last.role == 'assistant') {
+      _messages.removeLast();
+    }
+
+    _canRetry = false;
+    _errorMessage = null;
+    _state = IntakeState.streaming;
+    _currentStreamingText = '';
+    notifyListeners();
+
+    // Prepare outbound message
+    String outboundMessage = _lastUserMessage!;
+    final bool isFirstTurn = _sessionId == null || _sessionId!.isEmpty;
+    if (isFirstTurn) {
+      final List<String> contextFields = [];
+      final resolvedName = (patientName != null && patientName.trim().isNotEmpty)
+          ? patientName.trim()
+          : 'Patient';
+      contextFields.add('name=$resolvedName');
+
+      if (birthDate != null && birthDate.trim().isNotEmpty) {
+        try {
+          final dob = DateTime.parse(birthDate.trim());
+          final now = DateTime.now();
+          int age = now.year - dob.year;
+          if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+            age--;
+          }
+          if (age >= 0 && age <= 130) {
+            contextFields.add('age=$age');
+          }
+        } catch (_) {}
+      }
+
+      if (email != null && email.trim().isNotEmpty) {
+        contextFields.add('email=${email.trim()}');
+      }
+
+      if (phone != null && phone.trim().isNotEmpty) {
+        contextFields.add('phone=${phone.trim()}');
+      }
+
+      if (contextFields.isNotEmpty) {
+        outboundMessage = '[Patient context: ${contextFields.join(', ')}]\n\n$_lastUserMessage';
+      }
+    }
+
+    String effectiveToken = authToken;
+    if (effectiveToken.isEmpty) {
+      final storedJwt = await HealthRepository().getSetting('iam_jwt_token');
+      if (storedJwt != null && storedJwt.isNotEmpty) {
+        effectiveToken = storedJwt;
+      }
+    }
+
+    await _startStreamingTurn(
+      outboundMessage: outboundMessage,
+      effectiveToken: effectiveToken,
+      authToken: authToken,
+      patientFhirId: patientFhirId,
+      orgId: orgId,
+    );
+  }
+
+  Future<void> _startStreamingTurn({
+    required String outboundMessage,
+    required String effectiveToken,
+    required String authToken,
+    int? patientFhirId,
+    String? orgId,
+  }) async {
     try {
-      // 3. Stream turn from AI intake agent
       final stream = _intakeService.streamChatTurn(
         message: outboundMessage,
         sessionId: _sessionId,
@@ -141,7 +242,6 @@ class IntakeViewModel extends ChangeNotifier {
 
       _streamSubscription = stream.listen(
         (chunk) {
-          // Check for session ID from header or agent_end chunk
           if (chunk.sessionId != null && chunk.sessionId!.isNotEmpty) {
             _sessionId = chunk.sessionId;
           }
@@ -155,11 +255,12 @@ class IntakeViewModel extends ChangeNotifier {
               break;
 
             case 'agent_end':
+              _canRetry = false;
               _commitAssistantMessage();
               break;
 
             case 'status_end':
-              // Section 3.1: Agent decided conversation is complete
+              _canRetry = false;
               if (kDebugMode) {
                 print('[IntakeViewModel] Received status_end from agent. Auto-finishing...');
               }
@@ -178,7 +279,8 @@ class IntakeViewModel extends ChangeNotifier {
         onError: (err) {
           debugPrint('[IntakeViewModel] Stream error: $err');
           _commitAssistantMessage();
-          _errorMessage = 'Stream error: ${err.toString().replaceFirst("Exception: ", "")}';
+          _canRetry = true;
+          _errorMessage = 'Connection interrupted. Tap to retry.';
           _state = IntakeState.idle;
           notifyListeners();
         },
@@ -191,7 +293,8 @@ class IntakeViewModel extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('[IntakeViewModel] Failed to send message: $e');
-      _errorMessage = 'Failed: ${e.toString().replaceFirst("Exception: ", "")}';
+      _canRetry = true;
+      _errorMessage = 'Connection failed. Tap to retry.';
       _state = IntakeState.idle;
       notifyListeners();
     }

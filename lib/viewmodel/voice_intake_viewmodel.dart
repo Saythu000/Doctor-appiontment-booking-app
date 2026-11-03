@@ -149,9 +149,14 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       );
     } catch (e) {
       _callState = VoiceCallState.error;
-      _statusLabel = 'Offline';
+      _statusLabel = 'Connection Failed';
       _statusDotColor = 'grey';
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      final rawErr = e.toString().replaceFirst('Exception: ', '');
+      if (rawErr.toLowerCase().contains('timed out') || rawErr.toLowerCase().contains('socketexception') || rawErr.toLowerCase().contains('failed host lookup')) {
+        _errorMessage = 'Unable to reach Voice Agent server. Please check your internet connection or use Chat Intake.';
+      } else {
+        _errorMessage = rawErr;
+      }
       notifyListeners();
     }
   }

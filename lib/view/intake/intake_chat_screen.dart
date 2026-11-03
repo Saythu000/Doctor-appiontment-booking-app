@@ -98,6 +98,39 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     _scrollToBottom();
   }
 
+  void _handleRetry() {
+    final authVm = Provider.of<AuthViewModel>(context, listen: false);
+    final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
+    final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
+
+    final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
+    final patientProfile = profileVm.currentProfile;
+    final displayName = authVm.user?.name ??
+        (patientProfile?.primaryName.isNotEmpty == true ? patientProfile!.primaryName : null);
+    final birthDate = patientProfile?.birthDate;
+
+    String? email = patientProfile?.primaryEmail;
+    if (email == null || email.isEmpty) {
+      email = authVm.user?.email;
+    }
+
+    String? phone = patientProfile?.primaryPhone;
+    if (phone != null && phone.isEmpty) {
+      phone = null;
+    }
+
+    intakeVm.retryLastMessage(
+      authToken: token,
+      patientFhirId: profileVm.patientFhirId,
+      orgId: authVm.orgId,
+      patientName: displayName,
+      birthDate: birthDate,
+      email: email,
+      phone: phone,
+    );
+    _scrollToBottom();
+  }
+
   void _handleEndChat() {
     final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
@@ -270,19 +303,47 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
                   ),
                 ),
 
-              // Error banner if any
+              // Error banner with retry if any
               if (vm.errorMessage != null)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   color: PhiaColors.pulseRed.withValues(alpha: 0.1),
-                  child: Text(
-                    vm.errorMessage!,
-                    style: const TextStyle(
-                      color: PhiaColors.pulseRed,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, size: 16, color: PhiaColors.pulseRed),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          vm.errorMessage!,
+                          style: const TextStyle(
+                            color: PhiaColors.pulseRed,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (vm.canRetry) ...[
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _handleRetry,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            backgroundColor: PhiaColors.pulseRed.withValues(alpha: 0.15),
+                          ),
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(
+                              color: PhiaColors.pulseRed,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
 

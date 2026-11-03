@@ -55,10 +55,22 @@ class VoiceIntakeService {
   final BytesBuilder _turnPcmBuilder = BytesBuilder();
   Timer? _turnPlaybackTimer;
   bool _isPlaying = false;
+  DateTime? _agentSpeechStartTime;
   int _totalBytesSent = 0;
   int _micChunksSent = 0;
 
   bool get isPlaying => _isPlaying;
+
+  VoiceIntakeService() {
+    _audioPlayer.onPlayerComplete.listen((_) {
+      _isPlaying = false;
+    });
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (state != PlayerState.playing) {
+        _isPlaying = false;
+      }
+    });
+  }
 
   void setMuted(bool muted) {
     _isMuted = muted;
@@ -128,7 +140,12 @@ class VoiceIntakeService {
 
     try {
       _channel = WebSocketChannel.connect(uri);
-      await _channel?.ready;
+      await _channel?.ready.timeout(
+        const Duration(seconds: 12),
+        onTimeout: () {
+          throw TimeoutException('Connection to Voice Agent server timed out after 12s');
+        },
+      );
       _isConnected = true;
       debugPrint('[VoiceIntakeService] WebSocket connected successfully');
 
@@ -237,9 +254,44 @@ class VoiceIntakeService {
           if (_isMuted) {
             final silence = Uint8List(data.length);
             _channel?.sink.add(silence);
-          } else {
-            _channel?.sink.add(data);
+            return;
           }
+
+          // Self-interruption protection (§3.1, §3.2):
+          // When the agent is speaking via the phone speaker, speaker sound leaks into the microphone.
+          // If the agent recently started speaking or is actively playing audio, only stream mic audio
+          // if the patient speaks loudly (RMS amplitude > 2200), otherwise send silence to prevent echo loops.
+          if (_isPlaying) {
+            final now = DateTime.now();
+            final isInitialGracePeriod = _agentSpeechStartTime != null &&
+                now.difference(_agentSpeechStartTime!).inMilliseconds < 450;
+
+            if (isInitialGracePeriod) {
+              final silence = Uint8List(data.length);
+              _channel?.sink.add(silence);
+              return;
+            }
+
+            // Calculate PCM16 RMS amplitude
+            double sumSquares = 0;
+            final count = data.length ~/ 2;
+            if (count > 0) {
+              final byteData = ByteData.sublistView(data);
+              for (int i = 0; i < count; i += 4) {
+                final sample = byteData.getInt16(i * 2, Endian.little);
+                sumSquares += sample * sample;
+              }
+              final rms = count > 0 ? (sumSquares / (count / 4)) : 0.0;
+              // Threshold: ~2200 amplitude squared = 4,840,000
+              if (rms < 4840000) {
+                final silence = Uint8List(data.length);
+                _channel?.sink.add(silence);
+                return;
+              }
+            }
+          }
+
+          _channel?.sink.add(data);
         },
         onError: (e) {
           debugPrint('[VoiceIntakeService] Mic stream error: $e');
@@ -346,6 +398,7 @@ class VoiceIntakeService {
       debugPrint('[VoiceIntakeService] Playing unified turn audio: ${pcmBytes.length} PCM bytes');
       final wavBytes = _createWavHeader(pcmBytes, sampleRate: 24000, numChannels: 1);
       _isPlaying = true;
+      _agentSpeechStartTime = DateTime.now();
       await _audioPlayer.stop();
       await _audioPlayer.play(BytesSource(wavBytes));
     } catch (e) {
