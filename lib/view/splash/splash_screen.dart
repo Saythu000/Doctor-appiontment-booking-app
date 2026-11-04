@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/colors.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
@@ -15,47 +14,51 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
-  final List<String> _loadingStatuses = [
-    'Connecting securely...',
-    'Syncing clinical modules...',
-    'Loading patient profile...',
-    'Structuring workspace...',
-  ];
-
-  String _currentStatus = 'Connecting securely...';
-  Timer? _statusTimer;
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _sliderController;
+  Timer? _slowTimer;
+  bool _showSlowLoader = false;
+  bool _hasError = false;
   bool _isRedirecting = false;
 
   @override
   void initState() {
     super.initState();
-    _startStatusRotation();
+    _sliderController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
+    _startSlowTimer();
     _checkAuthAndRedirect();
   }
 
-  void _startStatusRotation() {
-    int statusIndex = 0;
-    _statusTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
-      if (statusIndex < _loadingStatuses.length - 1) {
-        statusIndex++;
+  void _startSlowTimer() {
+    _slowTimer?.cancel();
+    _slowTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted && !_isRedirecting && !_hasError) {
         setState(() {
-          _currentStatus = _loadingStatuses[statusIndex];
+          _showSlowLoader = true;
         });
-      } else {
-        timer.cancel();
       }
     });
   }
 
-  void _checkAuthAndRedirect() async {
-    final authVM = context.read<AuthViewModel>();
-    final isAuthenticated = await authVM.checkAutoLogin();
+  Future<void> _checkAuthAndRedirect() async {
+    setState(() {
+      _hasError = false;
+    });
 
-    await Future.delayed(const Duration(seconds: 4));
+    try {
+      final authVM = context.read<AuthViewModel>();
+      final isAuthenticated = await authVM.checkAutoLogin().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => false,
+          );
 
-    if (mounted && !_isRedirecting) {
-      _isRedirecting = true;
+      if (!mounted) return;
+
       final profileVM = context.read<ProfileViewModel>();
       final bookingVM = context.read<BookingViewModel>();
       final activityVM = context.read<ActivityViewModel>();
@@ -66,12 +69,15 @@ class _SplashScreenState extends State<SplashScreen> {
           bookingVM.fetchAppointments(),
           bookingVM.fetchSpecialists(),
           activityVM.initDashboard(),
-        ]);
+        ]).timeout(const Duration(seconds: 12));
       } else {
-        await profileVM.fetchOrInitProfile();
+        await profileVM.fetchOrInitProfile().timeout(const Duration(seconds: 8));
       }
 
-      if (mounted) {
+      if (mounted && !_isRedirecting) {
+        _isRedirecting = true;
+        _slowTimer?.cancel();
+
         final profile = profileVM.currentProfile;
         final bool hasProfile = profile != null &&
             profile.name != null &&
@@ -84,138 +90,158 @@ class _SplashScreenState extends State<SplashScreen> {
           Navigator.pushReplacementNamed(context, '/welcome');
         }
       }
+    } catch (e) {
+      if (mounted && !_isRedirecting) {
+        setState(() {
+          _hasError = true;
+          _showSlowLoader = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _statusTimer?.cancel();
+    _sliderController.dispose();
+    _slowTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF0F1715) : const Color(0xFFF7F9F8);
+    final tileBorder = isDark ? Border.all(color: const Color(0xFF2A4A43), width: 1) : null;
+    final trackColor = isDark ? const Color(0xFF2A4A43) : const Color(0xFFDDE4E2);
+    final sliderColor = isDark ? const Color(0xFF5FB3A1) : const Color(0xFF1F6F5F);
+    final titleColor = isDark ? const Color(0xFFF7F9F8) : const Color(0xFF1A1F1E);
+    final subtitleColor = const Color(0xFF5F6B68);
+
     return Scaffold(
-      backgroundColor: PhiaColors.background,
+      backgroundColor: backgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
+        child: Center(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Spacer(),
-
-              // Centered Clinical Card & Brand Identity
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        color: PhiaColors.surface,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: PhiaColors.borderSubtle, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: PhiaColors.navyAnchor.withValues(alpha: 0.08),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.asset(
-                        'assets/app_logo.jpeg',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'DrGodly',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2.0,
-                        color: PhiaColors.navyAnchor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'CLINICAL TELEHEALTH & VITALS',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                        color: PhiaColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: PhiaColors.activeGreenBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: PhiaColors.activeGreen,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'HIPAA Compliant · FHIR Ready',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF15803D),
-                            ),
-                          ),
-                        ],
-                      ),
+              // State 1, 2, 3: Centered minimalist Brand Tile
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+                margin: EdgeInsets.only(bottom: _hasError ? 24.0 : 0.0),
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF12302B),
+                  borderRadius: BorderRadius.circular(13),
+                  border: tileBorder,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                alignment: Alignment.center,
+                child: Text(
+                  'DG',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
               ),
 
-              const Spacer(),
+              // State 2: Sleek linear sliding indeterminate loader (appears after 1.5s)
+              if (_showSlowLoader && !_hasError) ...[
+                const SizedBox(height: 28),
+                _buildSlidingLoader(trackColor, sliderColor),
+              ],
 
-              // Bottom Loader & Status
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(PhiaColors.primary),
+              // State 3: Connection failure / offline recovery
+              if (_hasError) ...[
+                Text(
+                  "Can't connect",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: titleColor,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                  child: Text(
+                    'Check your internet connection and try again.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: subtitleColor,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _currentStatus.toUpperCase(),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: PhiaColors.textSecondary,
-                      letterSpacing: 1.2,
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton(
+                  onPressed: () {
+                    _startSlowTimer();
+                    _checkAuthAndRedirect();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: sliderColor,
+                    side: BorderSide(color: sliderColor, width: 1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    minimumSize: const Size(96, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: Text(
+                    'Try again',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: sliderColor,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSlidingLoader(Color trackColor, Color sliderColor) {
+    return Container(
+      width: 72,
+      height: 2,
+      decoration: BoxDecoration(
+        color: trackColor,
+        borderRadius: BorderRadius.circular(1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AnimatedBuilder(
+        animation: _sliderController,
+        builder: (context, child) {
+          return FractionalTranslation(
+            translation: Offset(-1.0 + (_sliderController.value * 3.5), 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 72 * 0.4, // 40% width per design specification
+                height: 2,
+                decoration: BoxDecoration(
+                  color: sliderColor,
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
