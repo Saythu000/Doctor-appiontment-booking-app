@@ -1,19 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/state_views.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
-void showNotificationCenter(BuildContext context) {
-  showModalBottomSheet(
+/// Opens the alerts list as a bottom sheet.
+Future<void> showNotificationCenter(BuildContext context) {
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) {
-      return const NotificationCenterSheet();
-    },
+    showDragHandle: true,
+    useSafeArea: true,
+    backgroundColor: context.colors.surface,
+    builder: (_) => const NotificationCenterSheet(),
   );
+}
+
+/// How an alert type is shown. Unknown types get a neutral style.
+class AlertKind {
+  final String label;
+  final IconData icon;
+  final StatusTone tone;
+  const AlertKind(this.label, this.icon, this.tone);
+
+  static AlertKind of(String? type) => switch ((type ?? '').toUpperCase()) {
+        'VITALS_WARNING' => const AlertKind('Vitals', Icons.monitor_heart_outlined, StatusTone.danger),
+        'APPOINTMENT_STATUS' => const AlertKind('Visit', Icons.event_note_rounded, StatusTone.info),
+        'MILESTONE' => const AlertKind('Visit', Icons.event_note_rounded, StatusTone.info),
+        _ => const AlertKind('Update', Icons.notifications_none_rounded, StatusTone.neutral),
+      };
 }
 
 class NotificationCenterSheet extends StatefulWidget {
@@ -28,304 +47,152 @@ class _NotificationCenterSheetState extends State<NotificationCenterSheet> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SettingsViewModel>().fetchInAppNotifications();
+      if (mounted) context.read<SettingsViewModel>().fetchInAppNotifications();
     });
+  }
+
+  Future<void> _clearAll(SettingsViewModel vm) async {
+    final ok = await confirmAction(
+      context,
+      title: 'Clear all alerts?',
+      message: 'This removes every alert from this list. It cannot be undone.',
+      confirmLabel: 'Clear all',
+      destructive: true,
+    );
+    if (ok) await vm.clearAllInAppNotifications();
   }
 
   @override
   Widget build(BuildContext context) {
-    final settingsVM = context.watch<SettingsViewModel>();
-    final inAppLogs = settingsVM.inAppNotificationsList;
+    final vm = context.watch<SettingsViewModel>();
+    final logs = vm.inAppNotificationsList;
+    final height = MediaQuery.sizeOf(context).height * 0.75;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    return SizedBox(
+      height: height,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Drag handle pill
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: PhiaColors.borderSubtle,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Header title row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.sm, AppSpacing.sm),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: PhiaColors.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.notifications_active_rounded, color: PhiaColors.primary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Alerts & Notifications',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: PhiaColors.navyAnchor,
-                      ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                  onPressed: () => Navigator.pop(context),
-                ),
+                Expanded(child: Semantics(header: true, child: Text('Alerts', style: context.text.titleLarge))),
+                if (logs.isNotEmpty)
+                  TextButton(onPressed: () => _clearAll(vm), child: const Text('Clear all')),
               ],
             ),
           ),
-          const Divider(height: 1, color: PhiaColors.borderSubtle),
-
-          // Alerts content directly
           Expanded(
-            child: _buildAlertsSection(context, settingsVM, inAppLogs),
+            child: logs.isEmpty
+                ? const EmptyView(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'No alerts',
+                    message: 'Heart rate warnings and visit updates will appear here.',
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+                    itemCount: logs.length,
+                    itemBuilder: (context, i) => _AlertTile(log: logs[i], vm: vm),
+                  ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAlertsSection(BuildContext context, SettingsViewModel settingsVM, List<Map<String, dynamic>> logs) {
-    if (logs.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.notifications_none_rounded,
-        title: 'No Alerts Yet',
-        description: 'Vitals warning alerts or activity milestone achievements will appear here.',
-      );
-    }
+class _AlertTile extends StatelessWidget {
+  final Map<String, dynamic> log;
+  final SettingsViewModel vm;
+  const _AlertTile({required this.log, required this.vm});
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${logs.length} ${logs.length == 1 ? 'Alert' : 'Alerts'}',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: PhiaColors.textMuted,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Clear all alerts?'),
-                      content: const Text('This removes every alert from this list. It cannot be undone.'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear all')),
-                      ],
-                    ),
-                  );
-                  if (ok == true) await settingsVM.clearAllInAppNotifications();
-                },
-                icon: const Icon(Icons.delete_sweep_rounded, color: PhiaColors.pulseRed, size: 16),
-                label: Text(
-                  'Clear All',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: PhiaColors.pulseRed),
-                ),
-              ),
-            ],
-          ),
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final id = log['id']?.toString() ?? '';
+    final title = log['title']?.toString() ?? '';
+    final body = log['body']?.toString() ?? '';
+    final kind = AlertKind.of(log['type']?.toString());
+    final tone = colors.tone(kind.tone);
+    final isRead = (int.tryParse(log['is_read']?.toString() ?? '') ?? 0) == 1;
+    final at = DateTime.tryParse(log['timestamp']?.toString() ?? '')?.toLocal();
+    final time = at == null ? '' : DateFormat('d MMM, h:mm a').format(at);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Dismissible(
+        key: ValueKey(id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: AppSpacing.xl),
+          decoration: BoxDecoration(color: colors.tone(StatusTone.danger).background, borderRadius: AppRadius.mdAll),
+          child: Icon(Icons.delete_outline_rounded, color: colors.tone(StatusTone.danger).foreground),
         ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            itemCount: logs.length,
-            itemBuilder: (context, index) {
-              final log = logs[index];
-              final String id = log['id'] as String;
-              final String title = log['title'] as String;
-              final String body = log['body'] as String;
-              final String type = log['type'] as String;
-              final String timeStr = log['timestamp'] as String;
-              final bool isRead = (log['is_read'] as int? ?? 0) == 1;
-
-              String formattedTime = '';
-              try {
-                final date = DateTime.parse(timeStr).toLocal();
-                formattedTime = DateFormat('MMM d, h:mm a').format(date);
-              } catch (_) {
-                formattedTime = timeStr;
-              }
-
-              final Color accentColor = type == 'MILESTONE' ? PhiaColors.stepGreen : PhiaColors.pulseRed;
-
-              return Dismissible(
-                key: Key(id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20.0),
-                  decoration: BoxDecoration(
-                    color: PhiaColors.pulseRed.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
-                ),
-                onDismissed: (dir) => settingsVM.deleteInAppNotification(id),
-                child: GestureDetector(
-                  onTap: () {
-                    if (!isRead) {
-                      settingsVM.markNotificationAsRead(id);
-                    }
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isRead ? PhiaColors.surface : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isRead ? PhiaColors.borderSubtle : accentColor.withValues(alpha: 0.35),
-                        width: isRead ? 1 : 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+        onDismissed: (_) => vm.deleteInAppNotification(id),
+        child: Semantics(
+          label: '${isRead ? '' : 'Unread. '}${kind.label}. $title. $body. $time',
+          hint: 'Swipe left to delete',
+          excludeSemantics: true,
+          child: Material(
+            color: isRead ? colors.surface : colors.surfaceMuted,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll, side: BorderSide(color: colors.border)),
+            child: InkWell(
+              borderRadius: AppRadius.mdAll,
+              onTap: isRead ? null : () => vm.markNotificationAsRead(id),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(color: tone.background, shape: BoxShape.circle),
+                      child: Icon(kind.icon, size: AppSizes.iconMd, color: tone.foreground),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            type == 'MILESTONE' ? Icons.emoji_events_rounded : Icons.warning_amber_rounded,
-                            color: accentColor,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    type.toUpperCase(),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: accentColor,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  Text(
-                                    formattedTime,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: PhiaColors.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                title,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: PhiaColors.navyAnchor,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                body,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: PhiaColors.textSecondary,
-                                  height: 1.4,
-                                ),
-                              ),
+                              Text(kind.label, style: context.text.labelMedium!.copyWith(color: tone.foreground)),
+                              if (time.isNotEmpty) Text(time, style: context.text.bodySmall),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            title,
+                            style: context.text.titleSmall!.copyWith(
+                              fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                            ),
+                          ),
+                          if (body.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(body, style: context.text.bodySmall!.copyWith(color: colors.textSecondary)),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
+                    if (!isRead)
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.sm, top: AppSpacing.xs),
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
+                        ),
+                      ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 40, color: PhiaColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: PhiaColors.navyAnchor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: PhiaColors.textSecondary,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );

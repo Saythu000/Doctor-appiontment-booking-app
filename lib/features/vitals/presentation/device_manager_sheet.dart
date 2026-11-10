@@ -1,307 +1,110 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/status_badge.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/widgets/sync_status_strip.dart';
 import 'package:provider/provider.dart';
 
-class DeviceManagerSheet extends StatefulWidget {
+/// Health Connect: what it reads, when it last synced, and a Sync button.
+/// Sized to its content.
+class DeviceManagerSheet extends StatelessWidget {
   const DeviceManagerSheet({super.key});
 
-  static void show(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> show(BuildContext context) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const DeviceManagerSheet(),
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: context.colors.surface,
+      builder: (_) => const DeviceManagerSheet(),
     );
   }
 
   @override
-  State<DeviceManagerSheet> createState() => _DeviceManagerSheetState();
-}
-
-class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
-  final OpenWearablesService _owService = OpenWearablesService();
-  bool _isSyncing = false;
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-      decoration: const BoxDecoration(
-        color: PhiaColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    final vm = context.watch<ActivityViewModel>();
+    final colors = context.colors;
+    final status = SyncStatus.of(vm);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Drag handle
-          Container(
-            width: 44,
-            height: 4,
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
-            decoration: BoxDecoration(
-              color: PhiaColors.borderSubtle,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: PhiaColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.watch_rounded,
-                      color: PhiaColors.primary, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Connect Wearables',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: PhiaColors.navyAnchor,
-                        ),
-                      ),
-                      Text(
-                        'Sync from Android Health Connect',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: PhiaColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: PhiaColors.textSecondary),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(child: _buildHealthConnectContent(context)),
-
-          // Where the data goes
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: PhiaColors.borderSubtle)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.verified_user_rounded,
-                    color: PhiaColors.activeGreen, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Synced readings are saved to your DrGodly health record.',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: PhiaColors.textSecondary,
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: AppRadius.mdAll),
+                child: Icon(Icons.health_and_safety_rounded, color: colors.onPrimaryContainer),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(header: true, child: Text('Health Connect', style: context.text.titleLarge)),
+                    Text(
+                      'Works with any watch that syncs to Health Connect',
+                      style: context.text.bodySmall!.copyWith(color: colors.textSecondary),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            liveRegion: true,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: StatusBadge(label: status.title, tone: status.tone, icon: status.icon),
             ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'DrGodly reads heart rate, heart rate variability, steps, sleep and blood oxygen that your watch app '
+            '(for example Samsung Health, Noise or boAt) writes to Health Connect.',
+            style: context.text.bodyMedium!.copyWith(color: colors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _Point(icon: Icons.visibility_outlined, text: 'Read-only: DrGodly never changes your Health Connect data.'),
+          const _Point(icon: Icons.verified_user_outlined, text: 'Synced readings are saved to your DrGodly health record.'),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: vm.lastSyncAt == null ? 'Connect and sync' : 'Sync now',
+            icon: Icons.sync_rounded,
+            isLoading: vm.isSyncing,
+            onPressed: vm.isSyncing ? null : () => syncHealthConnect(context),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHealthConnectContent(BuildContext context) {
-    final activityVm = context.watch<ActivityViewModel>();
+class _Point extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Point({required this.icon, required this.text});
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Hero Card: Android Health Connect
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: activityVm.isOpenWearablesSynced
-                  ? PhiaColors.activeGreen
-                  : PhiaColors.primary.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF34A853).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.health_and_safety_rounded,
-                        color: Color(0xFF34A853), size: 28),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Android Health Connect',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: PhiaColors.navyAnchor,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            if (activityVm.isOpenWearablesSynced)
-                              const Icon(Icons.check_circle_rounded,
-                                  color: PhiaColors.activeGreen, size: 16),
-                          ],
-                        ),
-                        Text(
-                          'Works with any watch that syncs to Health Connect',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: PhiaColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Reads heart rate, HRV, steps, sleep and SpO2 that your watch app (for example boAt Crest, Noise or Samsung Health) writes to Health Connect.',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: PhiaColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Read-only access',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: PhiaColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: PhiaColors.navyAnchor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.sync_rounded, size: 16),
-                    label: Text(
-                      _isSyncing
-                          ? 'Syncing...'
-                          : (activityVm.isOpenWearablesSynced
-                              ? 'Sync Again'
-                              : 'Sync Now'),
-                      style: GoogleFonts.inter(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    onPressed:
-                        _isSyncing ? null : () => _syncHealthConnect(context),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Asks for Health Connect access (no UI if already granted), then syncs.
-  Future<void> _syncHealthConnect(BuildContext context) async {
-    final vm = Provider.of<ActivityViewModel>(context, listen: false);
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _isSyncing = true);
-    bool granted = false;
-    bool success = false;
-    try {
-      granted = await vm.requestHealthConnectAuthorization();
-      if (granted) {
-        success = await vm.syncOpenWearablesVitals('Android Health Connect');
-      }
-    } finally {
-      if (mounted) setState(() => _isSyncing = false);
-    }
-    if (!mounted) return;
-
-    final String message;
-    final Color color;
-    if (!granted) {
-      message =
-          'Health Connect access was not granted. Allow access in Health Connect to sync your watch data.';
-      color = const Color(0xFFB45309);
-    } else if (success) {
-      final hr = vm.dashboardHr.toInt();
-      message = hr > 0
-          ? 'Watch data synced. Resting HR: $hr bpm from ${_owService.lastSyncSource}.'
-          : 'Watch data synced from ${_owService.lastSyncSource}.';
-      color = PhiaColors.activeGreen;
-    } else {
-      message =
-          'No recent watch data in Health Connect. Open your watch app, let it sync to Health Connect, then try again.';
-      color = const Color(0xFFB45309);
-    }
-    messenger.showSnackBar(
-      SnackBar(
-        backgroundColor: color,
-        duration: const Duration(seconds: 5),
-        content: Text(
-          message,
-          style: GoogleFonts.inter(
-              fontWeight: FontWeight.w500, color: Colors.white),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: AppSizes.iconSm, color: colors.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(text, style: context.text.bodySmall)),
+        ],
       ),
     );
   }

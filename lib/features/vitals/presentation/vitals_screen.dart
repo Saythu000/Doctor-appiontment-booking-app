@@ -1,442 +1,403 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
+import 'package:phia_flutter/features/home/presentation/widgets/body_baseline_card.dart';
+import 'package:phia_flutter/features/home/presentation/widgets/vitals_summary_card.dart'
+    show kActiveMinutesGoal, stepGoalOf;
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/domain/body_units.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/device_manager_sheet.dart';
+import 'package:phia_flutter/features/vitals/presentation/widgets/activity_rings.dart';
+import 'package:phia_flutter/features/vitals/presentation/widgets/sync_status_strip.dart';
 import 'package:provider/provider.dart';
 
+/// Today's activity, heart, oxygen and sleep from Health Connect.
+/// Every value is real or "--"; nothing is estimated.
 class VitalsScreen extends StatelessWidget {
-  const VitalsScreen({super.key});
+  /// True when shown as a bottom-navigation tab (no back arrow).
+  final bool isTab;
+  const VitalsScreen({super.key, this.isTab = false});
+
+  Future<void> _refresh(BuildContext context) async {
+    final vm = context.read<ActivityViewModel>();
+    await vm.syncOpenWearablesVitals('Android Health Connect');
+    await vm.initDashboard();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final activityVM = context.watch<ActivityViewModel>();
-    final settingsVM = context.watch<SettingsViewModel>();
-
-    final int steps = activityVM.currentSteps;
-
-    final String stepsStr = steps.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
-
-    double displayWeight = activityVM.userWeight;
-    String weightUnitLabel = 'KG';
-    if (settingsVM.weightUnit == 'lbs') {
-      displayWeight = activityVM.userWeight * 2.20462;
-      weightUnitLabel = 'LBS';
-    }
-
-    // BMI Calculations
-    double bmi = 0.0;
-    String bmiClassification = 'Pending';
-    Color bmiColor = const Color(0xFF64748B);
-    Color bmiBg = const Color(0xFFF1F5F9);
-    if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
-      final double heightM = activityVM.userHeight / 100.0;
-      bmi = activityVM.userWeight / (heightM * heightM);
-      if (bmi < 18.5) {
-        bmiClassification = 'Underweight';
-        bmiColor = PhiaColors.primary;
-        bmiBg = PhiaColors.primaryLight;
-      } else if (bmi < 25.0) {
-        bmiClassification = 'Optimal';
-        bmiColor = PhiaColors.activeGreen;
-        bmiBg = PhiaColors.activeGreenBg;
-      } else if (bmi < 30.0) {
-        bmiClassification = 'Overweight';
-        bmiColor = PhiaColors.amberWarning;
-        bmiBg = const Color(0xFFFEF3C7);
-      } else {
-        bmiClassification = 'Obese';
-        bmiColor = PhiaColors.pulseRed;
-        bmiBg = PhiaColors.pulseRedLight;
-      }
-    }
+    final colors = context.colors;
+    var i = 0;
+    Widget enter(Widget child) => FadeSlideIn(delay: Duration(milliseconds: 50 * i++), child: child);
 
     return Scaffold(
-      backgroundColor: PhiaColors.background,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: PhiaColors.primary,
-        elevation: 0,
-        title: Text(
-          'Your Vitals',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
+        automaticallyImplyLeading: !isTab,
+        title: const Text('Vitals'),
+        actions: [
+          IconButton(
+            tooltip: 'Health Connect',
+            icon: const Icon(Icons.watch_outlined),
+            onPressed: () => DeviceManagerSheet.show(context),
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-          children: [
-            // 2x2 Bento Stats
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.35,
-              children: [
-                _buildCleanBentoCard(
-                  icon: Icons.health_and_safety_rounded,
-                  iconColor: bmiColor,
-                  iconBg: bmiBg,
-                  label: bmi > 0 ? 'BMI ($bmiClassification)' : 'BMI',
-                  value: bmi > 0 ? bmi.toStringAsFixed(1) : '--',
-                ),
-                _buildCleanBentoCard(
-                  icon: Icons.monitor_weight_rounded,
-                  iconColor: PhiaColors.primary,
-                  iconBg: PhiaColors.primaryLight,
-                  label: 'Body Weight',
-                  value: displayWeight > 0 ? '${displayWeight.toStringAsFixed(1)} $weightUnitLabel' : '--',
-                ),
-                _buildCleanBentoCard(
-                  icon: Icons.directions_walk_rounded,
-                  iconColor: PhiaColors.navyAnchor,
-                  iconBg: PhiaColors.primaryLight,
-                  label: 'Daily Steps',
-                  value: stepsStr,
-                ),
-                _buildCleanBentoCard(
-                  icon: Icons.straighten_rounded,
-                  iconColor: const Color(0xFF4BAAE5),
-                  iconBg: PhiaColors.primaryLight,
-                  label: 'Distance Walked',
-                  value: '${activityVM.dashboardDistanceKm.toStringAsFixed(2)} km',
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // TODAY'S HEART RATE (real values from Health Connect only)
-            _buildNavyCard(
-              title: "Today's Heart Rate",
-              actionWidget: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: PhiaColors.pulseRedLight,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} BPM RESTING' : 'NO DATA',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: PhiaColors.pulseRed,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildMiniHeartMetric('Min HR', activityVM.dashboardMinHr != null ? '${activityVM.dashboardMinHr} bpm' : '--', const Color(0xFF15803D)),
-                        Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Resting HR', activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--', PhiaColors.navyAnchor),
-                        Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Max HR', activityVM.dashboardMaxHr != null ? '${activityVM.dashboardMaxHr} bpm' : '--', PhiaColors.pulseRed),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // SLEEP STAGES (real stage minutes only)
-            _buildNavyCard(
-              title: 'Sleep Architecture Stages',
-              actionWidget: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: PhiaColors.primaryLight,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  activityVM.currentSleep > 0 ? '${activityVM.currentSleep.toStringAsFixed(1)}H SLEEP' : 'PENDING SYNC',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: PhiaColors.navyAnchor,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: activityVM.currentSleep <= 0
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        alignment: Alignment.center,
-                        child: Column(
-                          children: [
-                            const Icon(Icons.bedtime_outlined, size: 36, color: PhiaColors.textMuted),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No Sleep Recorded Yet Today',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: PhiaColors.navyAnchor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Wear your watch to bed and let its app sync to Health Connect to see your sleep here.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: PhiaColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _buildSleepStages(activityVM),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Sleep stage bar. Only real stage minutes from Health Connect are shown;
-  /// when the watch reports total sleep without stages we say so instead of
-  /// inventing a split.
-  Widget _buildSleepStages(ActivityViewModel activityVM) {
-    String formatM(int m) {
-      final h = m ~/ 60;
-      final min = m % 60;
-      return h > 0 ? '${h}h ${min}m' : '${min}m';
-    }
-
-    final deep = activityVM.deepSleepMinutes;
-    final light = activityVM.lightSleepMinutes;
-    final rem = activityVM.remSleepMinutes;
-    final awake = activityVM.awakeMinutes;
-    final sum = deep + light + rem + awake;
-    final totalMin = (activityVM.currentSleep * 60).round();
-    final labelStyle = GoogleFonts.inter(
-      fontSize: 11,
-      color: PhiaColors.textSecondary,
-      fontWeight: FontWeight.w600,
-    );
-
-    if (sum <= 0) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Total sleep: ${formatM(totalMin)}', style: labelStyle.copyWith(fontSize: 13, color: PhiaColors.navyAnchor)),
-          const SizedBox(height: 4),
-          Text(
-            'Your watch did not report sleep stages for this night.',
-            style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textMuted),
-          ),
-        ],
-      );
-    }
-
-    Widget segment(int minutes, Color color) => minutes <= 0
-        ? const SizedBox.shrink()
-        : Expanded(flex: minutes, child: Container(color: color));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            _buildSleepStageLegend('Deep', const Color(0xFF1E3A8A)),
-            const SizedBox(width: 12),
-            _buildSleepStageLegend('Light', const Color(0xFF60A5FA)),
-            const SizedBox(width: 12),
-            _buildSleepStageLegend('REM', const Color(0xFF818CF8)),
-            const SizedBox(width: 12),
-            _buildSleepStageLegend('Awake', const Color(0xFFFCA5A5)),
-          ],
-        ),
-        const SizedBox(height: 14),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            height: 14,
-            child: Row(
-              children: [
-                segment(deep, const Color(0xFF1E3A8A)),
-                segment(light, const Color(0xFF60A5FA)),
-                segment(rem, const Color(0xFF818CF8)),
-                segment(awake, const Color(0xFFFCA5A5)),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Deep: ${formatM(deep)}', style: labelStyle),
-            Text('Light: ${formatM(light)}', style: labelStyle),
-            Text('REM: ${formatM(rem)}', style: labelStyle),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNavyCard({
-    required String title,
-    required Widget child,
-    Widget? actionWidget,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            color: PhiaColors.navyAnchor,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                if (actionWidget != null) actionWidget,
-              ],
-            ),
-          ),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCleanBentoCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: () => _refresh(context),
+        // A short, fixed set of cards: built once so the entrance stagger
+        // plays once, not again for each card scrolled into view.
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: PhiaColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: PhiaColors.navyAnchor,
-                ),
-              ),
+              enter(SyncStatusStrip(onManage: () => DeviceManagerSheet.show(context))),
+              const SizedBox(height: AppSpacing.lg),
+              enter(const _ActivityCard()),
+              const SizedBox(height: AppSpacing.lg),
+              enter(const _VitalTiles()),
+              const SizedBox(height: AppSpacing.lg),
+              enter(const _SleepCard()),
+              const SizedBox(height: AppSpacing.lg),
+              enter(const BodyBaselineCard()),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ActivityViewModel>();
+    final goal = stepGoalOf(context.watch<SettingsViewModel>());
+    final colors = context.colors;
+    final steps = vm.currentSteps;
+    final active = vm.currentActiveMins;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(header: true, child: Text('Activity today', style: context.text.titleMedium)),
+          const SizedBox(height: AppSpacing.lg),
+          Center(
+            child: ActivityRings(
+              size: 150,
+              strokeWidth: 13,
+              semanticLabel: 'Steps ${steps > 0 ? VitalsFormat.thousands(steps) : 'not synced'} of '
+                  '${VitalsFormat.thousands(goal)} goal. Active time ${active > 0 ? '$active minutes' : 'not synced'} '
+                  'of $kActiveMinutesGoal minute goal.',
+              rings: [
+                RingData(steps / goal, colors.vitalSteps),
+                RingData(active / kActiveMinutesGoal, colors.vitalActive),
+              ],
+              center: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(VitalsFormat.count(steps), style: context.text.titleLarge),
+                  Text('steps', style: context.text.bodySmall),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _LegendRow(
+            color: colors.vitalSteps,
+            label: 'Steps',
+            value: VitalsFormat.count(steps),
+            note: 'Goal ${VitalsFormat.thousands(goal)}',
+          ),
+          _LegendRow(
+            color: colors.vitalActive,
+            label: 'Active time',
+            value: active > 0 ? '$active min' : '--',
+            note: 'Goal $kActiveMinutesGoal min',
+          ),
+          _LegendRow(
+            color: colors.vitalSteps,
+            icon: Icons.straighten_rounded,
+            label: 'Distance',
+            value: vm.dashboardDistanceKm > 0 ? '${vm.dashboardDistanceKm.toStringAsFixed(2)} km' : '--',
+          ),
+          _LegendRow(
+            color: colors.vitalCalories,
+            icon: Icons.local_fire_department_rounded,
+            label: 'Calories burned',
+            value: vm.currentCalories > 0 ? '${VitalsFormat.thousands(vm.currentCalories)} kcal' : '--',
+            note: 'Includes resting calories',
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildMiniHeartMetric(String label, String value, Color valueColor) {
-    return Column(
-      children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textMuted)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: valueColor,
-          ),
+class _LegendRow extends StatelessWidget {
+  final Color color;
+  final IconData? icon;
+  final String label;
+  final String value;
+  final String? note;
+
+  const _LegendRow({required this.color, required this.label, required this.value, this.icon, this.note});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      label: '$label: ${value == '--' ? 'not synced' : value}${note == null ? '' : '. $note'}',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: AppSizes.iconMd,
+              child: icon == null
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                      ),
+                    )
+                  : Icon(icon, size: AppSizes.iconSm, color: color),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: context.text.bodyMedium),
+                  if (note != null) Text(note!, style: context.text.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                style: context.text.titleSmall!.copyWith(color: colors.textPrimary),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildSleepStageLegend(String label, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: PhiaColors.textSecondary,
-          ),
-        ),
-      ],
+/// Heart rate, HRV and blood oxygen as tiles: two per row, one per row when
+/// the text is very large. Heights follow the content (no fixed ratio).
+class _VitalTiles extends StatelessWidget {
+  const _VitalTiles();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ActivityViewModel>();
+    final colors = context.colors;
+    final hasRange = vm.dashboardMinHr != null && vm.dashboardMaxHr != null && vm.dashboardMaxHr! > 0;
+
+    final tiles = [
+      _VitalTile(
+        icon: Icons.favorite_rounded,
+        color: colors.vitalHeart,
+        label: 'Heart rate',
+        value: vm.dashboardHr > 0 ? '${vm.dashboardHr.round()}' : '--',
+        unit: 'bpm',
+        note: hasRange ? 'Low ${vm.dashboardMinHr} · High ${vm.dashboardMaxHr}' : null,
+      ),
+      _VitalTile(
+        icon: Icons.monitor_heart_outlined,
+        color: colors.vitalHeart,
+        label: 'Heart rate variability',
+        value: vm.dashboardHrv > 0 ? vm.dashboardHrv.toStringAsFixed(0) : '--',
+        unit: 'ms',
+      ),
+      _VitalTile(
+        icon: Icons.air_rounded,
+        color: colors.vitalOxygen,
+        label: 'Blood oxygen',
+        value: (vm.dashboardSpo2 ?? 0) > 0 ? vm.dashboardSpo2!.round().toString() : '--',
+        unit: '%',
+        note: (vm.dashboardSpo2 ?? 0) > 0 ? "Today's reading" : null,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth / MediaQuery.textScalerOf(context).scale(1) >= 260;
+        if (!twoColumns) {
+          return Column(
+            children: [
+              for (final t in tiles) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.md), child: t),
+            ],
+          );
+        }
+        final w = (constraints.maxWidth - AppSpacing.md) / 2;
+        return Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.md,
+          children: [for (final t in tiles) SizedBox(width: w, child: t)],
+        );
+      },
     );
   }
+}
 
+class _VitalTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+  final String unit;
+  final String? note;
+
+  const _VitalTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.unit,
+    this.note,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final known = value != '--';
+    return AppCard(
+      semanticLabel: '$label: ${known ? '$value $unit' : 'not synced'}${note == null ? '' : '. $note'}',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: AppSizes.iconMd, color: color),
+            const SizedBox(height: AppSpacing.sm),
+            Text(label, style: context.text.labelMedium!.copyWith(color: colors.textSecondary)),
+            const SizedBox(height: AppSpacing.xxs),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: value, style: context.text.headlineSmall),
+                  if (known) TextSpan(text: ' $unit', style: context.text.bodySmall),
+                ],
+              ),
+            ),
+            if (note != null) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(note!, style: context.text.bodySmall),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SleepCard extends StatelessWidget {
+  const _SleepCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ActivityViewModel>();
+    final colors = context.colors;
+    final totalMin = (vm.currentSleep * 60).round();
+
+    final stages = [
+      ('Deep', vm.deepSleepMinutes, colors.brandNavy),
+      ('Light', vm.lightSleepMinutes, colors.vitalSleep),
+      ('REM', vm.remSleepMinutes, colors.accentSky),
+      ('Awake', vm.awakeMinutes, colors.vitalCalories),
+    ];
+    final stageSum = stages.fold<int>(0, (s, e) => s + e.$2);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bedtime_rounded, size: AppSizes.iconMd, color: colors.vitalSleep),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Semantics(header: true, child: Text('Sleep', style: context.text.titleMedium))),
+              Text(VitalsFormat.minutes(totalMin), style: context.text.titleMedium),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (totalMin <= 0)
+            Text(
+              'No sleep recorded for last night. Wear your watch to bed and let its app sync to Health Connect.',
+              style: context.text.bodyMedium!.copyWith(color: colors.textSecondary),
+            )
+          else if (stageSum <= 0)
+            Text(
+              'Your watch did not report sleep stages for this night.',
+              style: context.text.bodyMedium!.copyWith(color: colors.textSecondary),
+            )
+          else ...[
+            Semantics(
+              label: 'Sleep stages: ${stages.map((s) => '${s.$1} ${VitalsFormat.minutes(s.$2)}').join(', ')}',
+              image: true,
+              child: ClipRRect(
+                borderRadius: AppRadius.smAll,
+                child: SizedBox(
+                  height: 14,
+                  child: Row(
+                    children: [
+                      for (final s in stages)
+                        if (s.$2 > 0) Expanded(flex: s.$2, child: ColoredBox(color: s.$3)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ExcludeSemantics(
+              child: Wrap(
+                spacing: AppSpacing.lg,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  for (final s in stages)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(color: s.$3, borderRadius: AppRadius.smAll),
+                        ),
+                        const SizedBox(width: AppSpacing.xs + 2),
+                        Flexible(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: '${s.$1} ', style: context.text.bodySmall),
+                                TextSpan(text: VitalsFormat.minutes(s.$2), style: context.text.labelMedium),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
