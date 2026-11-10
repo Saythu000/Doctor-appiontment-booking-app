@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
@@ -748,13 +750,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildNavActionRow(
                       title: 'Appointment History',
                       value: '${bookingVM.appointmentsList.length} Consultations',
-                      onTap: () => Navigator.pushNamed(context, '/appointment_history'),
+                      onTap: () => context.push(AppRoutes.appointments),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Preferred Language',
                       value: settingsVM.appLanguage,
-                      onTap: () => Navigator.pushNamed(context, '/general_settings'),
+                      onTap: () => context.push(AppRoutes.generalSettings),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
@@ -762,19 +764,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: activeReminders == 0
                           ? 'Off'
                           : '$activeReminders active',
-                      onTap: () => Navigator.pushNamed(context, '/vitals_reminders'),
+                      onTap: () => context.push(AppRoutes.reminders),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Vital Alert Limits',
                       value: 'Heart rate, BP',
-                      onTap: () => Navigator.pushNamed(context, '/vitals_thresholds'),
+                      onTap: () => context.push(AppRoutes.alertLimits),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Clinical Unit Registrations',
                       value: '${settingsVM.weightUnit} · ${settingsVM.heightUnit}',
-                      onTap: () => Navigator.pushNamed(context, '/clinical_units'),
+                      onTap: () => context.push(AppRoutes.units),
                     ),
                   ],
                 ),
@@ -788,7 +790,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () async {
                   await signOutAndResetSession(context);
                   if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    context.go(AppRoutes.login);
                   }
                 },
                 icon: const Icon(Icons.logout_rounded, color: PhiaColors.pulseRed, size: 18),

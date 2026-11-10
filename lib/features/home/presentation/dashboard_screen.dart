@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
@@ -151,8 +154,8 @@ class DashboardScreen extends StatelessWidget {
 
       // Status badge styling (shared mapping, see appointment_status.dart)
       final statusStyle = AppointmentStatusStyle.of(status);
-      final statusBg = statusStyle.background;
-      final statusTextColor = statusStyle.foreground;
+      final statusBg = context.colors.tone(statusStyle.tone).background;
+      final statusTextColor = context.colors.tone(statusStyle.tone).foreground;
       final statusLabel = statusStyle.label;
 
       showDialog(
@@ -332,10 +335,8 @@ class DashboardScreen extends StatelessWidget {
                     );
                     return;
                   }
-                  Navigator.pushNamed(
-                    context,
-                    '/booking_date_time',
-                    arguments: {
+                  context.push(AppRoutes.bookingTime,
+ extra: {
                       'specialist': specialist,
                       'name': name,
                       'role': role,
@@ -578,8 +579,8 @@ class DashboardScreen extends StatelessWidget {
                         builder: (context) {
                           final status = (nearestUpcoming!['status']?.toString().toLowerCase()) ?? 'pending';
                           final style = AppointmentStatusStyle.of(status);
-                          final badgeBg = style.background;
-                          final badgeTextColor = style.foreground;
+                          final badgeBg = context.colors.tone(style.tone).background;
+                          final badgeTextColor = context.colors.tone(style.tone).foreground;
                           final badgeText = style.label;
 
                           return Container(
@@ -789,7 +790,7 @@ class DashboardScreen extends StatelessWidget {
                                 InkWell(
                                   onTap: () {
                                     Navigator.pop(ctx);
-                                    Navigator.of(context).pushNamed('/voice_intake');
+                                    context.push(AppRoutes.voiceIntake);
                                   },
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
@@ -874,7 +875,7 @@ class DashboardScreen extends StatelessWidget {
                                 InkWell(
                                   onTap: () {
                                     Navigator.pop(ctx);
-                                    Navigator.of(context).pushNamed('/intake');
+                                    context.push(AppRoutes.chatIntake);
                                   },
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
@@ -1045,7 +1046,7 @@ class DashboardScreen extends StatelessWidget {
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       ),
                                       onPressed: () {
-                                        Navigator.of(context).pushNamed('/voice_intake');
+                                        context.push(AppRoutes.voiceIntake);
                                       },
                                     ),
                                   ),
@@ -1067,7 +1068,7 @@ class DashboardScreen extends StatelessWidget {
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       ),
                                       onPressed: () {
-                                        Navigator.of(context).pushNamed('/intake');
+                                        context.push(AppRoutes.chatIntake);
                                       },
                                     ),
                                   ),

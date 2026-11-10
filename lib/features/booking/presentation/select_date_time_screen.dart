@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
@@ -72,7 +74,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      final args = GoRouterState.of(context).extra as Map<String, dynamic>;
       _specialist = args['specialist'] as PractitionerRoleBooking?;
 
       // Auto-select first available day if today is not an active day for this specialist
@@ -100,7 +102,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = GoRouterState.of(context).extra as Map<String, dynamic>;
     final specialistName = args['name'] as String? ?? 'Clinical Specialist';
     final specialistRole = args['role'] as String? ?? 'General Practice';
     final specialistImageUrl = args['imageUrl'] as String? ?? 'assets/doctors/doctor_1.png';
@@ -701,10 +703,8 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                             }
 
                             final messenger = ScaffoldMessenger.of(context);
-                            final outcome = await Navigator.pushNamed(
-                              context,
-                              '/booking_review',
-                              arguments: {
+                            final outcome = await context.push(AppRoutes.bookingReview,
+ extra: {
                                 'specialist': _specialist,
                                 'name': specialistName,
                                 'role': specialistRole,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
 import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
@@ -184,8 +185,8 @@ class AppointmentHistoryScreen extends StatelessWidget {
 
     final status = (appt['status'] as String? ?? 'pending').toLowerCase();
     final statusStyle = AppointmentStatusStyle.of(status, isPast: !isUpcoming);
-    final statusBg = statusStyle.background;
-    final statusTextColor = statusStyle.foreground;
+    final statusBg = context.colors.tone(statusStyle.tone).background;
+    final statusTextColor = context.colors.tone(statusStyle.tone).foreground;
     final statusLabel = statusStyle.label;
 
     return Container(

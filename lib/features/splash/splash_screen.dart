@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
@@ -72,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
       // is not a session: routing on it would show a signed-out (or revoked)
       // user's health data without authentication.
       if (!isAuthenticated) {
-        _redirect('/welcome');
+        _redirect(AppRoutes.welcome);
         return;
       }
 
@@ -91,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen>
         // each screen loads its own data again when opened.
       }
 
-      if (mounted) _redirect('/dashboard');
+      if (mounted) _redirect(AppRoutes.home);
     } catch (e) {
       if (mounted && !_isRedirecting) {
         setState(() {
@@ -108,7 +110,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (_isRedirecting) return;
     _isRedirecting = true;
     _slowTimer?.cancel();
-    Navigator.pushReplacementNamed(context, route);
+    context.go(route);
   }
 
   @override

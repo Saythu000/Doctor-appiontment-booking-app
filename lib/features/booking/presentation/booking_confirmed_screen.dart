@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 
 class BookingConfirmedScreen extends StatelessWidget {
@@ -7,7 +9,7 @@ class BookingConfirmedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args = GoRouterState.of(context).extra as Map<String, dynamic>?;
     final doctorName = args?['practitionerName'] as String? ?? 'DrGodly Specialist';
     final doctorRole = args?['practitionerRole'] as String? ?? 'General Practice';
     final date = args?['date'] as String? ?? 'Upcoming Date';
@@ -20,7 +22,7 @@ class BookingConfirmedScreen extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
-          Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+          context.go(AppRoutes.home);
         }
       },
       child: Scaffold(
@@ -166,7 +168,7 @@ class BookingConfirmedScreen extends StatelessWidget {
               // Return to Dashboard CTA
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+                  context.go(AppRoutes.home);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: PhiaColors.primary,

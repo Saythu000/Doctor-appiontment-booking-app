@@ -30,7 +30,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
       decoration: const BoxDecoration(
-        color: AppColors.background,
+        color: PhiaColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -41,7 +41,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
             height: 4,
             margin: const EdgeInsets.only(top: 12, bottom: 8),
             decoration: BoxDecoration(
-              color: AppColors.borderSubtle,
+              color: PhiaColors.borderSubtle,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -54,11 +54,11 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    color: PhiaColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.watch_rounded,
-                      color: AppColors.primary, size: 24),
+                      color: PhiaColors.primary, size: 24),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -70,14 +70,14 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                         style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.navyAnchor,
+                          color: PhiaColors.navyAnchor,
                         ),
                       ),
                       Text(
                         'Sync from Android Health Connect',
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: PhiaColors.textSecondary,
                         ),
                       ),
                     ],
@@ -85,7 +85,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded,
-                      color: AppColors.textSecondary),
+                      color: PhiaColors.textSecondary),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -99,12 +99,12 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+              border: Border(top: BorderSide(color: PhiaColors.borderSubtle)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.verified_user_rounded,
-                    color: AppColors.activeGreen, size: 18),
+                    color: PhiaColors.activeGreen, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -112,7 +112,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: PhiaColors.textSecondary,
                     ),
                   ),
                 ),
@@ -138,8 +138,8 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: activityVm.isOpenWearablesSynced
-                  ? AppColors.activeGreen
-                  : AppColors.primary.withValues(alpha: 0.3),
+                  ? PhiaColors.activeGreen
+                  : PhiaColors.primary.withValues(alpha: 0.3),
               width: 1.5,
             ),
             boxShadow: [
@@ -176,13 +176,13 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.navyAnchor,
+                                color: PhiaColors.navyAnchor,
                               ),
                             ),
                             const SizedBox(width: 6),
                             if (activityVm.isOpenWearablesSynced)
                               const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.activeGreen, size: 16),
+                                  color: PhiaColors.activeGreen, size: 16),
                           ],
                         ),
                         Text(
@@ -190,7 +190,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: PhiaColors.primary,
                           ),
                         ),
                       ],
@@ -203,7 +203,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                 'Reads heart rate, HRV, steps, sleep and SpO2 that your watch app (for example boAt Crest, Noise or Samsung Health) writes to Health Connect.',
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: PhiaColors.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -222,14 +222,14 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: PhiaColors.textSecondary,
                       ),
                     ),
                   ),
                   const Spacer(),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.navyAnchor,
+                      backgroundColor: PhiaColors.navyAnchor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
@@ -287,7 +287,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> {
       message = hr > 0
           ? 'Watch data synced. Resting HR: $hr bpm from ${_owService.lastSyncSource}.'
           : 'Watch data synced from ${_owService.lastSyncSource}.';
-      color = AppColors.activeGreen;
+      color = PhiaColors.activeGreen;
     } else {
       message =
           'No recent watch data in Health Connect. Open your watch app, let it sync to Health Connect, then try again.';

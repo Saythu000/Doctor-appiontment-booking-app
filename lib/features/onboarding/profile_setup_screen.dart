@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
@@ -684,7 +686,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       }
 
       if (mounted) {
-        Navigator.pushNamed(context, '/goals');
+        context.push(AppRoutes.goals);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
@@ -327,7 +329,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             .join('|');
                         await context.read<SettingsViewModel>().saveSetting('focus_areas', chosen);
                         if (!context.mounted) return;
-                        Navigator.pushNamed(context, '/complete');
+                        context.push(AppRoutes.onboardingComplete);
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -348,7 +350,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/complete');
+                        context.push(AppRoutes.onboardingComplete);
                       },
                       child: Text(
                         'Skip for now',

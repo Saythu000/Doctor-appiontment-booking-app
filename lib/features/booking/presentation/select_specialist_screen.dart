@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
@@ -29,7 +31,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
   @override
   Widget build(BuildContext context) {
     final bookingVM = Provider.of<BookingViewModel>(context);
-    final navArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final navArgs = GoRouterState.of(context).extra as Map<String, dynamic>?;
     final bool intakeCompleted = navArgs?['intakeCompleted'] == true;
     final int? passedIntakeId = navArgs?['intakeId'] as int?;
     final dynamic passedClinicalReport = navArgs?['clinicalReport'];
@@ -379,10 +381,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
               ElevatedButton(
                 onPressed: () {
                   if (intakeCompleted) {
-                    Navigator.pushNamed(
-                      context,
-                      '/booking_date_time',
-                      arguments: {
+                    context.push(AppRoutes.bookingTime,
+ extra: {
                         'specialist': pr,
                         'name': name,
                         'role': specialty,
@@ -612,10 +612,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             InkWell(
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.pushNamed(
-                  context,
-                  '/booking_date_time',
-                  arguments: {
+                context.push(AppRoutes.bookingTime,
+ extra: {
                     'specialist': specialist,
                     'name': name,
                     'role': role,
@@ -762,10 +760,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             InkWell(
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.pushNamed(
-                  context,
-                  '/voice_intake',
-                  arguments: doctorArgs,
+                context.push(AppRoutes.voiceIntake,
+ extra: doctorArgs,
                 );
               },
               borderRadius: BorderRadius.circular(16),
@@ -852,10 +848,8 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
             InkWell(
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.pushNamed(
-                  context,
-                  '/intake',
-                  arguments: doctorArgs,
+                context.push(AppRoutes.chatIntake,
+ extra: doctorArgs,
                 );
               },
               borderRadius: BorderRadius.circular(16),

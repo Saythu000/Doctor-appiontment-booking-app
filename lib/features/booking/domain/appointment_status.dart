@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
-
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_colors.dart';
 
 /// How an appointment status is shown to the patient.
 ///
@@ -9,14 +7,13 @@ import 'package:phia_flutter/core/theme/colors.dart';
 class AppointmentStatusStyle {
   final String label;
   final String description;
-  final Color background;
-  final Color foreground;
+  /// Colour family; the theme turns it into readable light/dark colours.
+  final StatusTone tone;
 
   const AppointmentStatusStyle({
     required this.label,
     required this.description,
-    required this.background,
-    required this.foreground,
+    required this.tone,
   });
 
   /// [status] is the normalized status from BookingViewModel. [isPast] is true
@@ -29,24 +26,21 @@ class AppointmentStatusStyle {
         return const AppointmentStatusStyle(
           label: 'COMPLETED',
           description: 'Consultation completed',
-          background: Color(0xFFDCFCE7),
-          foreground: Color(0xFF166534),
+          tone: StatusTone.success,
         );
       case 'noshow':
       case 'no-show':
         return const AppointmentStatusStyle(
           label: 'MISSED',
           description: 'This consultation was missed',
-          background: Color(0xFFF1F5F9),
-          foreground: Color(0xFF475569),
+          tone: StatusTone.neutral,
         );
       case 'cancelled':
       case 'canceled':
         return const AppointmentStatusStyle(
           label: 'CANCELLED',
           description: 'This consultation was cancelled',
-          background: PhiaColors.pulseRedLight,
-          foreground: Color(0xFFB91C1C),
+          tone: StatusTone.danger,
         );
     }
 
@@ -54,8 +48,7 @@ class AppointmentStatusStyle {
       return const AppointmentStatusStyle(
         label: 'PAST',
         description: 'The appointment time has passed',
-        background: Color(0xFFF1F5F9),
-        foreground: Color(0xFF475569),
+        tone: StatusTone.neutral,
       );
     }
 
@@ -64,29 +57,25 @@ class AppointmentStatusStyle {
         return const AppointmentStatusStyle(
           label: 'CONFIRMED',
           description: 'Confirmed by the doctor',
-          background: Color(0xFFDCFCE7),
-          foreground: Color(0xFF166534),
+          tone: StatusTone.success,
         );
       case 'booked':
         return const AppointmentStatusStyle(
           label: 'BOOKED',
           description: 'Your time slot is booked',
-          background: Color(0xFFE0F2FE),
-          foreground: Color(0xFF075985),
+          tone: StatusTone.info,
         );
       case 'rescheduled':
         return const AppointmentStatusStyle(
           label: 'RESCHEDULED',
           description: 'Moved to a new time',
-          background: Color(0xFFEDE9FE),
-          foreground: Color(0xFF5B21B6),
+          tone: StatusTone.accent,
         );
       default:
         return const AppointmentStatusStyle(
           label: 'PENDING',
           description: 'Awaiting doctor confirmation',
-          background: Color(0xFFFEF3C7),
-          foreground: Color(0xFF92400E),
+          tone: StatusTone.warning,
         );
     }
   }

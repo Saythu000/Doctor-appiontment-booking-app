@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/auth/presentation/session_reset.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
@@ -147,7 +149,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                   if (!mounted) return;
                   await signOutAndResetSession(context);
                   if (mounted) {
-                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    context.go(AppRoutes.login);
                   }
                 },
                 child: const Text('Sign In Again'),
@@ -218,14 +220,13 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     _navigatedToCompletion = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => IntakeCompletionScreen(
-            intakeId: _voiceVm.savedIntakeRecordId,
-            clinicalReport: _voiceVm.clinicalReport,
-            doctorArgs: doctorArgs,
-          ),
+      final doctorArgs = GoRouterState.of(context).extra as Map<String, dynamic>?;
+      context.pushReplacement(
+        AppRoutes.intakeComplete,
+        extra: IntakeCompletionArgs(
+          intakeId: _voiceVm.savedIntakeRecordId,
+          clinicalReport: _voiceVm.clinicalReport,
+          doctorArgs: doctorArgs,
         ),
       );
     });
@@ -350,10 +351,9 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                       children: [
                         TextButton.icon(
                           onPressed: () {
-                            final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-                            Navigator.of(context).pushReplacementNamed(
-                              '/intake',
-                              arguments: doctorArgs,
+                            final doctorArgs = GoRouterState.of(context).extra as Map<String, dynamic>?;
+                            context.pushReplacement(AppRoutes.chatIntake,
+ extra: doctorArgs,
                             );
                           },
                           icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),

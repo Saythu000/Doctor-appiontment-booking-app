@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 
-class PhiaColors {
+/// Legacy colour constants, used by screens not yet moved to the design
+/// system. New code must use `context.colors` (AppColors) instead, which also
+/// supports dark mode. Screens are migrated in the Phase 9 redesign, after
+/// which this class is deleted.
+///
+/// Values that failed WCAG contrast were corrected to match AppColors.light:
+/// [primary] (white text on it was 2.75:1, now 5.3:1) and [textMuted]
+/// (3.3:1 on white, now 4.9:1).
+abstract final class PhiaColors {
   // Brand Anchors from Reference Image
-  static const Color primary = Color(0xFF38A5E1);       // Sky Medical Blue (Header / AppBar / Switches)
-  static const Color primaryDark = Color(0xFF228BCA);   // Slightly deeper sky blue for pressed states
+  static const Color primary = Color(0xFF1A6FB0);       // Brand blue (accessible with white text)
+  static const Color primaryDark = Color(0xFF155A8F);   // Pressed state
   static const Color primaryLight = Color(0xFFE1F2FC);  // Soft sky tint for selected chips
   static const Color primaryCard = Color(0xFF50B1E6);   // Clinical unit card background from image
 
@@ -18,7 +26,7 @@ class PhiaColors {
   // Typography & Text
   static const Color textPrimary = Color(0xFF1B2A3E);   // Dark Charcoal / Navy for high-contrast readability
   static const Color textSecondary = Color(0xFF4A5E78); // Slate 600 body text
-  static const Color textMuted = Color(0xFF7B8FA6);     // Muted labels / hints
+  static const Color textMuted = Color(0xFF5F7389);     // Muted labels / hints (AA on white)
   static const Color textInverse = Color(0xFFFFFFFF);   // White on Navy / Blue headers
 
   // Clinical Status & Badges
@@ -52,5 +60,4 @@ class PhiaColors {
   static const Color warningOrangeLight = Color(0xFFFEF3C7);
 }
 
-typedef AppColors = PhiaColors;
 

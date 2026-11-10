@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
@@ -188,7 +190,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final doctorArgs = GoRouterState.of(context).extra as Map<String, dynamic>?;
 
     return Consumer<IntakeViewModel>(
       builder: (context, vm, child) {
@@ -199,10 +201,9 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
           _navigatedToCompletion = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => IntakeCompletionScreen(doctorArgs: doctorArgs),
-              ),
+            context.pushReplacement(
+              AppRoutes.intakeComplete,
+              extra: IntakeCompletionArgs(doctorArgs: doctorArgs),
             );
           });
         }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
@@ -28,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
     final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
     final bookingVM = Provider.of<BookingViewModel>(context, listen: false);
-    final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
 
     final success = await authVM.loginWithPKCE();
     if (!mounted) return;
@@ -59,9 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
           profile.name!.first.givenName.isNotEmpty;
 
       if (hasProfile) {
-        navigator.pushNamedAndRemoveUntil('/dashboard', (route) => false);
+        router.go(AppRoutes.home);
       } else {
-        navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
+        router.go(AppRoutes.profileSetup);
       }
     }
     // On failure the error is shown in the card above the button (not also

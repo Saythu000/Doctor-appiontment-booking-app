@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -227,7 +229,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                   shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                 ),
                 onPressed: () {
-                  Navigator.pushNamed(context, '/login');
+                  context.push(AppRoutes.login);
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -251,7 +253,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
               Center(
                 child: TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/login');
+                    context.push(AppRoutes.login);
                   },
                   child: RichText(
                     text: TextSpan(

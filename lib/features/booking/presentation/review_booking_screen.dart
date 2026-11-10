@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
@@ -25,7 +27,7 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = GoRouterState.of(context).extra as Map<String, dynamic>;
     final PractitionerRoleBooking? specialist = args['specialist'] as PractitionerRoleBooking?;
     final String specialistName = args['name'] as String? ?? 'Clinical Specialist';
     final String specialistRole = args['role'] as String? ?? 'General Practice';
@@ -254,11 +256,8 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
                                 if (!context.mounted) return;
 
                                 leftScreen = true;
-                                Navigator.pushNamedAndRemoveUntil(
-                                  context,
-                                  '/booking_confirmed',
-                                  (route) => false,
-                                  arguments: {
+                                context.go(AppRoutes.bookingConfirmed,
+ extra: {
                                     'practitionerName': specialistName,
                                     'practitionerRole': specialistRole,
                                     'date': date,
@@ -280,7 +279,7 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
                             // the free slots (patient guide §4.3).
                             if (context.mounted) {
                               leftScreen = true;
-                              Navigator.pop(context, 'slot_taken');
+                              context.pop('slot_taken');
                             }
                           } catch (e) {
                             if (context.mounted) {

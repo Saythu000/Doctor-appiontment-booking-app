@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/intake/domain/intake_models.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
 import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
 import 'package:provider/provider.dart';
+
+/// What the completion screen needs; passed as the route's `extra`.
+class IntakeCompletionArgs {
+  final Map<String, dynamic>? doctorArgs;
+  final int? intakeId;
+  final IntakeClinicalReport? clinicalReport;
+  final int? appointmentId;
+
+  const IntakeCompletionArgs({this.doctorArgs, this.intakeId, this.clinicalReport, this.appointmentId});
+}
 
 class IntakeCompletionScreen extends StatelessWidget {
   final Map<String, dynamic>? doctorArgs;
@@ -199,9 +211,8 @@ class IntakeCompletionScreen extends StatelessWidget {
                   ),
                   onPressed: () {
                     if (doctorArgs != null) {
-                      Navigator.of(context).pushNamed(
-                        '/booking_date_time',
-                        arguments: {
+                      context.push(AppRoutes.bookingTime,
+ extra: {
                           ...doctorArgs!,
                           'intakeCompleted': true,
                           'intakeId': effectiveIntakeId,
@@ -210,9 +221,8 @@ class IntakeCompletionScreen extends StatelessWidget {
                       );
                     } else {
                       // Navigate to specialist selection for booking with intake state
-                      Navigator.of(context).pushNamed(
-                        '/booking_specialist',
-                        arguments: {
+                      context.push(AppRoutes.doctors,
+ extra: {
                           'intakeCompleted': true,
                           'intakeId': effectiveIntakeId,
                           'clinicalReport': effectiveReport,
@@ -245,10 +255,7 @@ class IntakeCompletionScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/dashboard',
-                      (route) => false,
-                    );
+                    context.go(AppRoutes.home);
                   },
                 ),
               ),
