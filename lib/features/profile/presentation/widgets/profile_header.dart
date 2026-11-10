@@ -1,15 +1,13 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
 import 'package:phia_flutter/core/theme/app_tokens.dart';
 import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
+import 'package:phia_flutter/features/profile/data/profile_photo_store.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
 
 /// Initials for an avatar: "Asha Rao" -> "AR". Empty when there is no name.
 String initialsFor(String name) {
@@ -186,40 +184,4 @@ Future<void> showProfilePhotoSheet(BuildContext context, {required bool hasPhoto
       ),
     ),
   );
-}
-
-/// Keeps the profile photo in the app's own storage. image_picker returns a
-/// file in the cache folder, which Android may delete at any time.
-abstract final class ProfilePhotoStore {
-  static const _prefix = 'profile_photo_';
-
-  /// The app's private files folder (Android: `/data/data/<app>/files`),
-  /// worked out from the database folder because path_provider is not a
-  /// dependency.
-  static Future<Directory> _dir() async {
-    final dbPath = await getDatabasesPath();
-    final dir = Directory(p.join(p.dirname(dbPath), 'files'));
-    if (!dir.existsSync()) await dir.create(recursive: true);
-    return dir;
-  }
-
-  /// Copies [sourcePath] into app storage and returns the new path.
-  static Future<String> keep(String sourcePath) async {
-    final dir = await _dir();
-    final ext = p.extension(sourcePath).isEmpty ? '.jpg' : p.extension(sourcePath);
-    final target = p.join(dir.path, '$_prefix${DateTime.now().millisecondsSinceEpoch}$ext');
-    await File(sourcePath).copy(target);
-    return target;
-  }
-
-  /// Deletes an old photo this store created. Other paths are left alone.
-  static Future<void> discard(String? path, {String? keep}) async {
-    if (path == null || path == keep || !p.basename(path).startsWith(_prefix)) return;
-    try {
-      final f = File(path);
-      if (f.existsSync()) await f.delete();
-    } catch (e) {
-      debugPrint('Could not delete old profile photo: $e');
-    }
-  }
 }

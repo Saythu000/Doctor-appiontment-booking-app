@@ -28,6 +28,7 @@ dependencies:
   web_socket_channel: ^3.0.3
   audioplayers: ^6.8.1
   go_router: ^17.5.0
+  path_provider: ^2.1.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
