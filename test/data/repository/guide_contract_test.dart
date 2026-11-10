@@ -115,4 +115,12 @@ void main() {
     expect(r.queryParameters['user_id'], 'usr_1');
     expect(r.queryParameters['org_id'], 'org_1');
   });
+
+  test('slot request failure is an error, not an empty "no slots" list', () async {
+    server.status = 500;
+    await expectLater(
+      BookingRepository().getAvailableSlots(practitionerRoleId: 1, dateString: '2030-01-01', orgId: 'org_1'),
+      throwsA(isA<DioException>()),
+    );
+  });
 }

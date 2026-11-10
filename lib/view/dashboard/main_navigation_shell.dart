@@ -42,7 +42,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       const ProfileScreen(isTab: true),
     ];
 
-    return Scaffold(
+    // Android back on another tab returns to Overview; only back on Overview
+    // leaves the app (standard bottom-navigation behaviour).
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _currentIndex = 0);
+      },
+      child: Scaffold(
       backgroundColor: PhiaColors.background,
       body: IndexedStack(
         index: _currentIndex,
@@ -100,6 +107,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           ),
         ),
       ),
+    ),
     );
   }
 

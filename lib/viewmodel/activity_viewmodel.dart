@@ -599,6 +599,7 @@ class ActivityViewModel extends ChangeNotifier {
     lightSleepMinutes = 0;
     remSleepMinutes = 0;
     awakeMinutes = 0;
+    dashboardSpo2 = null;
     isOpenWearablesSynced = false;
     syncedProviderName = null;
     weeklyCaloriesList = [0, 0, 0, 0, 0, 0, 0];

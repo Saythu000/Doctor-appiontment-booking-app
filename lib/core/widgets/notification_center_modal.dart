@@ -129,7 +129,20 @@ class _NotificationCenterModalState extends State<NotificationCenterModal> {
                 ),
               ),
               TextButton.icon(
-                onPressed: () => settingsVM.clearAllInAppNotifications(),
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Clear all alerts?'),
+                      content: const Text('This removes every alert from this list. It cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear all')),
+                      ],
+                    ),
+                  );
+                  if (ok == true) await settingsVM.clearAllInAppNotifications();
+                },
                 icon: const Icon(Icons.delete_sweep_rounded, color: PhiaColors.pulseRed, size: 16),
                 label: Text(
                   'Clear All',

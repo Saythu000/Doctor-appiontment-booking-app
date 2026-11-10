@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodel/settings_viewmodel.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -250,7 +252,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: Text(
-                              'Select the clinical capabilities you want prioritized on your portal. You can modify these anytime in Settings.',
+                              'Choose what matters most to you. You can skip this step.',
                               style: GoogleFonts.inter(
                                 fontSize: 13,
                                 color: PhiaColors.textSecondary,
@@ -318,7 +320,13 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         minimumSize: const Size(double.infinity, 52),
                         shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
+                        // Keep the patient's choice instead of discarding it.
+                        final chosen = (_selectedMissionIndices.toList()..sort())
+                            .map((i) => _missions[i]['title'] as String)
+                            .join('|');
+                        await context.read<SettingsViewModel>().saveSetting('focus_areas', chosen);
+                        if (!context.mounted) return;
                         Navigator.pushNamed(context, '/complete');
                       },
                       child: Row(

@@ -6,6 +6,7 @@ import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/intake_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
+import '../../viewmodel/settings_viewmodel.dart';
 import '../../viewmodel/voice_intake_viewmodel.dart';
 
 /// Signs the user out and clears every app-wide view model.
@@ -19,6 +20,7 @@ Future<void> signOutAndResetSession(BuildContext context) async {
   final bookingVm = context.read<BookingViewModel>();
   final intakeVm = context.read<IntakeViewModel>();
   final voiceVm = context.read<VoiceIntakeViewModel>();
+  final settingsVm = context.read<SettingsViewModel>();
   final authVm = context.read<AuthViewModel>();
 
   activityVm.pauseAutoSync();
@@ -28,6 +30,7 @@ Future<void> signOutAndResetSession(BuildContext context) async {
   bookingVm.reset();
   activityVm.resetState();
   profileVm.resetState();
+  settingsVm.resetState();
 
   await authVm.signOut();
 }

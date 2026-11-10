@@ -327,7 +327,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                     await activityVM.saveBioData(
                       weight: w > 0 ? w : activityVM.userWeight,
                       height: h > 0 ? h : activityVM.userHeight,
-                      age: activityVM.userAge > 0 ? activityVM.userAge.toDouble() : 25.0,
+                      age: activityVM.userAge.toDouble(),
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

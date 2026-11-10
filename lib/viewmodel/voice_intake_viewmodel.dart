@@ -38,6 +38,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
 
   int? _savedIntakeRecordId;
   IntakeClinicalReport? _clinicalReport;
+  Map<String, dynamic>? _rawReport;
   StreamSubscription<VoiceAgentEvent>? _eventsSubscription;
   bool _isEndingCall = false;
 
@@ -51,14 +52,23 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   String get statusDotColor => _statusDotColor;
   bool get isMuted => _isMuted;
   String? get errorMessage => _errorMessage;
-  List<IntakeChatMessage> get committedMessages => List.unmodifiable(_committedMessages);
+  List<IntakeChatMessage> get committedMessages =>
+      List.unmodifiable(_committedMessages);
   String get pendingUser => _pendingUser;
   String get pendingAgent => _pendingAgent;
   int? get savedIntakeRecordId => _savedIntakeRecordId;
   IntakeClinicalReport? get clinicalReport => _clinicalReport;
 
   bool get isCallActive =>
-      _callState == VoiceCallState.connecting || _callState == VoiceCallState.connected;
+      _callState == VoiceCallState.connecting ||
+      _callState == VoiceCallState.connected;
+
+  /// A finished conversation that failed to save (or whose connection
+  /// dropped) can be saved again without redoing the call.
+  bool get canRetrySave =>
+      _callState == VoiceCallState.error &&
+      _committedMessages.isNotEmpty &&
+      !_isEndingCall;
 
   bool get isBusy =>
       _callState == VoiceCallState.ending ||
@@ -79,6 +89,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     _pendingAgent = '';
     _savedIntakeRecordId = null;
     _clinicalReport = null;
+    _rawReport = null;
     _isEndingCall = false;
     _patientFhirId = null;
     _orgId = null;
@@ -131,7 +142,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
         final dob = DateTime.parse(birthDate.trim());
         final now = DateTime.now();
         int age = now.year - dob.year;
-        if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+        if (now.month < dob.month ||
+            (now.month == dob.month && now.day < dob.day)) {
           age--;
         }
         if (age >= 0 && age <= 130) {
@@ -168,11 +180,12 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       // Listen to voice events
       _eventsSubscription = _voiceService.events.listen(
         (event) => _handleVoiceEvent(event, authToken),
-        onError: (e) {
-          _statusLabel = 'Error';
-          _statusDotColor = 'grey';
-          _errorMessage = e.toString();
-          notifyListeners();
+        onError: (e) => _onConnectionLost(),
+        onDone: () {
+          // Socket closed without an "end" status while the call was live.
+          if (_callState == VoiceCallState.connected && !_isEndingCall) {
+            _onConnectionLost();
+          }
         },
       );
     } catch (e) {
@@ -180,12 +193,46 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       _statusLabel = 'Connection Failed';
       _statusDotColor = 'grey';
       final rawErr = e.toString().replaceFirst('Exception: ', '');
-      if (rawErr.toLowerCase().contains('timed out') || rawErr.toLowerCase().contains('socketexception') || rawErr.toLowerCase().contains('failed host lookup')) {
-        _errorMessage = 'Unable to reach Voice Agent server. Please check your internet connection or use Chat Intake.';
+      if (rawErr.toLowerCase().contains('timed out') ||
+          rawErr.toLowerCase().contains('socketexception') ||
+          rawErr.toLowerCase().contains('failed host lookup')) {
+        _errorMessage =
+            'Unable to reach Voice Agent server. Please check your internet connection or use Chat Intake.';
       } else {
         _errorMessage = rawErr;
       }
       notifyListeners();
+    }
+  }
+
+  /// The WebSocket failed mid-call. Stop audio, keep everything said so far
+  /// and let the user save it (retrySave) or start again — never leave the UI
+  /// showing a live call that no longer exists.
+  Future<void> _onConnectionLost() async {
+    if (_callState != VoiceCallState.connected || _isEndingCall) return;
+    _flushPendingTurns();
+    await _eventsSubscription?.cancel();
+    _eventsSubscription = null;
+    await _voiceService.disconnect();
+    _callState = VoiceCallState.error;
+    _statusLabel = 'Connection lost';
+    _statusDotColor = 'grey';
+    _errorMessage = _committedMessages.isEmpty
+        ? 'The voice connection was lost. Please start the call again.'
+        : 'The voice connection was lost. You can save what you said so far, or start again.';
+    notifyListeners();
+  }
+
+  void _flushPendingTurns() {
+    if (_pendingUser.trim().isNotEmpty) {
+      _committedMessages
+          .add(IntakeChatMessage(role: 'user', content: _pendingUser.trim()));
+      _pendingUser = '';
+    }
+    if (_pendingAgent.trim().isNotEmpty) {
+      _committedMessages.add(
+          IntakeChatMessage(role: 'assistant', content: _pendingAgent.trim()));
+      _pendingAgent = '';
     }
   }
 
@@ -342,14 +389,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     notifyListeners();
 
     // 1. Flush pending buffers (§4.1)
-    if (_pendingUser.trim().isNotEmpty) {
-      _committedMessages.add(IntakeChatMessage(role: 'user', content: _pendingUser.trim()));
-      _pendingUser = '';
-    }
-    if (_pendingAgent.trim().isNotEmpty) {
-      _committedMessages.add(IntakeChatMessage(role: 'assistant', content: _pendingAgent.trim()));
-      _pendingAgent = '';
-    }
+    _flushPendingTurns();
 
     // 2. Tear down audio and WebSocket
     await _voiceService.disconnect();
@@ -363,22 +403,43 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       return;
     }
 
+    await _generateReportAndSave(
+        authToken: authToken, patientFhirId: patientFhirId, orgId: orgId);
+  }
+
+  /// Saves a conversation whose earlier save failed. Reuses the intake record
+  /// already created on the server, so retrying never creates a duplicate.
+  Future<void> retrySave({required String authToken}) async {
+    if (!canRetrySave) return;
+    _isEndingCall = true;
+    _errorMessage = null;
+    await _generateReportAndSave(authToken: authToken);
+  }
+
+  Future<void> _generateReportAndSave({
+    required String authToken,
+    int? patientFhirId,
+    String? orgId,
+  }) async {
     // 4. Generate Clinical Report with Assessment Agent (§6.1)
     _callState = VoiceCallState.generatingReport;
     notifyListeners();
 
-    Map<String, dynamic>? rawReport;
-    try {
-      rawReport = await _intakeService.generateClinicalReport(
-        conversation: _committedMessages,
-        authToken: authToken,
-      );
-      if (rawReport != null) {
-        _clinicalReport = IntakeClinicalReport.fromJson(rawReport);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[VoiceIntakeViewModel] Report generation non-fatal error: $e');
+    Map<String, dynamic>? rawReport = _rawReport;
+    if (rawReport == null) {
+      try {
+        rawReport = await _intakeService.generateClinicalReport(
+          conversation: _committedMessages,
+          authToken: authToken,
+        );
+        if (rawReport != null) {
+          _rawReport = rawReport;
+          _clinicalReport = IntakeClinicalReport.fromJson(rawReport);
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('[VoiceIntakeViewModel] Report generation non-fatal error: $e');
+        }
       }
     }
 
@@ -394,26 +455,32 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final record = await _intakeService.createIntakeRecord(
-        patientFhirId: resolvedPatientId,
-        mode: 'VOICE',
-        authToken: authToken,
-        orgId: resolvedOrgId,
-      );
-      if (record == null) {
-        throw Exception('The intake record could not be created on the server.');
+      var recordId = _savedIntakeRecordId;
+      if (recordId == null) {
+        final record = await _intakeService.createIntakeRecord(
+          patientFhirId: resolvedPatientId,
+          mode: 'VOICE',
+          authToken: authToken,
+          orgId: resolvedOrgId,
+        );
+        if (record == null) {
+          throw Exception(
+              'The intake record could not be created on the server.');
+        }
+        recordId = record.id;
+        _savedIntakeRecordId = recordId;
       }
-      _savedIntakeRecordId = record.id;
 
       final updated = await _intakeService.updateIntakeRecord(
-        id: record.id,
+        id: recordId,
         conversation: _committedMessages,
         report: rawReport,
         authToken: authToken,
         orgId: resolvedOrgId,
       );
       if (!updated) {
-        throw Exception('The conversation could not be saved to the intake record.');
+        throw Exception(
+            'The conversation could not be saved to the intake record.');
       }
 
       _callState = VoiceCallState.completed;
@@ -422,7 +489,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('[VoiceIntakeViewModel] Error saving voice intake record: $e');
       }
-      _errorMessage = 'Failed to save intake: ${e.toString().replaceFirst("Exception: ", "")}';
+      _errorMessage =
+          'Failed to save intake: ${e.toString().replaceFirst("Exception: ", "")}';
       _callState = VoiceCallState.error;
       notifyListeners();
     } finally {

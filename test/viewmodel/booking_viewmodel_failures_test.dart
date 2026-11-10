@@ -55,6 +55,14 @@ class OfflineBookingRepository extends BookingRepository {
 
   @override
   Future<List<PractitionerRoleBooking>> getActivePractitionerRoles({String? orgId}) async => [];
+
+  @override
+  Future<List<BookingSlot>> getAvailableSlots({
+    required int practitionerRoleId,
+    required String dateString,
+    String? orgId,
+  }) async =>
+      throw Exception('offline');
 }
 
 class FakeProfileRepository implements ProfileRepository {
@@ -115,5 +123,12 @@ void main() {
     vm.specialists = [_doctor(1, 'Dr. Vikram Shah'), _doctor(2, 'Dr. Asha Rao')];
     final match = vm.findSpecialistForAppointment({'practitioner_name': 'Dr. Asha Rao'});
     expect(match?.id, 2);
+  });
+
+  test('slot load failure is an error with retry, not "no slots"', () async {
+    await vm.fetchBookedSlots(1, DateTime(2030, 1, 1));
+    expect(vm.availableSlots, isEmpty);
+    expect(vm.slotsError, isNotNull);
+    expect(vm.isSlotsLoading, isFalse);
   });
 }

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
+import '../../core/utils/appointment_status.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 
@@ -182,58 +183,10 @@ class AppointmentHistoryScreen extends StatelessWidget {
     final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
     final status = (appt['status'] as String? ?? 'pending').toLowerCase();
-    Color statusBg;
-    Color statusTextColor;
-    String statusLabel;
-
-    if (!isUpcoming) {
-      // Past Consultations: Match Web application behavior
-      if (status == 'cancelled' || status == 'canceled') {
-        statusBg = PhiaColors.pulseRedLight;
-        statusTextColor = PhiaColors.pulseRed;
-        statusLabel = 'CANCELLED';
-      } else if (status == 'noshow' || status == 'no-show') {
-        statusBg = const Color(0xFFF1F5F9);
-        statusTextColor = const Color(0xFF64748B);
-        statusLabel = 'MISSED';
-      } else {
-        // Any elapsed consultation (booked, confirmed, fulfilled, completed) is COMPLETED
-        statusBg = const Color(0xFFDCFCE7);
-        statusTextColor = const Color(0xFF15803D);
-        statusLabel = 'COMPLETED';
-      }
-    } else {
-      // Upcoming Consultations: Active lifecycle states
-      switch (status) {
-        case 'confirmed':
-          statusBg = const Color(0xFFDCFCE7);
-          statusTextColor = const Color(0xFF15803D);
-          statusLabel = 'CONFIRMED';
-          break;
-        case 'booked':
-          statusBg = const Color(0xFFE0F2FE);
-          statusTextColor = const Color(0xFF0369A1);
-          statusLabel = 'BOOKED';
-          break;
-        case 'rescheduled':
-          statusBg = const Color(0xFFEDE9FE);
-          statusTextColor = const Color(0xFF6D28D9);
-          statusLabel = 'BOOKED';
-          break;
-        case 'cancelled':
-        case 'canceled':
-          statusBg = PhiaColors.pulseRedLight;
-          statusTextColor = PhiaColors.pulseRed;
-          statusLabel = 'CANCELLED';
-          break;
-        case 'pending':
-        default:
-          statusBg = const Color(0xFFFEF3C7);
-          statusTextColor = const Color(0xFFB45309);
-          statusLabel = 'PENDING';
-          break;
-      }
-    }
+    final statusStyle = AppointmentStatusStyle.of(status, isPast: !isUpcoming);
+    final statusBg = statusStyle.background;
+    final statusTextColor = statusStyle.foreground;
+    final statusLabel = statusStyle.label;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -433,12 +386,18 @@ class AppointmentHistoryScreen extends StatelessWidget {
                 final bookingVM = context.read<BookingViewModel>();
                 final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
+                // Show progress while the server cancels (can take a few seconds).
+                messenger.showSnackBar(const SnackBar(
+                  content: Text('Cancelling appointment…'),
+                  duration: Duration(seconds: 30),
+                ));
                 bool ok = true;
                 try {
                   await bookingVM.cancelAppointment(id);
                 } catch (_) {
                   ok = false;
                 }
+                messenger.hideCurrentSnackBar();
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(

@@ -14,7 +14,16 @@ class BookingConfirmedScreen extends StatelessWidget {
     final time = args?['time'] as String? ?? 'Scheduled Time';
     final isVirtual = args?['isVirtual'] as bool? ?? true;
 
-    return Scaffold(
+    // This screen replaces the whole stack, so Android back would close the
+    // app. Send the user home instead.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
+        }
+      },
+      child: Scaffold(
       backgroundColor: PhiaColors.background,
       body: SafeArea(
         child: Padding(
@@ -179,6 +188,7 @@ class BookingConfirmedScreen extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 

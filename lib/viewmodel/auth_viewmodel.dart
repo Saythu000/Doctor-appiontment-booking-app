@@ -7,6 +7,7 @@ import '../data/repository/auth_repository.dart';
 import '../data/repository/health_repository.dart';
 import '../data/service/background_sync_service.dart';
 import '../data/service/fhir_api_client.dart';
+import '../data/service/notification_service.dart';
 import '../data/service/secure_storage_service.dart';
 import '../domain/model/auth_models.dart';
 
@@ -256,7 +257,14 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Check for saved credentials in the settings table and attempt auto-login/token refresh.
+  /// True when the last [checkAutoLogin] returned false only because the
+  /// server could not be reached (the user is still signed in on this device).
+  /// The splash screen then offers "Try again" instead of the welcome page.
+  bool get autoLoginFailedOffline => _autoLoginFailedOffline;
+  bool _autoLoginFailedOffline = false;
+
   Future<bool> checkAutoLogin() async {
+    _autoLoginFailedOffline = false;
     try {
       final storedRefreshToken = await healthRepository.getSetting('iam_refresh_token');
       final storedJwtToken = await healthRepository.getSetting('iam_jwt_token');
@@ -355,6 +363,10 @@ class AuthViewModel extends ChangeNotifier {
               notifyListeners();
               return true;
             }
+          }
+          if (_isNetworkError(pkceErr)) {
+            _autoLoginFailedOffline = true;
+            return false;
           }
         }
       }
@@ -488,6 +500,12 @@ class AuthViewModel extends ChangeNotifier {
     await attempt(healthRepository.clearLocalAppointments);
     await attempt(healthRepository.clearAllInAppNotifications);
     await attempt(healthRepository.clearWorkoutRoutes);
+    await attempt(healthRepository.clearReminders);
+    await attempt(healthRepository.clearVitalsThresholds);
+
+    // Scheduled OS notifications (medication reminders, appointment
+    // reminders) belong to this user and must stop firing after sign-out.
+    await attempt(() => NotificationService.instance.cancelAll());
   }
 
   Future<void> _saveCredentials() async {

@@ -107,7 +107,8 @@ class BookingRepository {
       if (kDebugMode) {
         print('[BookingRepository] Failed to fetch slots from /api/v1/slots: $e');
       }
-      return [];
+      // A failure is not "no free slots": let the caller show a retry.
+      rethrow;
     }
   }
 

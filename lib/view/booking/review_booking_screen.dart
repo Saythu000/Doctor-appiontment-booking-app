@@ -10,8 +10,18 @@ import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/intake_viewmodel.dart';
 import '../../domain/model/booking_models.dart';
 
-class ReviewBookingScreen extends StatelessWidget {
+class ReviewBookingScreen extends StatefulWidget {
   const ReviewBookingScreen({super.key});
+
+  @override
+  State<ReviewBookingScreen> createState() => _ReviewBookingScreenState();
+}
+
+class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
+  /// True from the first tap until we leave this screen or the attempt fails.
+  /// Covers the whole flow (booking + intake linking), not only the booking
+  /// call, so a second tap can't book the same slot again and get a 409.
+  bool _submitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +194,7 @@ class ReviewBookingScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: bookingVM.isBookingExecuting
+                  onPressed: (bookingVM.isBookingExecuting || _submitting)
                       ? null
                       : () async {
                           final cleanTime = time.split(' ')[0];
@@ -207,6 +217,8 @@ class ReviewBookingScreen extends StatelessWidget {
                             return;
                           }
 
+                          setState(() => _submitting = true);
+                          var leftScreen = false;
                           try {
                             final result = await context.read<BookingViewModel>().executeBooking(
                                   practitionerId: pId,
@@ -243,6 +255,7 @@ class ReviewBookingScreen extends StatelessWidget {
 
                                 if (!context.mounted) return;
 
+                                leftScreen = true;
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
                                   '/booking_confirmed',
@@ -267,7 +280,10 @@ class ReviewBookingScreen extends StatelessWidget {
                           } on SlotTakenException {
                             // 409: go back to the time picker, which reloads
                             // the free slots (patient guide §4.3).
-                            if (context.mounted) Navigator.pop(context, 'slot_taken');
+                            if (context.mounted) {
+                              leftScreen = true;
+                              Navigator.pop(context, 'slot_taken');
+                            }
                           } catch (e) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -277,6 +293,8 @@ class ReviewBookingScreen extends StatelessWidget {
                                 ),
                               );
                             }
+                          } finally {
+                            if (!leftScreen && mounted) setState(() => _submitting = false);
                           }
                         },
                   style: ElevatedButton.styleFrom(
@@ -286,7 +304,7 @@ class ReviewBookingScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: bookingVM.isBookingExecuting
+                  child: (bookingVM.isBookingExecuting || _submitting)
                       ? const SizedBox(
                           width: 20,
                           height: 20,

@@ -7,7 +7,10 @@ import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/appointment_status.dart';
 import '../../core/widgets/image_helper.dart';
+import '../../core/widgets/notification_center_modal.dart';
+import '../../viewmodel/settings_viewmodel.dart';
 import '../devices/device_manager_sheet.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -32,7 +35,10 @@ class DashboardScreen extends StatelessWidget {
         }
         final startStr = appt['start_time'] as String;
         final start = DateTime.parse(startStr).toLocal();
-        if (start.isAfter(now)) {
+        // Keep the visit on the dashboard while it is happening, not only
+        // until it starts. The app has no end time for appointments, so a
+        // 30-minute consultation window is assumed.
+        if (start.add(const Duration(minutes: 30)).isAfter(now)) {
           if (nearestUpcoming == null) {
             nearestUpcoming = appt;
           } else {
@@ -90,12 +96,19 @@ class DashboardScreen extends StatelessWidget {
                   final vm = context.read<BookingViewModel>();
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
+                  // Show progress while the server cancels (can take a few seconds).
+                  messenger.showSnackBar(const SnackBar(
+                    content: Text('Cancelling appointment…'),
+                    duration: Duration(seconds: 30),
+                  ));
                   try {
                     await vm.cancelAppointment(id);
+                    messenger.hideCurrentSnackBar();
                     messenger.showSnackBar(
                       SnackBar(content: Text('Appointment with $doctorName cancelled.')),
                     );
                   } catch (_) {
+                    messenger.hideCurrentSnackBar();
                     messenger.showSnackBar(
                       const SnackBar(
                         backgroundColor: PhiaColors.pulseRed,
@@ -113,12 +126,13 @@ class DashboardScreen extends StatelessWidget {
     }
 
     void showAppointmentDetails(Map<String, dynamic> appt) {
-      final id = appt['id'] as String;
-      final name = appt['practitioner_name'] as String;
-      final role = appt['practitioner_role'] as String;
-      final image = appt['practitioner_image'] as String;
-      final startStr = appt['start_time'] as String;
-      final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
+      // Null-safe reads: one incomplete row must not make the button do nothing.
+      final id = appt['id']?.toString() ?? '';
+      final name = appt['practitioner_name']?.toString() ?? 'Doctor';
+      final role = appt['practitioner_role']?.toString() ?? '';
+      final image = appt['practitioner_image']?.toString() ?? '';
+      final startStr = appt['start_time']?.toString() ?? '';
+      final isVirtual = (int.tryParse(appt['is_virtual']?.toString() ?? '') ?? 1) == 1;
 
       final status = (appt['status']?.toString().toLowerCase()) ?? 'pending';
 
@@ -135,51 +149,11 @@ class DashboardScreen extends StatelessWidget {
       final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
       final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
-      // Status badge styling
-      Color statusBg;
-      Color statusTextColor;
-      String statusLabel;
-      switch (status) {
-        case 'fulfilled':
-        case 'completed':
-          statusBg = const Color(0xFFDCFCE7);
-          statusTextColor = const Color(0xFF15803D);
-          statusLabel = 'COMPLETED';
-          break;
-        case 'noshow':
-        case 'no-show':
-          statusBg = const Color(0xFFF1F5F9);
-          statusTextColor = const Color(0xFF64748B);
-          statusLabel = 'MISSED';
-          break;
-        case 'confirmed':
-          statusBg = const Color(0xFFDCFCE7);
-          statusTextColor = const Color(0xFF15803D);
-          statusLabel = 'CONFIRMED';
-          break;
-        case 'booked':
-          statusBg = const Color(0xFFE0F2FE);
-          statusTextColor = const Color(0xFF0369A1);
-          statusLabel = 'BOOKED';
-          break;
-        case 'rescheduled':
-          statusBg = const Color(0xFFEDE9FE);
-          statusTextColor = const Color(0xFF6D28D9);
-          statusLabel = 'BOOKED';
-          break;
-        case 'cancelled':
-        case 'canceled':
-          statusBg = PhiaColors.pulseRedLight;
-          statusTextColor = PhiaColors.pulseRed;
-          statusLabel = 'CANCELLED';
-          break;
-        case 'pending':
-        default:
-          statusBg = const Color(0xFFFEF3C7);
-          statusTextColor = const Color(0xFFB45309);
-          statusLabel = 'PENDING';
-          break;
-      }
+      // Status badge styling (shared mapping, see appointment_status.dart)
+      final statusStyle = AppointmentStatusStyle.of(status);
+      final statusBg = statusStyle.background;
+      final statusTextColor = statusStyle.foreground;
+      final statusLabel = statusStyle.label;
 
       showDialog(
         context: context,
@@ -321,11 +295,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      status == 'booked'
-                          ? 'Confirmed by Doctor'
-                          : (status == 'pending'
-                              ? 'Awaiting Doctor Confirmation'
-                              : (status == 'rescheduled' ? 'Rescheduled' : 'Cancelled')),
+                      statusStyle.description,
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -413,9 +383,10 @@ class DashboardScreen extends StatelessWidget {
 
     // BMI Calculations
     double bmi = 0.0;
-    String bmiClassification = 'Normal';
-    Color bmiColor = PhiaColors.activeGreen;
-    Color bmiBg = PhiaColors.activeGreenBg;
+    // Without height and weight there is no BMI: never show a green "Normal".
+    String bmiClassification = 'Not set';
+    Color bmiColor = PhiaColors.textSecondary;
+    Color bmiBg = PhiaColors.surfaceSubtle;
     if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
       double heightM = activityVM.userHeight / 100.0;
       bmi = activityVM.userWeight / (heightM * heightM);
@@ -424,7 +395,7 @@ class DashboardScreen extends StatelessWidget {
         bmiColor = PhiaColors.primary;
         bmiBg = PhiaColors.primaryLight;
       } else if (bmi < 25.0) {
-        bmiClassification = 'Optimal';
+        bmiClassification = 'Normal';
         bmiColor = PhiaColors.activeGreen;
         bmiBg = PhiaColors.activeGreenBg;
       } else if (bmi < 30.0) {
@@ -493,6 +464,22 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          Builder(builder: (context) {
+            final unread = context
+                .watch<SettingsViewModel>()
+                .inAppNotificationsList
+                .where((n) => (n['is_read'] ?? 0) == 0)
+                .length;
+            return IconButton(
+              onPressed: () => showNotificationCenter(context),
+              tooltip: unread > 0 ? 'Alerts, $unread unread' : 'Alerts',
+              icon: Badge(
+                isLabelVisible: unread > 0,
+                label: Text(unread > 9 ? '9+' : '$unread'),
+                child: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+              ),
+            );
+          }),
           IconButton(
             onPressed: () => onTabSelected?.call(2),
             icon: const Icon(Icons.search_rounded, color: Colors.white),
@@ -593,47 +580,10 @@ class DashboardScreen extends StatelessWidget {
                     ? Builder(
                         builder: (context) {
                           final status = (nearestUpcoming!['status']?.toString().toLowerCase()) ?? 'pending';
-                          Color badgeBg;
-                          Color badgeTextColor;
-                          String badgeText;
-
-                          switch (status) {
-                            case 'fulfilled':
-                            case 'completed':
-                              badgeBg = const Color(0xFFDCFCE7);
-                              badgeTextColor = const Color(0xFF15803D);
-                              badgeText = 'FULFILLED';
-                              break;
-                            case 'noshow':
-                            case 'no-show':
-                              badgeBg = const Color(0xFFF1F5F9);
-                              badgeTextColor = const Color(0xFF64748B);
-                              badgeText = 'MISSED';
-                              break;
-                            case 'booked':
-                            case 'confirmed':
-                              badgeBg = const Color(0xFFDCFCE7);
-                              badgeTextColor = const Color(0xFF15803D);
-                              badgeText = 'CONFIRMED';
-                              break;
-                            case 'rescheduled':
-                              badgeBg = const Color(0xFFEDE9FE);
-                              badgeTextColor = const Color(0xFF6D28D9);
-                              badgeText = 'RESCHEDULED';
-                              break;
-                            case 'cancelled':
-                            case 'canceled':
-                              badgeBg = PhiaColors.pulseRedLight;
-                              badgeTextColor = PhiaColors.pulseRed;
-                              badgeText = 'CANCELLED';
-                              break;
-                            case 'pending':
-                            default:
-                              badgeBg = const Color(0xFFFEF3C7);
-                              badgeTextColor = const Color(0xFFB45309);
-                              badgeText = 'PENDING';
-                              break;
-                          }
+                          final style = AppointmentStatusStyle.of(status);
+                          final badgeBg = style.background;
+                          final badgeTextColor = style.foreground;
+                          final badgeText = style.label;
 
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -733,26 +683,8 @@ class DashboardScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () => showAppointmentDetails(nearestUpcoming!),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: PhiaColors.primary,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: Text(
-                                      'Enter Room',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                // "Enter Room" is hidden until the backend provides a
+                                // consultation join link for the appointment.
                               ],
                             ),
                           ],

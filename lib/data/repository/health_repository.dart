@@ -385,6 +385,18 @@ class HealthRepository {
     );
   }
 
+  /// Removes every medication/vitals reminder (used on sign-out).
+  Future<void> clearReminders() async {
+    final db = await _dbHelper.database;
+    await db.delete('reminders');
+  }
+
+  /// Removes custom alert thresholds (used on sign-out); defaults apply again.
+  Future<void> clearVitalsThresholds() async {
+    final db = await _dbHelper.database;
+    await db.delete('vitals_thresholds');
+  }
+
   // --- Vitals Thresholds Helpers ---
   Future<Map<String, Map<String, double>>> getVitalsThresholds() async {
     final db = await _dbHelper.database;

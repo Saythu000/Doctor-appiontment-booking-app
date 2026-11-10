@@ -39,6 +39,8 @@ class BookingViewModel extends ChangeNotifier {
   void reset() {
     specialists = [];
     availableSlots = [];
+    slotsError = null;
+    _slotsRequestId++;
     appointmentsList = [];
     lastBookingConfirmed = null;
     isSpecialistsLoading = false;
@@ -131,8 +133,19 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   /// Retrieve available slots for a specialist on a selected date
+  /// Set when the last slot request failed (shown with a Retry button instead
+  /// of a misleading "no slots" message).
+  String? slotsError;
+  int _slotsRequestId = 0;
+
   Future<void> fetchBookedSlots(int practitionerRoleId, DateTime date) async {
+    // Tapping dates quickly starts several requests; only the newest one may
+    // update the list, otherwise an older day's slots can appear under the
+    // newly selected date.
+    final requestId = ++_slotsRequestId;
     isSlotsLoading = true;
+    slotsError = null;
+    availableSlots = [];
     notifyListeners();
 
     try {
@@ -141,19 +154,25 @@ class BookingViewModel extends ChangeNotifier {
           ? rawOrgId
           : ApiConstants.defaultOrganizationId;
       final dateStr = date.toIso8601String().split('T')[0];
-      availableSlots = await bookingRepository.getAvailableSlots(
+      final slots = await bookingRepository.getAvailableSlots(
         practitionerRoleId: practitionerRoleId,
         dateString: dateStr,
         orgId: orgId,
       );
+      if (requestId != _slotsRequestId) return;
+      availableSlots = slots;
     } catch (e) {
       if (kDebugMode) {
         print('[BookingViewModel] Failed to load slots: $e');
       }
+      if (requestId != _slotsRequestId) return;
       availableSlots = [];
+      slotsError = "Couldn't load available times. Check your connection and try again.";
     } finally {
-      isSlotsLoading = false;
-      notifyListeners();
+      if (requestId == _slotsRequestId) {
+        isSlotsLoading = false;
+        notifyListeners();
+      }
     }
   }
 

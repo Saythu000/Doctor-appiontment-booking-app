@@ -76,6 +76,17 @@ class SettingsViewModel extends ChangeNotifier {
     }
   }
 
+  /// Clears the signed-out user's reminders, thresholds and alerts from memory.
+  /// (The database rows and OS notifications are wiped by AuthViewModel.)
+  void resetState() {
+    remindersList = [];
+    inAppNotificationsList = [];
+    vitalsThresholds = {
+      for (final e in kDefaultVitalsThresholds.entries) e.key: Map<String, double>.from(e.value),
+    };
+    notifyListeners();
+  }
+
   Future<void> saveSetting(String key, String value) async {
     await healthRepository.saveSetting(key, value);
     if (key == 'weightUnit') weightUnit = value;
@@ -133,6 +144,9 @@ class SettingsViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteReminder(String id) async {
+    // Drop it from the list first so a swiped-away Dismissible is not rebuilt.
+    remindersList = remindersList.where((r) => r['id'] != id).toList();
+    notifyListeners();
     await healthRepository.deleteReminder(id);
     remindersList = await healthRepository.getReminders();
     await NotificationService.instance.cancelReminderNotifications(id);
@@ -170,6 +184,10 @@ class SettingsViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteInAppNotification(String id) async {
+    // Remove from the list first: a swiped-away Dismissible must not come back
+    // in a rebuild while the database delete is still running.
+    inAppNotificationsList = inAppNotificationsList.where((n) => n['id'] != id).toList();
+    notifyListeners();
     await healthRepository.deleteInAppNotification(id);
     await fetchInAppNotifications();
   }

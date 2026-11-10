@@ -17,16 +17,22 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // Sign-in is OAuth 2.0 + PKCE in a Chrome Custom Tab only (see AuthViewModel.loginWithPKCE).
 
+  /// True from the tap until we navigate away (covers loading the user's data
+  /// after sign-in too), so the button can't start a second sign-in.
+  bool _busy = false;
+
   Future<void> _handlePkceLogin(BuildContext context) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     final authVM = Provider.of<AuthViewModel>(context, listen: false);
     final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
     final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
     final bookingVM = Provider.of<BookingViewModel>(context, listen: false);
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
 
     final success = await authVM.loginWithPKCE();
     if (!mounted) return;
+    if (!success) setState(() => _busy = false);
 
     if (success) {
       activityVM.resetState();
@@ -57,14 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         navigator.pushNamedAndRemoveUntil('/profile_setup', (route) => false);
       }
-    } else if (authVM.errorMessage != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(authVM.errorMessage!),
-          backgroundColor: PhiaColors.pulseRed,
-        ),
-      );
     }
+    // On failure the error is shown in the card above the button (not also
+    // as a snackbar, which showed the same message twice).
   }
 
   @override
@@ -219,8 +220,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                               ),
-                              onPressed: authVM.isLoading ? null : () => _handlePkceLogin(context),
-                              child: authVM.isLoading
+                              onPressed: (authVM.isLoading || _busy) ? null : () => _handlePkceLogin(context),
+                              child: (authVM.isLoading || _busy)
                                   ? const SizedBox(
                                       width: 22,
                                       height: 22,

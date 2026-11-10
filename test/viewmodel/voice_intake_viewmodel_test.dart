@@ -12,6 +12,7 @@ class FakeVoiceService implements VoiceIntakeService {
   int disconnectCalls = 0;
 
   void emit(VoiceAgentEvent e) => _controller.add(e);
+  void failSocket() => _controller.addError(Exception('socket closed'));
 
   @override
   Stream<VoiceAgentEvent> get events => _controller.stream;
@@ -140,5 +141,36 @@ void main() {
     expect(vm.callState, VoiceCallState.offline);
     expect(vm.isCallActive, isFalse);
     expect(intake.createdForPatients, isEmpty);
+  });
+
+  test('a failed save can be retried without losing the conversation or duplicating the record', () async {
+    intake.updateResult = false;
+    await vm.startCall(authToken: 't', patientFhirId: 42);
+    await sayHello();
+    await vm.endCall(authToken: 't');
+    expect(vm.callState, VoiceCallState.error);
+    expect(vm.canRetrySave, isTrue);
+    expect(vm.committedMessages, isNotEmpty);
+
+    intake.updateResult = true;
+    await vm.retrySave(authToken: 't');
+
+    expect(vm.callState, VoiceCallState.completed);
+    expect(intake.createdForPatients, [42], reason: 'the record created on the first try is reused');
+  });
+
+  test('a dropped connection stops the call, keeps the transcript and allows saving', () async {
+    await vm.startCall(authToken: 't', patientFhirId: 42);
+    await sayHello();
+
+    voice.failSocket();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    expect(vm.isCallActive, isFalse);
+    expect(vm.callState, VoiceCallState.error);
+    expect(vm.canRetrySave, isTrue);
+
+    await vm.retrySave(authToken: 't');
+    expect(vm.callState, VoiceCallState.completed);
   });
 }

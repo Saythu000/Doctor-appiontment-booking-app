@@ -176,6 +176,23 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     );
   }
 
+  /// Starting over deletes what the patient already said; ask first.
+  Future<bool> _confirmDiscardConversation() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Start over?'),
+        content: const Text(
+            'Everything said in this call will be deleted and not sent to your doctor.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Start over')),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   void _handleEndCall() async {
     final voiceVm = Provider.of<VoiceIntakeViewModel>(context, listen: false);
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
@@ -609,7 +626,12 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                           icon: const Icon(Icons.refresh, color: Color(0xFF64748B)),
                           onPressed: voiceVm.isBusy
                               ? null
-                              : () {
+                              : () async {
+                                  if (voiceVm.committedMessages.isNotEmpty &&
+                                      !await _confirmDiscardConversation()) {
+                                    return;
+                                  }
+                                  if (!context.mounted) return;
                                   final authVm =
                                       Provider.of<AuthViewModel>(context, listen: false);
                                   final profileVm =
@@ -629,7 +651,39 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                         ),
                       ],
                     )
-                  : SizedBox(
+                  : voiceVm.canRetrySave
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => voiceVm.retrySave(
+                                authToken: Provider.of<AuthViewModel>(context, listen: false).jwtToken ?? '',
+                              ),
+                              icon: const Icon(Icons.cloud_upload_outlined, color: Colors.white),
+                              label: const Text(
+                                'Save Conversation',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0A3641),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () async {
+                                if (await _confirmDiscardConversation()) _handleStartCall();
+                              },
+                              child: const Text('Discard and start a new call'),
+                            ),
+                          ],
+                        )
+                      : SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: voiceVm.isBusy ? null : _handleStartCall,

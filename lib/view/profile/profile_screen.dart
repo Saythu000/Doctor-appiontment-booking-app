@@ -403,7 +403,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           final pZip = zipController.text.trim();
                           final pCountry = countryController.text.trim();
 
+                          // The sheet's context is gone after pop, so messages must
+                          // go through the screen's messenger captured here.
+                          final messenger = ScaffoldMessenger.of(context);
                           Navigator.pop(context);
+                          var savedRemotely = true;
 
                           try {
                             // 1. Save Height, Weight & Age to SQLite immediately
@@ -424,7 +428,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               await activityVM.saveBioData(
                                 weight: wVal > 0 ? wVal : activityVM.userWeight,
                                 height: hVal > 0 ? hVal : activityVM.userHeight,
-                                age: calcAge > 0 ? calcAge.toDouble() : (activityVM.userAge > 0 ? activityVM.userAge.toDouble() : 25.0),
+                                // Unknown age stays 0 ("not set"), never a guessed value.
+                                age: calcAge > 0 ? calcAge.toDouble() : activityVM.userAge.toDouble(),
                               );
                             }
 
@@ -445,31 +450,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               );
                             } catch (remoteErr) {
                               debugPrint('Profile remote update exception: $remoteErr');
+                              savedRemotely = false;
                             }
 
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: PhiaColors.activeGreen,
-                                  content: Text(
-                                    'Profile updated successfully!',
-                                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
-                                  ),
+                            messenger.showSnackBar(
+                              SnackBar(
+                                backgroundColor: savedRemotely ? PhiaColors.navyAnchor : PhiaColors.pulseRed,
+                                content: Text(
+                                  savedRemotely
+                                      ? 'Profile updated.'
+                                      : "Saved on this phone, but your profile couldn't be updated on the server. Please try again.",
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
                                 ),
-                              );
-                            }
+                              ),
+                            );
                           } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: PhiaColors.primary,
-                                  content: Text(
-                                    'Saved locally.',
-                                    style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
-                                  ),
+                            messenger.showSnackBar(
+                              SnackBar(
+                                backgroundColor: PhiaColors.pulseRed,
+                                content: Text(
+                                  "Couldn't save your changes. Please try again.",
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
                                 ),
-                              );
-                            }
+                              ),
+                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -756,11 +760,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
-                      title: 'Vitals Reminders & Thresholds',
+                      title: 'Reminders',
                       value: activeReminders == 0
                           ? 'Off'
                           : '$activeReminders active',
                       onTap: () => Navigator.pushNamed(context, '/vitals_reminders'),
+                    ),
+                    const Divider(color: PhiaColors.borderSubtle, height: 1),
+                    _buildNavActionRow(
+                      title: 'Vital Alert Limits',
+                      value: 'Heart rate, BP',
+                      onTap: () => Navigator.pushNamed(context, '/vitals_thresholds'),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(

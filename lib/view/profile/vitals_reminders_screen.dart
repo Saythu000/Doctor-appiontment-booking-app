@@ -36,6 +36,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
     } else {
       selectedDays.addAll(repeatDays);
     }
+    bool saving = false;
 
     showModalBottomSheet(
       context: context,
@@ -333,7 +334,9 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                           minimumSize: const Size(double.infinity, 48),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: () async {
+                        onPressed: saving
+                            ? null
+                            : () async {
                           final name = nameController.text.trim();
                           if (name.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -357,8 +360,20 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                             'is_active': isEdit ? reminder['is_active'] : 1,
                           };
 
-                          await context.read<SettingsViewModel>().saveReminder(updatedReminder);
-                          if (context.mounted) Navigator.pop(context);
+                          setModalState(() => saving = true);
+                          try {
+                            await context.read<SettingsViewModel>().saveReminder(updatedReminder);
+                            if (context.mounted) Navigator.pop(context);
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            setModalState(() => saving = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Couldn't save the reminder. Please try again."),
+                                backgroundColor: PhiaColors.pulseRed,
+                              ),
+                            );
+                          }
                         },
                         child: Text(
                           isEdit ? 'Save Changes' : 'Create Reminder',
@@ -372,6 +387,8 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                         const SizedBox(height: 8),
                         TextButton.icon(
                           onPressed: () async {
+                            if (!await _confirmDeleteReminder(context, nameController.text.trim())) return;
+                            if (!context.mounted) return;
                             await context.read<SettingsViewModel>().deleteReminder(reminder['id']);
                             if (context.mounted) Navigator.pop(context);
                           },
@@ -395,6 +412,21 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
         );
       },
     );
+  }
+
+  Future<bool> _confirmDeleteReminder(BuildContext context, String title) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete reminder?'),
+        content: Text(title.isEmpty ? 'This reminder will stop.' : '"$title" will stop reminding you.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   @override
@@ -496,6 +528,7 @@ class _VitalsRemindersScreenState extends State<VitalsRemindersScreen> {
                       ),
                       child: const Icon(Icons.delete_outline_rounded, color: PhiaColors.pulseRed),
                     ),
+                    confirmDismiss: (_) => _confirmDeleteReminder(context, title),
                     onDismissed: (direction) async {
                       await settingsVM.deleteReminder(id);
                       if (context.mounted) {

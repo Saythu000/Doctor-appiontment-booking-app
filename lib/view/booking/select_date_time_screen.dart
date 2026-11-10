@@ -21,6 +21,7 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
   bool _isVirtualMode = true;
   PractitionerRoleBooking? _specialist;
   bool _initialized = false;
+  bool _rescheduling = false;
 
   late List<DateTime> _thirtyDays;
 
@@ -461,6 +462,36 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                         );
                       }
 
+                      if (bookingVM.slotsError != null) {
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: PhiaColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: PhiaColors.borderSubtle),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.wifi_off_rounded, color: PhiaColors.textSecondary, size: 28),
+                              const SizedBox(height: 10),
+                              Text(
+                                bookingVM.slotsError!,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary, height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: () => _fetchSlotsForDate(_selectedDate),
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Try again'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
                       if (serverSlots.isEmpty) {
                         return Container(
                           width: double.infinity,
@@ -626,20 +657,32 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: _selectedTimeSlot == null
+                    onPressed: (_selectedTimeSlot == null || _rescheduling)
                         ? null
                         : () async {
                             if (isRescheduling) {
                               final rescheduleId = args['reschedule_appointment_id'].toString();
-                              final slotId = _selectedSlotId ?? 0;
+                              final slotId = _selectedSlotId;
                               final scaffold = ScaffoldMessenger.of(context);
                               final nav = Navigator.of(context);
-                              
+                              if (slotId == null || slotId <= 0) {
+                                scaffold.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please pick an available time slot.'),
+                                    backgroundColor: PhiaColors.pulseRed,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setState(() => _rescheduling = true);
                               final success = await context.read<BookingViewModel>().rescheduleAppointment(
                                 rescheduleId,
                                 slotId,
                               );
-                              
+                              if (!mounted) return;
+                              if (!success) setState(() => _rescheduling = false);
+
                               if (success) {
                                 scaffold.showSnackBar(
                                   const SnackBar(
@@ -701,10 +744,16 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
                     ),
-                    child: Text(
-                      isRescheduling ? 'Confirm Reschedule' : 'Review Booking',
-                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
+                    child: _rescheduling
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            isRescheduling ? 'Confirm Reschedule' : 'Review Booking',
+                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ],
               ),

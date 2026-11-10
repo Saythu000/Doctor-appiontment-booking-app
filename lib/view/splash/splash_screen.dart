@@ -57,12 +57,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     try {
       final authVM = context.read<AuthViewModel>();
-      final isAuthenticated = await authVM.checkAutoLogin().timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => false,
-          );
+      // A timeout means the server is slow or unreachable, not "signed out":
+      // it throws into the catch below, which shows "Try again".
+      final isAuthenticated = await authVM.checkAutoLogin().timeout(const Duration(seconds: 15));
 
       if (!mounted || _isRedirecting) return;
+
+      if (!isAuthenticated && authVM.autoLoginFailedOffline) {
+        throw Exception('offline');
+      }
 
       // Only a verified session may open the app. A cached profile on its own
       // is not a session: routing on it would show a signed-out (or revoked)
