@@ -49,5 +49,11 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/app_logo.jpeg"
+  min_sdk_android: 26
+  # Android 8+: the phone crops the icon to its own shape (circle, squircle).
+  adaptive_icon_background: "#11302B"
+  adaptive_icon_foreground: "assets/launcher/icon_foreground.png"
+  # Android 13+ themed icon: mipmap-anydpi-v26/launcher_icon.xml reuses the
+  # foreground as <monochrome> (re-add it if you regenerate the icons).
   remove_alpha_ios: true
 
