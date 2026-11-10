@@ -1,428 +1,212 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/core/theme/theme_extensions.dart';
-import 'package:phia_flutter/core/widgets/image_helper.dart';
-import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
+import 'package:phia_flutter/core/widgets/state_views.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/booking/presentation/widgets/appointment_card.dart';
+import 'package:phia_flutter/features/booking/presentation/widgets/doctor_info.dart';
+import 'package:phia_flutter/features/booking/presentation/widgets/stale_banner.dart';
 import 'package:provider/provider.dart';
 
-class AppointmentHistoryScreen extends StatelessWidget {
+const _finishedStatuses = {'fulfilled', 'completed', 'noshow', 'no-show', 'cancelled', 'canceled'};
+
+/// Splits appointments into upcoming (soonest first) and past (newest day
+/// first, morning to evening within a day).
+({List<Map<String, dynamic>> upcoming, List<Map<String, dynamic>> past}) splitAppointments(
+  List<Map<String, dynamic>> all,
+  DateTime now,
+) {
+  final upcoming = <Map<String, dynamic>>[];
+  final past = <Map<String, dynamic>>[];
+  for (final appt in all) {
+    final status = (appt['status'] as String? ?? '').toLowerCase();
+    final start = DateTime.tryParse(appt['start_time'] as String? ?? '')?.toLocal();
+    if (start != null && start.isAfter(now) && !_finishedStatuses.contains(status)) {
+      upcoming.add(appt);
+    } else {
+      past.add(appt);
+    }
+  }
+  DateTime? at(Map<String, dynamic> a) => DateTime.tryParse(a['start_time'] as String? ?? '')?.toLocal();
+
+  upcoming.sort((a, b) {
+    final dtA = at(a), dtB = at(b);
+    if (dtA == null || dtB == null) return '${a['start_time']}'.compareTo('${b['start_time']}');
+    return dtA.compareTo(dtB);
+  });
+  past.sort((a, b) {
+    final dtA = at(a), dtB = at(b);
+    if (dtA == null || dtB == null) return '${b['start_time']}'.compareTo('${a['start_time']}');
+    final byDay = DateTime(dtB.year, dtB.month, dtB.day).compareTo(DateTime(dtA.year, dtA.month, dtA.day));
+    if (byDay != 0) return byDay;
+    return (dtA.hour * 60 + dtA.minute).compareTo(dtB.hour * 60 + dtB.minute);
+  });
+  return (upcoming: upcoming, past: past);
+}
+
+/// "My appointments": Upcoming and Past tabs.
+class AppointmentHistoryScreen extends StatefulWidget {
   const AppointmentHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final bookingVM = context.watch<BookingViewModel>();
-    final now = DateTime.now();
+  State<AppointmentHistoryScreen> createState() => _AppointmentHistoryScreenState();
+}
 
-    // Separate appointments into upcoming and past
-    final upcomingAppts = <Map<String, dynamic>>[];
-    final pastAppts = <Map<String, dynamic>>[];
+class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
+  final Set<String> _cancelling = {};
 
-    for (final appt in bookingVM.appointmentsList) {
-      try {
-        final status = (appt['status'] as String? ?? '').toLowerCase();
-        final startTime = DateTime.parse(appt['start_time'] as String).toLocal();
-        final isTerminated = status == 'fulfilled' || status == 'completed' || status == 'noshow' || status == 'no-show' || status == 'cancelled' || status == 'canceled';
-        if (startTime.isAfter(now) && !isTerminated) {
-          upcomingAppts.add(appt);
-        } else {
-          pastAppts.add(appt);
-        }
-      } catch (e) {
-        // Fallback: put in past if parsing fails
-        pastAppts.add(appt);
-      }
-    }
-
-    // Sort upcoming: chronological ascending (nearest date first, earlier slot first)
-    upcomingAppts.sort((a, b) {
-      try {
-        final dtA = DateTime.parse(a['start_time'] as String).toLocal();
-        final dtB = DateTime.parse(b['start_time'] as String).toLocal();
-        return dtA.compareTo(dtB);
-      } catch (_) {
-        return (a['start_time'] ?? '').compareTo(b['start_time'] ?? '');
-      }
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<BookingViewModel>().fetchAppointments();
     });
-
-    // ponytail: Sort past consultations with date descending (most recent days first) 
-    // and time ascending within each day (morning to evening chronological reading order)
-    pastAppts.sort((a, b) {
-      try {
-        final dtA = DateTime.parse(a['start_time'] as String).toLocal();
-        final dtB = DateTime.parse(b['start_time'] as String).toLocal();
-
-        final dateA = DateTime(dtA.year, dtA.month, dtA.day);
-        final dateB = DateTime(dtB.year, dtB.month, dtB.day);
-        final dateCompare = dateB.compareTo(dateA); // Newer date first
-
-        if (dateCompare != 0) return dateCompare;
-
-        // Same date: chronological time order (morning -> evening)
-        final timeA = dtA.hour * 60 + dtA.minute;
-        final timeB = dtB.hour * 60 + dtB.minute;
-        return timeA.compareTo(timeB);
-      } catch (_) {
-        return (b['start_time'] ?? '').compareTo(a['start_time'] ?? '');
-      }
-    });
-
-    return Scaffold(
-      backgroundColor: PhiaColors.background,
-      appBar: AppBar(
-        backgroundColor: PhiaColors.primary,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Appointment History',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
-        children: [
-          // Upcoming Section
-          _buildSectionHeader('UPCOMING CONSULTATIONS'),
-          if (upcomingAppts.isEmpty)
-            _buildEmptyState('No upcoming appointments scheduled')
-          else
-            ...upcomingAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: true)),
-          
-          const SizedBox(height: 28),
-
-          // Past Section
-          _buildSectionHeader('PAST CONSULTATION RECORD'),
-          if (pastAppts.isEmpty)
-            _buildEmptyState('No past consultations found')
-          else
-            ...pastAppts.map((appt) => _buildAppointmentCard(context, appt, isUpcoming: false)),
-          
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14.0),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 14,
-            decoration: BoxDecoration(
-              color: PhiaColors.primary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: PhiaColors.navyAnchor,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
+  Future<void> _cancel(Map<String, dynamic> appt) async {
+    final id = appt['id']?.toString() ?? '';
+    if (id.isEmpty || _cancelling.contains(id)) return;
+    final name = honestName(appt['practitioner_name'] as String?);
+    final (date, time) = formatAppointmentTime(appt['start_time'] as String?);
+    final ok = await confirmAction(
+      context,
+      title: 'Cancel this visit?',
+      message: 'Your visit with $name on $date${time.isEmpty ? '' : ' at $time'} will be cancelled.',
+      confirmLabel: 'Cancel visit',
+      cancelLabel: 'Keep visit',
+      destructive: true,
     );
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: PhiaColors.textMuted,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppointmentCard(BuildContext context, Map<String, dynamic> appt, {required bool isUpcoming}) {
-    final id = appt['id'] as String;
-    final name = appt['practitioner_name'] as String;
-    final role = appt['practitioner_role'] as String;
-    final image = appt['practitioner_image'] as String;
-    final startTimeStr = appt['start_time'] as String;
-    final isVirtual = (appt['is_virtual'] as int? ?? 1) == 1;
-
-    String dateFormatted = '';
-    String timeFormatted = '';
+    if (!ok || !mounted) return;
+    final vm = context.read<BookingViewModel>();
+    setState(() => _cancelling.add(id));
+    var success = true;
     try {
-      final dateTime = DateTime.parse(startTimeStr).toLocal();
-      dateFormatted = DateFormat('EEEE, MMMM d, yyyy').format(dateTime).toUpperCase();
-      timeFormatted = DateFormat('hh:mm a').format(dateTime);
-    } catch (e) {
-      dateFormatted = startTimeStr;
+      await vm.cancelAppointment(id);
+    } catch (_) {
+      success = false;
     }
+    if (!mounted) return;
+    setState(() => _cancelling.remove(id));
+    showAppMessage(
+      context,
+      success ? 'Your visit was cancelled.' : "Couldn't cancel your visit. Check your connection and try again.",
+      type: success ? FeedbackType.success : FeedbackType.error,
+    );
+  }
 
-    const String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
-    final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
+  Future<void> _reschedule(Map<String, dynamic> appt) async {
+    final vm = context.read<BookingViewModel>();
+    if (vm.specialists.isEmpty) await vm.fetchSpecialists();
+    if (!mounted) return;
+    final name = honestName(appt['practitioner_name'] as String?);
+    final specialist = vm.findSpecialistForAppointment(appt);
+    if (specialist == null) {
+      showAppMessage(
+        context,
+        "$name isn't in the current doctor list, so this visit can't be moved in the app. "
+        'Cancel it and book a new time instead.',
+      );
+      return;
+    }
+    await context.push(AppRoutes.bookingTime, extra: {
+      'specialist': specialist,
+      'name': name,
+      'role': honestRole(appt['practitioner_role'] as String?),
+      'imageUrl': appt['practitioner_image'] ?? '',
+      'reschedule_appointment_id': appt['id'],
+    });
+    if (mounted) vm.fetchAppointments();
+  }
 
-    final status = (appt['status'] as String? ?? 'pending').toLowerCase();
-    final statusStyle = AppointmentStatusStyle.of(status, isPast: !isUpcoming);
-    final statusBg = context.colors.tone(statusStyle.tone).background;
-    final statusTextColor = context.colors.tone(statusStyle.tone).foreground;
-    final statusLabel = statusStyle.label;
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<BookingViewModel>();
+    final split = splitAppointments(vm.appointmentsList, DateTime.now());
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isUpcoming ? PhiaColors.borderSubtle : PhiaColors.borderSubtle.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Doctor Avatar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  color: PhiaColors.surfaceSubtle,
-                  child: Image(
-                    image: getImageProvider(imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Doctor details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: PhiaColors.primaryLight,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isVirtual ? 'VIDEO CONSULTATION' : 'IN-CLINIC VISIT',
-                            style: GoogleFonts.inter(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                              color: PhiaColors.navyAnchor,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: GoogleFonts.inter(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: statusTextColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      name,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: PhiaColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      role,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: PhiaColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('My appointments'),
+          bottom: TabBar(
+            tabs: [
+              Tab(text: 'Upcoming (${split.upcoming.length})'),
+              Tab(text: 'Past (${split.past.length})'),
             ],
           ),
-          const SizedBox(height: 14),
-          // Time/Date row
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: PhiaColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: PhiaColors.borderSubtle),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 13, color: PhiaColors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      dateFormatted,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: PhiaColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  timeFormatted,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: PhiaColors.primary,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        body: SafeArea(
+          child: TabBarView(
+            children: [
+              _list(vm, split.upcoming, upcoming: true),
+              _list(vm, split.past, upcoming: false),
+            ],
           ),
-          if (isUpcoming) ...[
-            const SizedBox(height: 12),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: PhiaColors.pulseRed.withValues(alpha: 0.3)),
-                minimumSize: const Size(double.infinity, 38),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                _showCancelConfirmation(context, id, name);
-              },
-              child: Text(
-                'Cancel Consultation',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: PhiaColors.pulseRed,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
-  void _showCancelConfirmation(BuildContext context, String id, String doctorName) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: PhiaColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            'Cancel Appointment',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: PhiaColors.navyAnchor,
-            ),
-          ),
-          content: Text(
-            'Are you sure you want to cancel your scheduled appointment with $doctorName?',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: PhiaColors.textSecondary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Keep',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: PhiaColors.textMuted,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: PhiaColors.pulseRed,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final bookingVM = context.read<BookingViewModel>();
-                final messenger = ScaffoldMessenger.of(context);
-                Navigator.pop(context);
-                // Show progress while the server cancels (can take a few seconds).
-                messenger.showSnackBar(const SnackBar(
-                  content: Text('Cancelling appointment…'),
-                  duration: Duration(seconds: 30),
-                ));
-                bool ok = true;
-                try {
-                  await bookingVM.cancelAppointment(id);
-                } catch (_) {
-                  ok = false;
-                }
-                messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      ok
-                          ? 'Appointment cancelled'
-                          : 'Could not cancel the appointment. Check your connection and try again.',
-                      style: GoogleFonts.inter(),
+  Widget _list(BookingViewModel vm, List<Map<String, dynamic>> items, {required bool upcoming}) {
+    final error = vm.appointmentsError;
+    final Widget? emptyState = items.isNotEmpty
+        ? null
+        : vm.isAppointmentsLoading
+            ? const LoadingView(message: 'Loading your appointments…')
+            : error != null && vm.appointmentsList.isEmpty
+                ? ErrorView(
+                    title: "Couldn't load your appointments",
+                    message: 'Check your connection and try again.',
+                    onRetry: vm.fetchAppointments,
+                  )
+                : EmptyView(
+                    icon: upcoming ? Icons.event_available_rounded : Icons.history_rounded,
+                    title: upcoming ? 'No upcoming visits' : 'No past visits yet',
+                    message: upcoming ? 'When you book a visit, it will show up here.' : null,
+                    actionLabel: upcoming ? 'Book a doctor' : null,
+                    onAction: upcoming ? () => context.push(AppRoutes.doctors) : null,
+                  );
+    final showBanner = error != null && vm.appointmentsList.isNotEmpty;
+
+    return RefreshIndicator(
+      onRefresh: vm.fetchAppointments,
+      child: CustomScrollView(
+        // Each tab keeps its own scroll position.
+        key: PageStorageKey(upcoming ? 'upcoming' : 'past'),
+        primary: false,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          if (showBanner) SliverToBoxAdapter(child: StaleDataBanner(message: error, onRetry: vm.fetchAppointments)),
+          if (emptyState != null)
+            SliverFillRemaining(hasScrollBody: false, child: Center(child: emptyState))
+          else
+            SliverPadding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              sliver: SliverList.separated(
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, i) {
+                  final appt = items[i];
+                  final id = appt['id']?.toString() ?? '';
+                  return FadeSlideIn(
+                    key: ValueKey(id),
+                    delay: Duration(milliseconds: 50 * (i < 6 ? i : 6)),
+                    child: AppointmentCard(
+                      appointment: appt,
+                      isUpcoming: upcoming,
+                      cancelling: _cancelling.contains(id),
+                      onCancel: upcoming ? () => _cancel(appt) : null,
+                      onReschedule: upcoming ? () => _reschedule(appt) : null,
                     ),
-                    backgroundColor: ok ? PhiaColors.navyAnchor : PhiaColors.pulseRed,
-                  ),
-                );
-              },
-              child: Text(
-                'Cancel Visit',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                  );
+                },
               ),
             ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }

@@ -1,218 +1,130 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/app/app_routes.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
+import 'package:phia_flutter/features/booking/presentation/widgets/doctor_info.dart';
+import 'package:phia_flutter/features/booking/presentation/widgets/success_check.dart';
 
+/// Shown only after the server confirmed the booking.
 class BookingConfirmedScreen extends StatelessWidget {
   const BookingConfirmedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final args = GoRouterState.of(context).extra as Map<String, dynamic>?;
-    final doctorName = args?['practitionerName'] as String? ?? 'DrGodly Specialist';
-    final doctorRole = args?['practitionerRole'] as String? ?? 'General Practice';
-    final date = args?['date'] as String? ?? 'Upcoming Date';
-    final time = args?['time'] as String? ?? 'Scheduled Time';
-    final isVirtual = args?['isVirtual'] as bool? ?? true;
+    final extra = GoRouterState.of(context).extra;
+    final args = extra is Map<String, dynamic> ? extra : const <String, dynamic>{};
+    final name = honestName(args['practitionerName'] as String?);
+    final role = honestRole(args['practitionerRole'] as String?);
+    final date = (args['date'] as String?)?.trim() ?? '';
+    final time = (args['time'] as String?)?.trim() ?? '';
+    final isVirtual = args['isVirtual'] as bool? ?? true;
+    final intakeShared = args['intakeShared'] == true;
 
     // This screen replaces the whole stack, so Android back would close the
     // app. Send the user home instead.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          context.go(AppRoutes.home);
-        }
+        if (!didPop) context.go(AppRoutes.home);
       },
       child: Scaffold(
-      backgroundColor: PhiaColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+        body: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-
-              // Success Icon Circle
-              Center(
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: PhiaColors.activeGreenBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.4), width: 3),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.check_rounded,
-                      size: 48,
-                      color: PhiaColors.activeGreen,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Title & Confirmation
-              Text(
-                'Consultation Confirmed!',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: PhiaColors.navyAnchor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your visit is booked. We will remind you before it starts.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: PhiaColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Appointment Receipt Card (Navy Header Banner)
-              Container(
-                decoration: BoxDecoration(
-                  color: PhiaColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: PhiaColors.borderSubtle),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    Container(
-                      color: PhiaColors.navyAnchor,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      width: double.infinity,
-                      child: Text(
-                        'Appointment Confirmation Receipt',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg, AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Center(child: SuccessCheck()),
+                      const SizedBox(height: AppSpacing.xl),
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 250),
+                        child: Column(
+                          children: [
+                            Semantics(
+                              header: true,
+                              liveRegion: true,
+                              child: Text(
+                                'Your visit is booked',
+                                textAlign: TextAlign.center,
+                                style: context.text.headlineSmall,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'You can see, move or cancel it in My appointments.',
+                              textAlign: TextAlign.center,
+                              style: context.text.bodyMedium!.copyWith(color: context.colors.textSecondary),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
+                      const SizedBox(height: AppSpacing.xl),
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 350),
+                        child: AppCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: PhiaColors.primaryLight,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.person_rounded, color: PhiaColors.navyAnchor, size: 24),
+                              DoctorHeader(name: name, role: role, avatarSize: 48),
+                              const Divider(height: AppSpacing.xl),
+                              SummaryRow(
+                                icon: Icons.calendar_today_rounded,
+                                label: 'Date',
+                                value: date.isEmpty ? '--' : date,
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      doctorName,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: PhiaColors.navyAnchor,
-                                      ),
-                                    ),
-                                    Text(
-                                      doctorRole,
-                                      style: GoogleFonts.inter(fontSize: 12, color: PhiaColors.textSecondary),
-                                    ),
-                                  ],
-                                ),
+                              SummaryRow(
+                                icon: Icons.schedule_rounded,
+                                label: 'Time',
+                                value: time.isEmpty ? '--' : time,
                               ),
+                              SummaryRow(
+                                icon: isVirtual ? Icons.videocam_rounded : Icons.local_hospital_rounded,
+                                label: 'Visit type',
+                                value: isVirtual ? 'Video visit' : 'In-person visit',
+                              ),
+                              if (intakeShared)
+                                const SummaryRow(
+                                  icon: Icons.assignment_turned_in_rounded,
+                                  label: 'Symptom summary',
+                                  value: 'Shared with your doctor',
+                                ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          const Divider(color: PhiaColors.borderSubtle, height: 1),
-                          const SizedBox(height: 14),
-                          _buildRow(Icons.calendar_month_rounded, 'Date', date),
-                          const SizedBox(height: 10),
-                          _buildRow(Icons.schedule_rounded, 'Time', time),
-                          const SizedBox(height: 10),
-                          _buildRow(
-                            isVirtual ? Icons.videocam_rounded : Icons.local_hospital_rounded,
-                            'Type',
-                            isVirtual ? 'Standard Video Consultation' : 'In-Clinic Physical Visit',
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Spacer(),
-
-              // Return to Dashboard CTA
-              ElevatedButton(
-                onPressed: () {
-                  context.go(AppRoutes.home);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: PhiaColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-                child: Text(
-                  'Go to Dashboard',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppButton(
+                      label: 'View my appointments',
+                      icon: Icons.event_note_rounded,
+                      onPressed: () {
+                        context.go(AppRoutes.home);
+                        context.push(AppRoutes.appointments);
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton.secondary(label: 'Go to Home', onPressed: () => context.go(AppRoutes.home)),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
-    ),
-    );
-  }
-
-  Widget _buildRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: PhiaColors.primary),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: PhiaColors.navyAnchor,
-          ),
-        ),
-      ],
     );
   }
 }

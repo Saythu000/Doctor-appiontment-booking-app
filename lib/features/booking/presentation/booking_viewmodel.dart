@@ -18,6 +18,10 @@ class BookingViewModel extends ChangeNotifier {
   List<PractitionerRoleBooking> specialists = [];
   bool isSpecialistsLoading = false;
 
+  /// Set when the last doctors request failed. The cached list (if any) stays
+  /// visible; the screen shows this as a banner or an error view.
+  String? specialistsError;
+
   List<BookingSlot> availableSlots = [];
   bool isSlotsLoading = false;
 
@@ -44,8 +48,10 @@ class BookingViewModel extends ChangeNotifier {
     _slotsRequestId++;
     appointmentsList = [];
     appointmentsError = null;
+    isAppointmentsLoading = false;
     lastBookingConfirmed = null;
     isSpecialistsLoading = false;
+    specialistsError = null;
     isSlotsLoading = false;
     isBookingExecuting = false;
     notifyListeners();
@@ -104,6 +110,7 @@ class BookingViewModel extends ChangeNotifier {
       await _loadCachedSpecialists();
     }
     isSpecialistsLoading = true;
+    specialistsError = null;
     notifyListeners();
 
     try {
@@ -125,6 +132,7 @@ class BookingViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('[BookingViewModel] Failed to load specialists: $e');
       }
+      specialistsError = "Couldn't load doctors. Check your connection and try again.";
       if (specialists.isEmpty) {
         await _loadCachedSpecialists();
       }
@@ -133,6 +141,21 @@ class BookingViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  PractitionerRoleBooking? _specialistForPractitionerId(String id) {
+    if (id.isEmpty) return null;
+    for (final s in specialists) {
+      if (s.practitionerDetail?.id.toString() == id ||
+          s.practitionerRefId?.toString() == id) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  /// "Cardiology (SPECIALTY)" -> "Cardiology".
+  static String cleanSpecialty(String raw) =>
+      raw.replaceAll(RegExp(r'\s*\(SPECIALTY\)', caseSensitive: false), '').trim();
 
   /// Retrieve available slots for a specialist on a selected date
   /// Set when the last slot request failed (shown with a Retry button instead
@@ -426,8 +449,13 @@ class BookingViewModel extends ChangeNotifier {
   /// then shows the cached copy, and screens should say it may be out of date.
   String? appointmentsError;
 
+  /// True while appointments are being refreshed from the server.
+  bool isAppointmentsLoading = false;
+
   Future<void> fetchAppointments() async {
     appointmentsError = null;
+    isAppointmentsLoading = true;
+    notifyListeners();
     try {
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
       var orgId = await healthRepository.getSetting('iam_org_id') ?? '';
@@ -452,7 +480,8 @@ class BookingViewModel extends ChangeNotifier {
             continue;
           }
 
-          String practitionerName = 'Attending Specialist';
+          String practitionerName = 'Your doctor';
+          String practitionerId = '';
           final participants = appt['participant'] as List?;
           if (participants != null) {
             for (final p in participants) {
@@ -464,6 +493,9 @@ class BookingViewModel extends ChangeNotifier {
                   practitionerName = p['reference_display']?.toString() ??
                       p['actor_display']?.toString() ??
                       practitionerName;
+                  if (actor.startsWith('Practitioner/')) {
+                    practitionerId = actor.substring('Practitioner/'.length);
+                  }
                   break;
                 }
               }
@@ -480,17 +512,14 @@ class BookingViewModel extends ChangeNotifier {
                   ? 1
                   : 0;
 
-          String role = 'Specialist Care';
-          String image = 'assets/doctors/doctor_1.png';
-          if (practitionerName.toLowerCase().contains('kalyan')) {
-            role = 'Endocrinology';
-          } else if (practitionerName.toLowerCase().contains('dhakad')) {
-            role = 'Endocrinology';
-            image = 'assets/doctors/doctor_2.png';
-          } else if (practitionerName.toLowerCase().contains('yeole')) {
-            role = 'Dermatology';
-            image = 'assets/doctors/doctor_3.png';
-          }
+          // Real data only: specialty and photo come from the doctors list
+          // (matched by practitioner id). Unknown stays empty and the UI shows
+          // initials with no specialty.
+          final match = _specialistForPractitionerId(practitionerId);
+          final role = match == null || match.specialties.isEmpty
+              ? ''
+              : cleanSpecialty(match.specialties.first);
+          final image = match?.practitionerDetail?.photoUrl ?? '';
 
           // Normalize status into core lifecycle states: pending, booked, confirmed, rescheduled, cancelled, fulfilled, noshow
           String normalizedStatus = 'pending';
@@ -533,6 +562,7 @@ class BookingViewModel extends ChangeNotifier {
 
     final list = await healthRepository.getAppointments();
     appointmentsList = list;
+    isAppointmentsLoading = false;
 
     final now = DateTime.now();
     for (final appt in appointmentsList) {
@@ -550,10 +580,12 @@ class BookingViewModel extends ChangeNotifier {
         final startTime = DateTime.parse(startTimeStr).toLocal();
 
         if (startTime.isAfter(now)) {
-          final docName = appt['practitioner_name'] as String? ?? 'Specialist';
-          final role =
-              appt['practitioner_role'] as String? ?? 'Specialist Care';
+          final docName = appt['practitioner_name'] as String? ?? 'your doctor';
           final isVirtual = (appt['is_virtual'] == 1);
+          final storedRole = appt['practitioner_role'] as String? ?? '';
+          final role = storedRole.isNotEmpty
+              ? storedRole
+              : (isVirtual ? 'video visit' : 'in-person visit');
           final id = appt['id']?.toString() ?? '';
 
           if (id.isNotEmpty) {
