@@ -118,11 +118,10 @@ class AuthViewModel extends ChangeNotifier {
       try {
         final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
         if (signedOutMeanwhile()) return null;
-        if (isJwtValid(tokenResponse.idToken)) {
-          _jwtToken = tokenResponse.idToken;
-        } else {
-          _jwtToken = tokenResponse.accessToken;
-        }
+        // Re-mint the short-lived Better Auth JWT (patient guide §1 step 2).
+        final minted = await authRepository.mintBetterAuthJwt(accessToken: tokenResponse.accessToken);
+        if (signedOutMeanwhile()) return null;
+        _jwtToken = _pickApiToken(minted: minted, tokens: tokenResponse);
         if (tokenResponse.idToken != null) {
           _idToken = tokenResponse.idToken;
           await healthRepository.saveSetting('iam_id_token', _idToken!);
@@ -171,19 +170,16 @@ class AuthViewModel extends ChangeNotifier {
       // Step 1: Perform OAuth 2.0 PKCE Authorization Code flow
       final OAuth2AuthResult authResult = await authRepository.signInWithPKCE();
 
-      // Step 2: Bind tokens (OpenID id_token for FHIR/AI intake; OAuth 2.0 access token as fallback)
-      if (isJwtValid(authResult.tokens.idToken)) {
-        _jwtToken = authResult.tokens.idToken;
-      } else {
-        _jwtToken = authResult.tokens.accessToken;
-      }
+      // Step 2: The API token is the Better Auth JWT (patient guide §1 step 2),
+      // falling back to the OpenID id_token if IAM did not issue one.
+      _jwtToken = _pickApiToken(minted: authResult.sessionJwt, tokens: authResult.tokens);
       _refreshToken = authResult.tokens.refreshToken;
       _idToken = authResult.tokens.idToken;
       _user = authResult.user;
       _userId = authResult.user.id;
 
       // Step 3: Extract organization ID from sessionJwt, id_token, access_token, or listOrganizations
-      _orgId = _extractOrgIdFromJwt(authResult.tokens.idToken ?? authResult.tokens.accessToken);
+      _orgId = _extractOrgIdFromJwt(_jwtToken ?? authResult.tokens.idToken ?? authResult.tokens.accessToken);
       if (_orgId == null || _orgId!.isEmpty) {
         try {
           final orgs = await authRepository.listOrganizations(bearerToken: _jwtToken);
@@ -232,6 +228,14 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Token sent as `Authorization: Bearer` to every backend: the Better Auth
+  /// JWT when IAM issued one, else the id_token, else the access token.
+  static String _pickApiToken({String? minted, required OAuth2TokenResponse tokens}) {
+    if (isJwtValid(minted)) return minted!;
+    if (isJwtValid(tokens.idToken)) return tokens.idToken!;
+    return tokens.accessToken;
+  }
+
   /// A user-facing message that never echoes raw exception text (which can
   /// contain request details) back into the UI.
   static String _friendlyLoginError(Object e) {
@@ -276,15 +280,10 @@ class AuthViewModel extends ChangeNotifier {
             await healthRepository.saveSetting('iam_id_token', _idToken!);
           }
 
-          // Crucial: FHIR middleware and AI intake require Better-Auth EdDSA Session JWT.
-          // Prioritize valid unexpired JWT: stored JWT -> fresh idToken -> fresh accessToken
-          if (isJwtValid(storedJwtToken)) {
-            _jwtToken = storedJwtToken;
-          } else if (isJwtValid(tokenResponse.idToken)) {
-            _jwtToken = tokenResponse.idToken;
-          } else {
-            _jwtToken = tokenResponse.accessToken;
-          }
+          // FHIR, the AI agents and /api/intake/* expect the Better Auth JWT.
+          // It is short-lived, so re-mint it (patient guide §1 step 2).
+          final minted = await authRepository.mintBetterAuthJwt(accessToken: tokenResponse.accessToken);
+          _jwtToken = _pickApiToken(minted: minted, tokens: tokenResponse);
           await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
 
           try {

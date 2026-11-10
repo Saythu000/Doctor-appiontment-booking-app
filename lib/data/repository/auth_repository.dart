@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../../core/auth/pkce_helper.dart';
 import '../../domain/model/auth_models.dart';
@@ -82,7 +83,37 @@ class AuthRepository {
     // 6. Fetch user profile from OpenID userinfo endpoint
     final user = await getUserInfo(accessToken: tokens.accessToken);
 
-    return OAuth2AuthResult(tokens: tokens, user: user);
+    // 7. Exchange for the Better Auth JWT (mobile-patient-api-guide.md §1
+    //    step 2). This is the token the FHIR API, AI agents and /api/intake/*
+    //    expect, and it carries `activeOrganizationId` (guide §2).
+    final betterAuthJwt = await mintBetterAuthJwt(accessToken: tokens.accessToken);
+
+    return OAuth2AuthResult(tokens: tokens, user: user, sessionJwt: betterAuthJwt);
+  }
+
+  /// `GET {BETTER_AUTH_URL}/api/auth/token` (mobile-patient-api-guide.md §1
+  /// step 2), authenticated with the OAuth access token.
+  ///
+  /// The guide documents the response key as `token`, `jwt` or
+  /// `access_token`. Returns null when IAM does not issue a JWT for this
+  /// credential; the caller then falls back to the OpenID id_token.
+  Future<String?> mintBetterAuthJwt({required String accessToken}) async {
+    try {
+      final response = await _dio.get(
+        '/token',
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = response.data as Map;
+        final token = data['token'] ?? data['jwt'] ?? data['access_token'];
+        if (token is String && token.isNotEmpty) return token;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Better Auth JWT exchange not available for this token');
+      }
+    }
+    return null;
   }
 
   /// Exchanges authorization code and code_verifier for access and refresh tokens.

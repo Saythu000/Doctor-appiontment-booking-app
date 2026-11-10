@@ -140,8 +140,14 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       } catch (_) {}
     }
 
-    // Email and phone are deliberately NOT sent: this context travels in the
-    // WebSocket URL (server/proxy logs) and the agent does not need them.
+    // Same context string as text intake (voice guide §2.1):
+    // [Patient context: name=..., age=..., email=..., phone=...]
+    if (email != null && email.trim().isNotEmpty) {
+      contextFields.add('email=${email.trim()}');
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      contextFields.add('phone=${phone.trim()}');
+    }
 
     final patientContextString = contextFields.isNotEmpty
         ? '[Patient context: ${contextFields.join(', ')}]'
@@ -377,15 +383,12 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     }
 
     // 5. Create & Save Intake Record with mode: "VOICE" (§6.2, §6.3)
-    final resolvedPatientId = patientFhirId ?? _patientFhirId;
+    // Intake does not require a profile: without a patient id the field is
+    // omitted (text guide §5.1). Never substitute another patient's id.
+    final candidateId = patientFhirId ?? _patientFhirId;
+    final int? resolvedPatientId =
+        (candidateId != null && candidateId > 0) ? candidateId : null;
     final resolvedOrgId = orgId ?? _orgId;
-    if (resolvedPatientId == null || resolvedPatientId <= 0) {
-      _errorMessage = 'Your patient profile is not loaded, so this intake could not be saved. Please try again.';
-      _callState = VoiceCallState.error;
-      _isEndingCall = false;
-      notifyListeners();
-      return;
-    }
 
     _callState = VoiceCallState.saving;
     notifyListeners();

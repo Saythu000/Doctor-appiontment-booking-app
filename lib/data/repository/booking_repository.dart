@@ -1,7 +1,16 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/constants/api_constants.dart';
 import '../../domain/model/booking_models.dart';
 import '../service/fhir_api_client.dart';
+
+/// The chosen slot was booked by someone else between loading slots and
+/// confirming (HTTP 409, patient guide §4.3). Re-fetch slots and let the
+/// user pick again; never retry the same slot.
+class SlotTakenException implements Exception {
+  @override
+  String toString() => 'This time slot was just booked by someone else.';
+}
 
 class BookingRepository {
   final FhirApiClient _apiClient = FhirApiClient();
@@ -40,33 +49,12 @@ class BookingRepository {
           }
         }
       } catch (orgErr) {
-        debugPrint('[BookingRepository] Org-scoped query failed ($orgErr), trying platform fallback...');
+        debugPrint('[BookingRepository] Practitioner search failed: $orgErr');
+        rethrow;
       }
 
-      // If org-scoped query returned empty or threw an error, fallback to platform query
-      if (orgId != null && orgId.isNotEmpty) {
-        final fallbackResp = await _apiClient.client.get(
-          '/api/v1/practitioner-roles/booking',
-          queryParameters: {
-            'active': 'true',
-            'limit': 50,
-          },
-        );
-        if (fallbackResp.statusCode == 200) {
-          final data = fallbackResp.data;
-          final list = data['data'] as List?;
-          if (list != null && list.isNotEmpty) {
-            final List<PractitionerRoleBooking> fallbackRoles = [];
-            for (var item in list) {
-              if (item is Map<String, dynamic>) {
-                fallbackRoles.add(PractitionerRoleBooking.fromJson(item));
-              }
-            }
-            return fallbackRoles;
-          }
-        }
-      }
-
+      // No retry without org_id: results must stay inside this patient's
+      // organization (patient guide §2, §4.1).
       return [];
     } catch (e) {
       debugPrint('[BookingRepository] Failed to fetch practitioner roles from /api/v1/practitioner-roles/booking: $e');
@@ -108,33 +96,12 @@ class BookingRepository {
           }
         }
       } catch (orgSlotErr) {
-        debugPrint('[BookingRepository] Org-scoped slots query failed ($orgSlotErr), trying without org_id...');
+        debugPrint('[BookingRepository] Slot query failed: $orgSlotErr');
+        rethrow;
       }
 
-      // Fallback without org_id if org-scoped query was empty or threw
-      if (orgId != null && orgId.isNotEmpty) {
-        final fallbackParams = <String, dynamic>{
-          'practitioner_role_id': practitionerRoleId,
-          if (dateString.isNotEmpty) 'date': dateString,
-          'status': 'free',
-          'limit': 100,
-        };
-        final fallbackResp = await _apiClient.client.get(
-          '/api/v1/slots/',
-          queryParameters: fallbackParams,
-        );
-        if (fallbackResp.statusCode == 200) {
-          final data = fallbackResp.data;
-          final list = data['data'] as List?;
-          if (list != null) {
-            return list
-                .whereType<Map<String, dynamic>>()
-                .map((s) => BookingSlot.fromJson(s))
-                .toList();
-          }
-        }
-      }
-
+      // No retry without org_id: slots must stay inside this patient's
+      // organization (patient guide §2, §4.2).
       return [];
     } catch (e) {
       if (kDebugMode) {
@@ -198,7 +165,8 @@ class BookingRepository {
         };
       }
       throw Exception('Booking failed with status ${response.statusCode}');
-    } catch (e) {
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) throw SlotTakenException();
       if (kDebugMode) {
         print('[BookingRepository] Appointment booking request failed');
       }
@@ -251,91 +219,33 @@ class BookingRepository {
     }
   }
 
-  /// Retrieve user's appointments from GET /api/v1/appointments/me or /api/v1/appointments/
+  /// The signed-in patient's appointments: `GET /appointments?user_id=&org_id=`
+  /// (patient guide §5.1; there is no separate "my appointments" endpoint).
+  /// `user_id` is the JWT `sub`. Errors are rethrown so an offline refresh
+  /// never looks like "no appointments".
   Future<List<Map<String, dynamic>>> getUserAppointments({
     required String userId,
     required String orgId,
-    int? patientId,
   }) async {
     try {
       final effectiveOrgId = orgId.isNotEmpty ? orgId : ApiConstants.defaultOrganizationId;
-      final List<Map<String, dynamic>> results = [];
-
-      // 1. First attempt: /api/v1/appointments/me (official scoped endpoint)
-      try {
-        final meResp = await _apiClient.client.get('/api/v1/appointments/me');
-        if (meResp.statusCode == 200) {
-          final data = meResp.data;
-          final list = data['data'] as List?;
-          if (list != null) {
-            for (var item in list) {
-              if (item is Map<String, dynamic>) results.add(item);
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 2. Query /api/v1/appointments/?patient_id= if patientId provided
-      if (patientId != null && patientId > 0) {
-        try {
-          final patResp = await _apiClient.client.get(
-            '/api/v1/appointments/',
-            queryParameters: {
-              'patient_id': patientId,
-              'org_id': effectiveOrgId,
-              'limit': 100,
-            },
-          );
-          if (patResp.statusCode == 200) {
-            final data = patResp.data;
-            final list = data['data'] as List?;
-            if (list != null) {
-              for (var item in list) {
-                if (item is Map<String, dynamic>) {
-                  final id = item['id'];
-                  if (!results.any((r) => r['id'] == id)) {
-                    results.add(item);
-                  }
-                }
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 3. Fallback: /api/v1/appointments/ with user_id
-      if (results.isEmpty) {
-        final response = await _apiClient.client.get(
-          '/api/v1/appointments/',
-          queryParameters: {
-            'user_id': userId,
-            'org_id': effectiveOrgId,
-            'limit': 100,
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final data = response.data;
-          final list = data['data'] as List?;
-          if (list != null) {
-            for (var item in list) {
-              if (item is Map<String, dynamic>) {
-                final id = item['id'];
-                if (!results.any((r) => r['id'] == id)) {
-                  results.add(item);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      return results;
+      final response = await _apiClient.client.get(
+        '/api/v1/appointments/',
+        queryParameters: {
+          'user_id': userId,
+          'org_id': effectiveOrgId,
+          'limit': 100,
+        },
+      );
+      final list = (response.data is Map) ? response.data['data'] as List? : null;
+      return [
+        for (final item in list ?? const [])
+          if (item is Map<String, dynamic>) item,
+      ];
     } catch (e) {
       if (kDebugMode) {
         print('[BookingRepository] Failed to get user appointments: $e');
       }
-      // Rethrow: returning [] made the caller wipe the offline cache.
       rethrow;
     }
   }

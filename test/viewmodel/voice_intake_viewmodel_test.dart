@@ -99,15 +99,14 @@ void main() {
     expect(vm.savedIntakeRecordId, 7);
   });
 
-  test('without a patient id the intake is not saved to any fallback patient', () async {
+  test('without a patient id the intake is saved with patient_fhir_id omitted, never a fallback patient', () async {
     await vm.startCall(authToken: 't');
     await sayHello();
 
     await vm.endCall(authToken: 't');
 
-    expect(intake.createdForPatients, isEmpty);
-    expect(vm.callState, VoiceCallState.error);
-    expect(vm.errorMessage, isNotNull);
+    expect(intake.createdForPatients, [null]);
+    expect(vm.callState, VoiceCallState.completed);
   });
 
   test('a failed server create is reported as an error, not as completed', () async {

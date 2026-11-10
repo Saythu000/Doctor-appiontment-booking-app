@@ -14,7 +14,7 @@ class VoiceIntakeScreen extends StatefulWidget {
 }
 
 class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   final ScrollController _scrollController = ScrollController();
   // Cached so dispose() can stop the call without touching context.
@@ -35,6 +35,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     // the state change, not only after the End button, or the patient was
     // left on a finished call screen.
     _voiceVm.addListener(_onVoiceStateChanged);
+    WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
@@ -51,6 +52,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _voiceVm.removeListener(_onVoiceStateChanged);
     // Leaving the screen must never leave the microphone streaming.
     if (_voiceVm.isCallActive) {
@@ -59,6 +61,20 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     _pulseController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Voice guide §5.4: when the app goes to the background mid-call, stop
+  /// capturing; the guide's suggested default is to treat it as "End Call"
+  /// (which saves the conversation if anything was said).
+  /// `paused` (not `inactive`) is used so the mic-permission dialog and the
+  /// notification shade do not end the call.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused &&
+        _voiceVm.callState == VoiceCallState.connected &&
+        !_voiceVm.isBusy) {
+      _handleEndCall();
+    }
   }
 
   void _scrollToBottom() {

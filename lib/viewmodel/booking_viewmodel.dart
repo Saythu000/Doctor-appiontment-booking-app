@@ -191,10 +191,12 @@ class BookingViewModel extends ChangeNotifier {
         orgId = ApiConstants.defaultOrganizationId;
         await healthRepository.saveSetting('iam_org_id', orgId);
       }
-      PlainPatient? profile =
+      final PlainPatient? profile =
           await profileRepository.getMyProfile(userId: userId, orgId: orgId);
-      profile ??= await profileRepository.createInitialProfile(
-          userId: userId, orgId: orgId);
+      // Booking requires an existing Patient record (patient guide §3).
+      if (profile == null) {
+        throw Exception('Please complete your profile before booking an appointment.');
+      }
 
       // Robust resolution of patient name: check FHIR profile -> auth user_name -> profile cache
       String pName = '';
@@ -224,7 +226,7 @@ class BookingViewModel extends ChangeNotifier {
           final parts = pName.split(' ');
           final gName = parts.first;
           final fName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
-          await profileRepository.addName(
+          await profileRepository.updateFullProfile(
             patientId: pId,
             givenName: gName,
             familyName: fName,
@@ -406,18 +408,10 @@ class BookingViewModel extends ChangeNotifier {
       if (orgId.isEmpty) {
         orgId = ApiConstants.defaultOrganizationId;
       }
-      int? patientId;
-      try {
-        final profile =
-            await profileRepository.getMyProfile(userId: userId, orgId: orgId);
-        patientId = profile?.id;
-      } catch (_) {}
-
       if (userId.isNotEmpty && orgId.isNotEmpty) {
         final serverAppts = await bookingRepository.getUserAppointments(
           userId: userId,
           orgId: orgId,
-          patientId: patientId,
         );
 
         // Clear local cache to purge any cancelled/mock records

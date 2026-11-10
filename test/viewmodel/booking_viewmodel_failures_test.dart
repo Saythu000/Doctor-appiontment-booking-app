@@ -46,7 +46,6 @@ class OfflineBookingRepository extends BookingRepository {
   Future<List<Map<String, dynamic>>> getUserAppointments({
     required String userId,
     required String orgId,
-    int? patientId,
   }) async =>
       throw Exception('offline');
 

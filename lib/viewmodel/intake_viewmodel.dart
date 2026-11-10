@@ -115,8 +115,14 @@ class IntakeViewModel extends ChangeNotifier {
         } catch (_) {}
       }
 
-      // Email and phone are deliberately NOT sent: the AI agent does not need
-      // contact details to take a history, and every copy is a leak risk.
+      // Patient context format from the intake guides:
+      // [Patient context: name=..., age=..., email=..., phone=...]
+      if (email != null && email.trim().isNotEmpty) {
+        contextFields.add('email=${email.trim()}');
+      }
+      if (phone != null && phone.trim().isNotEmpty) {
+        contextFields.add('phone=${phone.trim()}');
+      }
 
       if (contextFields.isNotEmpty) {
         final contextPrefix = '[Patient context: ${contextFields.join(', ')}]';
@@ -362,10 +368,10 @@ class IntakeViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    if (patientFhirId == null || patientFhirId <= 0) {
-      _failSave('Your patient profile is not loaded yet, so the intake could not be saved. Check your connection and tap End again.');
-      return;
-    }
+    // Intake does not require a profile: without a patient id the field is
+    // omitted (text guide §5.1).
+    final int? resolvedPatientId =
+        (patientFhirId != null && patientFhirId > 0) ? patientFhirId : null;
 
     try {
       // On a retry after a failed update, reuse the record already created
@@ -373,7 +379,7 @@ class IntakeViewModel extends ChangeNotifier {
       int? recordId = _savedIntakeRecordId;
       if (recordId == null) {
         final record = await _intakeService.createIntakeRecord(
-          patientFhirId: patientFhirId,
+          patientFhirId: resolvedPatientId,
           authToken: effectiveToken,
           orgId: orgId,
         );

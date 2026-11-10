@@ -5,6 +5,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
 import '../../viewmodel/booking_viewmodel.dart';
+import '../../data/repository/booking_repository.dart' show SlotTakenException;
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/intake_viewmodel.dart';
 import '../../domain/model/booking_models.dart';
@@ -193,7 +194,9 @@ class ReviewBookingScreen extends StatelessWidget {
                           if (time.toUpperCase().contains('PM') && hour < 12) hour += 12;
                           if (time.toUpperCase().contains('AM') && hour == 12) hour = 0;
 
-                          final int? pId = specialist?.practitionerDetail?.id ?? specialist?.practitionerRefId ?? specialist?.id;
+                          // `practitioner_id` is the Practitioner id from practitioner_detail.id,
+                          // never the PractitionerRole id (patient guide §4.3).
+                          final int? pId = specialist?.practitionerDetail?.id;
                           if (pId == null || slotId == null || slotId <= 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -261,6 +264,10 @@ class ReviewBookingScreen extends StatelessWidget {
                                 );
                               }
                             }
+                          } on SlotTakenException {
+                            // 409: go back to the time picker, which reloads
+                            // the free slots (patient guide §4.3).
+                            if (context.mounted) Navigator.pop(context, 'slot_taken');
                           } catch (e) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(

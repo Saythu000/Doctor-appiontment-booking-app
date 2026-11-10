@@ -659,7 +659,8 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                               return;
                             }
 
-                            Navigator.pushNamed(
+                            final messenger = ScaffoldMessenger.of(context);
+                            final outcome = await Navigator.pushNamed(
                               context,
                               '/booking_review',
                               arguments: {
@@ -678,6 +679,19 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                                 if (args['clinicalReport'] != null) 'clinicalReport': args['clinicalReport'],
                               },
                             );
+                            if (outcome == 'slot_taken' && mounted) {
+                              setState(() {
+                                _selectedTimeSlot = null;
+                                _selectedSlotId = null;
+                              });
+                              _fetchSlotsForDate(_selectedDate);
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('That time was just booked by someone else. Please pick another time.'),
+                                  backgroundColor: PhiaColors.pulseRed,
+                                ),
+                              );
+                            }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: PhiaColors.primary,

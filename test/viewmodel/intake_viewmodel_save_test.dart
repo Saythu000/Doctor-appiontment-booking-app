@@ -6,6 +6,7 @@ import 'package:phia_flutter/viewmodel/intake_viewmodel.dart';
 /// Fake chat-intake backend: one canned agent reply, configurable save result.
 class FakeChatIntakeService extends IntakeService {
   int createCalls = 0;
+  final List<int?> createdForPatients = [];
   IntakeRecord? recordToReturn = IntakeRecord(id: 11, status: 'IN_PROGRESS');
   bool updateResult = true;
 
@@ -34,6 +35,7 @@ class FakeChatIntakeService extends IntakeService {
     String? orgId,
   }) async {
     createCalls++;
+    createdForPatients.add(patientFhirId);
     return recordToReturn;
   }
 
@@ -95,10 +97,10 @@ void main() {
     expect(service.createCalls, 1, reason: 'must not create a duplicate intake record');
   });
 
-  test('no patient id means nothing is saved', () async {
+  test('no patient id: saved with patient_fhir_id omitted (text guide §5.1)', () async {
     await chatOnce();
     await vm.finishIntake(authToken: 'jwt', patientFhirId: null, orgId: 'org');
-    expect(vm.state, IntakeState.error);
-    expect(service.createCalls, 0);
+    expect(vm.state, IntakeState.completed);
+    expect(service.createdForPatients, [null]);
   });
 }

@@ -45,7 +45,13 @@ class ProfileViewModel extends ChangeNotifier {
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
       final orgId = await healthRepository.getSetting('iam_org_id') ?? '';
       PlainPatient? profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
-      profile ??= await profileRepository.createInitialProfile(userId: userId, orgId: orgId);
+      if (profile == null) {
+        // No Patient record yet: the user must complete profile setup, which
+        // creates it with their real details (patient guide §3.1/§3.2). Never
+        // auto-create a blank one here.
+        currentProfile = null;
+        return;
+      }
       // If profile has no name, seed with real logged in user_name
       final savedName = await healthRepository.getSetting('user_name') ?? '';
       if ((profile.name == null || profile.name!.isEmpty) && savedName.isNotEmpty) {
@@ -63,10 +69,12 @@ class ProfileViewModel extends ChangeNotifier {
           telecom: profile.telecom,
           address: profile.address,
         );
-        // Persist to FHIR backend so the server has the real patient name attached
-        try {
-          profileRepository.addName(patientId: profile.id, givenName: g, familyName: f).then((_) {}).catchError((_) {});
-        } catch (_) {}
+        // Persist the name via PATCH /patients/{id}/full (patient guide §3.3).
+        // Only `names` is sent, so contact and address are left untouched.
+        profileRepository
+            .updateFullProfile(patientId: profile.id, givenName: g, familyName: f)
+            .then((_) {})
+            .catchError((_) {});
       }
 
       // Retrieve local cache to enrich or fallback any missing fields
