@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
@@ -250,6 +251,9 @@ class AuthViewModel extends ChangeNotifier {
         token: _jwtToken,
         isLiveMode: true,
       );
+
+      // Step 7: Start the hourly background vitals upload for this user
+      unawaited(BackgroundSyncService.schedulePeriodicSync());
 
       _isLoading = false;
       notifyListeners();
@@ -703,6 +707,9 @@ class AuthViewModel extends ChangeNotifier {
       // Per-user caches that must not survive into the next session
       'last_intake_record_id',
       'cached_specialists_json',
+      'last_vitals_alert_heart_rate',
+      'last_vitals_alert_systolic',
+      'last_vitals_alert_diastolic',
     ]) {
       await attempt(() => healthRepository.saveSetting(key, ''));
     }

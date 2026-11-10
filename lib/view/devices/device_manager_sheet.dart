@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,13 +33,15 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> with SingleTick
   List<ScanResult> _scanResults = [];
   bool _isScanning = false;
   String? _connectingDeviceId;
+  StreamSubscription<List<ScanResult>>? _scanSub;
+  StreamSubscription<BleDeviceState>? _statusSub;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    _bleService.scanResultsStream.listen((results) {
+    _scanSub = _bleService.scanResultsStream.listen((results) {
       if (mounted) {
         setState(() {
           _scanResults = results;
@@ -46,7 +49,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> with SingleTick
       }
     });
 
-    _bleService.statusStream.listen((status) {
+    _statusSub = _bleService.statusStream.listen((status) {
       if (mounted) {
         setState(() {
           _isScanning = (status == BleDeviceState.scanning);
@@ -60,6 +63,10 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> with SingleTick
 
   @override
   void dispose() {
+    // These listen to app-lifetime streams; without cancelling, every time
+    // the sheet opened two more listeners leaked.
+    _scanSub?.cancel();
+    _statusSub?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -97,7 +104,7 @@ class _DeviceManagerSheetState extends State<DeviceManagerSheet> with SingleTick
           SnackBar(
             backgroundColor: Colors.redAccent,
             content: Text(
-              'Could not connect. Ensure the watch is nearby and Bluetooth is on.',
+              'Could not connect, or this device does not share live heart rate over Bluetooth. Ensure the watch is nearby and Bluetooth is on.',
               style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
             ),
           ),

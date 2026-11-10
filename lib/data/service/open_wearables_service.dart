@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
+import 'health_connect_types.dart';
 import '../../domain/model/vitals_payload.dart';
 
 /// Supported Open-Wearables ecosystem providers
@@ -188,30 +189,7 @@ class OpenWearablesService {
       final health = Health();
       await health.configure();
 
-      final candidateTypes = [
-        HealthDataType.HEART_RATE,
-        HealthDataType.RESTING_HEART_RATE,
-        HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
-        HealthDataType.STEPS,
-        HealthDataType.SLEEP_SESSION,
-        HealthDataType.SLEEP_ASLEEP,
-        HealthDataType.SLEEP_LIGHT,
-        HealthDataType.SLEEP_DEEP,
-        HealthDataType.SLEEP_REM,
-        HealthDataType.SLEEP_AWAKE,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-        HealthDataType.TOTAL_CALORIES_BURNED,
-        HealthDataType.BASAL_ENERGY_BURNED,
-        HealthDataType.DISTANCE_WALKING_RUNNING,
-        HealthDataType.DISTANCE_DELTA,
-        HealthDataType.BLOOD_OXYGEN,
-        HealthDataType.WORKOUT,
-        HealthDataType.ACTIVITY_INTENSITY,
-        HealthDataType.EXERCISE_TIME,
-        HealthDataType.HEIGHT,
-        HealthDataType.WEIGHT,
-      ];
-      final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
+      final types = availableHealthConnectTypes(health);
 
       bool? hasPerm;
       try {
@@ -222,10 +200,12 @@ class OpenWearablesService {
         }
       }
 
+      // Never show the permission screen from here: this runs on timers, on
+      // app resume and in the background. Permissions are requested once, in
+      // context (dashboard / device manager). Without them we simply read
+      // whichever types were granted (per-type fallback below).
       if (hasPerm != true) {
-        try {
-          await health.requestAuthorization(types);
-        } catch (_) {}
+        debugPrint('[OpenWearablesService] Not all Health Connect read permissions are granted; reading granted types only.');
       }
 
       // Query past 48 hours for general activity and sleep

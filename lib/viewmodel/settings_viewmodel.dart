@@ -16,10 +16,7 @@ class SettingsViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> remindersList = [];
   List<Map<String, dynamic>> inAppNotificationsList = [];
   Map<String, Map<String, double>> vitalsThresholds = {
-    'steps': {'min': 0, 'max': 10000},
-    'systolic': {'min': 90, 'max': 140},
-    'diastolic': {'min': 60, 'max': 90},
-    'heart_rate': {'min': 50, 'max': 100},
+    for (final e in kDefaultVitalsThresholds.entries) e.key: Map<String, double>.from(e.value),
   };
 
   SettingsViewModel({required this.healthRepository}) {
@@ -47,24 +44,36 @@ class SettingsViewModel extends ChangeNotifier {
     // Load in-app notifications
     inAppNotificationsList = await healthRepository.getInAppNotifications();
 
-    // Synchronize scheduled notifications with loaded reminders
+    // Show settings even if rescheduling below fails.
+    notifyListeners();
+
+    // Synchronize scheduled notifications with loaded reminders. One bad
+    // reminder must not stop the others from being scheduled.
     for (var r in remindersList) {
-      final id = r['id'] as String;
-      final isActive = (r['is_active'] as int) == 1;
-      if (isActive) {
-        await NotificationService.instance.scheduleReminderNotifications(
-          reminderId: id,
-          title: r['title'] as String,
-          type: r['type'] as String,
-          timeStr: r['time'] as String,
-          daysStr: r['days'] as String,
-        );
-      } else {
-        await NotificationService.instance.cancelReminderNotifications(id);
+      try {
+        await _applyReminderSchedule(r);
+      } catch (e) {
+        if (kDebugMode) {
+          print('[SettingsViewModel] Failed to schedule reminder ${r['id']}: $e');
+        }
       }
     }
+  }
 
-    notifyListeners();
+  Future<void> _applyReminderSchedule(Map<String, dynamic> r) async {
+    final id = r['id'] as String;
+    final isActive = (r['is_active'] as int) == 1;
+    if (isActive) {
+      await NotificationService.instance.scheduleReminderNotifications(
+        reminderId: id,
+        title: r['title'] as String,
+        type: r['type'] as String,
+        timeStr: r['time'] as String,
+        daysStr: r['days'] as String,
+      );
+    } else {
+      await NotificationService.instance.cancelReminderNotifications(id);
+    }
   }
 
   Future<void> saveSetting(String key, String value) async {

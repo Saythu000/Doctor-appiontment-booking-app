@@ -8,6 +8,15 @@ import 'vitals_repository.dart';
 import '../../domain/model/vitals_payload.dart';
 
 // ponytail: concrete production repository; eliminated redundant single-implementation IHealthRepository interface
+/// Default alert ranges, used until the user saves their own.
+/// Single source of truth for both the settings screen and the alert checks.
+const Map<String, Map<String, double>> kDefaultVitalsThresholds = {
+  'steps': {'min': 0, 'max': 10000},
+  'systolic': {'min': 90, 'max': 140},
+  'diastolic': {'min': 60, 'max': 90},
+  'heart_rate': {'min': 50, 'max': 100},
+};
+
 class HealthRepository {
   final SqfliteDatabaseHelper _dbHelper = SqfliteDatabaseHelper.instance;
 
@@ -193,6 +202,20 @@ class HealthRepository {
     }
   }
 
+  /// Deletes locally cached readings older than [maxAge]. The server keeps
+  /// the history; the device only needs recent data for the dashboard.
+  /// Body measurements (weight, height, age) are kept because the latest one
+  /// may be old and is still the current value.
+  Future<int> pruneOldMetrics({Duration maxAge = const Duration(days: 90)}) async {
+    final db = await _dbHelper.database;
+    final cutoff = DateTime.now().subtract(maxAge).toIso8601String();
+    return db.delete(
+      'health_metrics',
+      where: "timestamp < ? AND type NOT IN ('weight', 'height', 'age')",
+      whereArgs: [cutoff],
+    );
+  }
+
   /// Removes recorded GPS workout routes (location data).
   Future<void> clearWorkoutRoutes() async {
     final db = await _dbHelper.database;
@@ -366,7 +389,11 @@ class HealthRepository {
   Future<Map<String, Map<String, double>>> getVitalsThresholds() async {
     final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query('vitals_thresholds');
-    final Map<String, Map<String, double>> thresholds = {};
+    // Start from the defaults so alerts work before the user has ever opened
+    // the thresholds screen (the table starts empty). Saved values override.
+    final Map<String, Map<String, double>> thresholds = {
+      for (final e in kDefaultVitalsThresholds.entries) e.key: Map<String, double>.from(e.value),
+    };
     for (var row in maps) {
       final metric = row['metric'] as String;
       thresholds[metric] = {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/colors.dart';
@@ -37,8 +38,6 @@ import 'viewmodel/voice_intake_viewmodel.dart';
 import 'data/repository/auth_repository.dart';
 import 'data/service/notification_service.dart';
 
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'data/service/vitals_foreground_service.dart';
 import 'data/service/background_sync_service.dart';
 import 'data/service/fhir_api_client.dart';
 import 'core/utils/app_logging.dart';
@@ -47,13 +46,11 @@ import 'core/constants/api_constants.dart';
 void main() async {
   silenceDebugPrintInRelease();
   WidgetsFlutterBinding.ensureInitialized();
-  FlutterForegroundTask.initCommunicationPort();
-  VitalsForegroundService.init();
+  // Fast, prompt-free setup only. Permission requests happen later, in
+  // context, from the dashboard (never before the first frame).
   await BackgroundSyncService.initialize();
-  await BackgroundSyncService.schedulePeriodicSync();
   await NotificationService.instance.init();
-  await NotificationService.instance.requestPermissions();
-  
+
   final healthRepo = HealthRepository();
   try {
     // Remove plaintext credentials written by older app versions.
@@ -68,6 +65,9 @@ void main() async {
       token: savedToken,
       isLiveMode: true,
     );
+    // Background vitals upload only makes sense for a signed-in user.
+    // (Sign-out cancels it; login schedules it again.)
+    unawaited(BackgroundSyncService.schedulePeriodicSync());
   }
   
   runApp(
@@ -152,8 +152,7 @@ class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return WithForegroundTask(
-      child: MaterialApp(
+    return MaterialApp(
         title: 'DrGodly',
         debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -214,7 +213,6 @@ class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
         '/voice_intake': (context) => const VoiceIntakeScreen(),
         '/intake_completion': (context) => const IntakeCompletionScreen(),
       },
-    ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,6 +11,7 @@ import '../../data/service/ble_heart_rate_service.dart';
 import '../../data/service/open_wearables_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:health/health.dart';
+import '../data/service/health_connect_types.dart';
 
 class ActivityViewModel extends ChangeNotifier {
   final HealthRepository repository;
@@ -97,6 +99,10 @@ class ActivityViewModel extends ChangeNotifier {
 
   DateTime? _lastBleFhirSyncTime;
   DateTime? _lastAbnormalHrAlertTime;
+  DateTime? _lastBleHrStoredAt;
+  Future<bool>? _syncInFlight;
+  String? _lastSubmittedVitalsSignature;
+  StreamSubscription<BleDeviceState>? _bleStatusSub;
 
   ActivityViewModel({
     required this.repository,
@@ -118,6 +124,15 @@ class ActivityViewModel extends ChangeNotifier {
       }
     });
 
+    // Keep the "connected watch" badge honest when the link drops.
+    _bleStatusSub = bleService.statusStream.listen((state) {
+      if ((state == BleDeviceState.disconnected || state == BleDeviceState.error) &&
+          connectedBleDeviceName != null) {
+        connectedBleDeviceName = null;
+        notifyListeners();
+      }
+    });
+
     initDashboard();
   }
 
@@ -125,12 +140,17 @@ class ActivityViewModel extends ChangeNotifier {
   void _recordLiveBleHeartRate(int bpm) async {
     try {
       final now = DateTime.now();
-      await repository.saveMetric(HealthMetric(
-        id: 'ble_hr_${now.millisecondsSinceEpoch}',
-        type: 'heart_rate',
-        value: bpm.toDouble(),
-        timestamp: now,
-      ));
+      // Store at most one live reading per minute (was one row per heartbeat,
+      // ~86k rows/day while a strap is connected).
+      if (_lastBleHrStoredAt == null || now.difference(_lastBleHrStoredAt!).inSeconds >= 60) {
+        _lastBleHrStoredAt = now;
+        await repository.saveMetric(HealthMetric(
+          id: 'ble_hr_${now.millisecondsSinceEpoch}',
+          type: 'heart_rate',
+          value: bpm.toDouble(),
+          timestamp: now,
+        ));
+      }
 
       // Trigger phone system notification if live HR is critically abnormal (>130 or <45)
       if (bpm > 130 || bpm < 45) {
@@ -190,38 +210,15 @@ class ActivityViewModel extends ChangeNotifier {
     try {
       final hasPrompted = await repository.getSetting('has_prompted_health_connect');
       if (hasPrompted != 'true') {
-        final candidateTypes = [
-          HealthDataType.STEPS,
-          HealthDataType.HEART_RATE,
-          HealthDataType.RESTING_HEART_RATE,
-          HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
-          HealthDataType.HEART_RATE_VARIABILITY_SDNN,
-          HealthDataType.SLEEP_SESSION,
-          HealthDataType.SLEEP_ASLEEP,
-          HealthDataType.SLEEP_LIGHT,
-          HealthDataType.SLEEP_DEEP,
-          HealthDataType.SLEEP_REM,
-          HealthDataType.SLEEP_AWAKE,
-          HealthDataType.ACTIVE_ENERGY_BURNED,
-          HealthDataType.TOTAL_CALORIES_BURNED,
-          HealthDataType.BASAL_ENERGY_BURNED,
-          HealthDataType.DISTANCE_WALKING_RUNNING,
-          HealthDataType.DISTANCE_DELTA,
-          HealthDataType.BLOOD_OXYGEN,
-          HealthDataType.WORKOUT,
-          HealthDataType.ACTIVITY_INTENSITY,
-          HealthDataType.EXERCISE_TIME,
-        ];
         final health = Health();
         await health.configure();
-        final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
         bool? hasPerm;
         try {
-          hasPerm = await health.hasPermissions(types);
+          hasPerm = await health.hasPermissions(availableHealthConnectTypes(health));
         } catch (_) {}
         if (hasPerm != true) {
           try {
-            await health.requestAuthorization(types);
+            await requestHealthConnectPermissions(health);
           } catch (_) {}
         }
         await repository.saveSetting('has_prompted_health_connect', 'true');
@@ -241,32 +238,9 @@ class ActivityViewModel extends ChangeNotifier {
   /// Explicitly request Health Connect authorization (e.g. from Pair Watch or Settings)
   Future<bool> requestHealthConnectAuthorization() async {
     try {
-      final candidateTypes = [
-        HealthDataType.STEPS,
-        HealthDataType.HEART_RATE,
-        HealthDataType.RESTING_HEART_RATE,
-        HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
-        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
-        HealthDataType.SLEEP_SESSION,
-        HealthDataType.SLEEP_ASLEEP,
-        HealthDataType.SLEEP_LIGHT,
-        HealthDataType.SLEEP_DEEP,
-        HealthDataType.SLEEP_REM,
-        HealthDataType.SLEEP_AWAKE,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-        HealthDataType.TOTAL_CALORIES_BURNED,
-        HealthDataType.BASAL_ENERGY_BURNED,
-        HealthDataType.DISTANCE_WALKING_RUNNING,
-        HealthDataType.DISTANCE_DELTA,
-        HealthDataType.BLOOD_OXYGEN,
-        HealthDataType.WORKOUT,
-        HealthDataType.ACTIVITY_INTENSITY,
-        HealthDataType.EXERCISE_TIME,
-      ];
       final health = Health();
       await health.configure();
-      final types = candidateTypes.where((t) => health.isDataTypeAvailable(t)).toList();
-      final granted = await health.requestAuthorization(types);
+      final granted = await requestHealthConnectPermissions(health);
       await repository.saveSetting('has_prompted_health_connect', 'true');
       await syncOpenWearablesVitals('Android Health Connect');
       return granted;
@@ -291,6 +265,11 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   Future<void> initDashboard() async {
+    // Keep the local cache bounded.
+    try {
+      await repository.pruneOldMetrics();
+    } catch (_) {}
+
     // 1. Fetch latest baseline logs from local database first (immediate load)
     try {
       // Load user bio data (Weight, Height, Age) first from SQLite
@@ -528,6 +507,27 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   /// Evaluates vitals (HR, BP) against active warning thresholds and triggers system alerts
+  /// Alert de-duplication: the threshold check runs on every dashboard load,
+  /// pull-to-refresh and permission flow. Alert again for the same metric only
+  /// if the value changed or 6 hours have passed.
+  Future<bool> _shouldAlert(String metric, String value) async {
+    final key = 'last_vitals_alert_$metric';
+    final now = DateTime.now();
+    try {
+      final last = await repository.getSetting(key);
+      if (last != null) {
+        final sep = last.indexOf('|');
+        final lastValue = sep > 0 ? last.substring(0, sep) : '';
+        final lastAt = sep > 0 ? DateTime.tryParse(last.substring(sep + 1)) : null;
+        if (lastValue == value && lastAt != null && now.difference(lastAt) < const Duration(hours: 6)) {
+          return false;
+        }
+      }
+      await repository.saveSetting(key, '$value|${now.toIso8601String()}');
+    } catch (_) {}
+    return true;
+  }
+
   Future<void> checkVitalsThresholds() async {
     try {
       final thresholds = await repository.getVitalsThresholds();
@@ -537,7 +537,8 @@ class ActivityViewModel extends ChangeNotifier {
       if (hrThreshold != null && dashboardHr > 0) {
         final double minHr = hrThreshold['min'] ?? 50.0;
         final double maxHr = hrThreshold['max'] ?? 100.0;
-        if (dashboardHr < minHr || dashboardHr > maxHr) {
+        if ((dashboardHr < minHr || dashboardHr > maxHr) &&
+            await _shouldAlert('heart_rate', dashboardHr.toStringAsFixed(0))) {
           await NotificationService.instance.showVitalsAlert(
             title: 'Vitals Warning: Heart Rate ⚠️',
             body: 'Your resting heart rate of ${dashboardHr.toStringAsFixed(0)} BPM is outside the safe range (${minHr.toStringAsFixed(0)}-${maxHr.toStringAsFixed(0)} BPM).',
@@ -548,6 +549,7 @@ class ActivityViewModel extends ChangeNotifier {
       // B. Check Blood Pressure (Systolic & Diastolic)
       final userId = await repository.getSetting('iam_user_id') ?? '';
       final orgId = await repository.getSetting('iam_org_id') ?? '';
+      if (userId.isEmpty || orgId.isEmpty) return;
       final records = await vitalsRepository.getMyVitals(userId: userId, orgId: orgId, limit: 1);
       if (records.isNotEmpty) {
         final latest = records.first;
@@ -556,7 +558,8 @@ class ActivityViewModel extends ChangeNotifier {
           if (sysThreshold != null) {
             final double maxSys = sysThreshold['max'] ?? 140.0;
             final double minSys = sysThreshold['min'] ?? 90.0;
-            if (latest.bloodPressureSystolic! > maxSys || latest.bloodPressureSystolic! < minSys) {
+            if ((latest.bloodPressureSystolic! > maxSys || latest.bloodPressureSystolic! < minSys) &&
+                await _shouldAlert('systolic', '${latest.bloodPressureSystolic}')) {
               await NotificationService.instance.showVitalsAlert(
                 title: 'Vitals Warning: Blood Pressure ⚠️',
                 body: 'Your Systolic Blood Pressure of ${latest.bloodPressureSystolic} mmHg is outside the safe limit (${minSys.toStringAsFixed(0)}-${maxSys.toStringAsFixed(0)} mmHg).',
@@ -570,7 +573,8 @@ class ActivityViewModel extends ChangeNotifier {
           if (diaThreshold != null) {
             final double maxDia = diaThreshold['max'] ?? 90.0;
             final double minDia = diaThreshold['min'] ?? 60.0;
-            if (latest.bloodPressureDiastolic! > maxDia || latest.bloodPressureDiastolic! < minDia) {
+            if ((latest.bloodPressureDiastolic! > maxDia || latest.bloodPressureDiastolic! < minDia) &&
+                await _shouldAlert('diastolic', '${latest.bloodPressureDiastolic}')) {
               await NotificationService.instance.showVitalsAlert(
                 title: 'Vitals Warning: Blood Pressure ⚠️',
                 body: 'Your Diastolic Blood Pressure of ${latest.bloodPressureDiastolic} mmHg is outside the safe limit (${minDia.toStringAsFixed(0)}-${maxDia.toStringAsFixed(0)} mmHg).',
@@ -728,7 +732,20 @@ class ActivityViewModel extends ChangeNotifier {
   /// Synchronize rich biometrics and sleep stages from Open-Wearables / Health Connect providers
   /// and stream the normalized payload to the live FHIR server
   /// Returns true if real records were fetched and synced, false otherwise
-  Future<bool> syncOpenWearablesVitals([String? providerName]) async {
+  ///
+  /// Only one sync runs at a time: the 5-minute timer, app resume,
+  /// pull-to-refresh and the device sheet can all trigger it, and overlapping
+  /// runs used to POST the same record several times.
+  Future<bool> syncOpenWearablesVitals([String? providerName]) {
+    final inFlight = _syncInFlight;
+    if (inFlight != null) return inFlight;
+    final run = _syncOpenWearablesVitals(providerName)
+        .whenComplete(() => _syncInFlight = null);
+    _syncInFlight = run;
+    return run;
+  }
+
+  Future<bool> _syncOpenWearablesVitals(String? providerName) async {
     try {
       final userId = await repository.getSetting('iam_user_id') ?? '';
       final orgId = await repository.getSetting('iam_org_id') ?? '';
@@ -755,6 +772,9 @@ class ActivityViewModel extends ChangeNotifier {
         }
 
         final now = DateTime.now();
+        // One row per metric per day, replaced on each sync. Timestamp-based
+        // ids added ~8 new rows every 5 minutes and the table never shrank.
+        final dayKey = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
         if (cloudVitals.sleepMinutes != null) {
           liveSleep = cloudVitals.sleepMinutes! / 60.0;
           dashboardSleep = liveSleep;
@@ -763,14 +783,14 @@ class ActivityViewModel extends ChangeNotifier {
           remSleepMinutes = cloudVitals.remSleepMinutes ?? 0;
           awakeMinutes = cloudVitals.awakeMinutes ?? 0;
           await repository.saveMetric(HealthMetric(
-            id: 'synced_sleep_${now.millisecondsSinceEpoch}',
+            id: 'synced_sleep_$dayKey',
             type: 'sleep',
             value: dashboardSleep,
             timestamp: now,
           ));
           if (deepSleepMinutes > 0) {
             await repository.saveMetric(HealthMetric(
-              id: 'synced_deep_sleep_${now.millisecondsSinceEpoch}',
+              id: 'synced_deep_sleep_$dayKey',
               type: 'deep_sleep',
               value: deepSleepMinutes.toDouble(),
               timestamp: now,
@@ -778,7 +798,7 @@ class ActivityViewModel extends ChangeNotifier {
           }
           if (lightSleepMinutes > 0) {
             await repository.saveMetric(HealthMetric(
-              id: 'synced_light_sleep_${now.millisecondsSinceEpoch}',
+              id: 'synced_light_sleep_$dayKey',
               type: 'light_sleep',
               value: lightSleepMinutes.toDouble(),
               timestamp: now,
@@ -786,7 +806,7 @@ class ActivityViewModel extends ChangeNotifier {
           }
           if (remSleepMinutes > 0) {
             await repository.saveMetric(HealthMetric(
-              id: 'synced_rem_sleep_${now.millisecondsSinceEpoch}',
+              id: 'synced_rem_sleep_$dayKey',
               type: 'rem_sleep',
               value: remSleepMinutes.toDouble(),
               timestamp: now,
@@ -794,7 +814,7 @@ class ActivityViewModel extends ChangeNotifier {
           }
           if (awakeMinutes > 0) {
             await repository.saveMetric(HealthMetric(
-              id: 'synced_awake_sleep_${now.millisecondsSinceEpoch}',
+              id: 'synced_awake_sleep_$dayKey',
               type: 'awake_sleep',
               value: awakeMinutes.toDouble(),
               timestamp: now,
@@ -810,7 +830,7 @@ class ActivityViewModel extends ChangeNotifier {
         if (cloudVitals.caloriesKcal != null && cloudVitals.caloriesKcal! > 0) {
           dashboardCalories = cloudVitals.caloriesKcal!;
           await repository.saveMetric(HealthMetric(
-            id: 'synced_cal_${now.millisecondsSinceEpoch}',
+            id: 'synced_cal_$dayKey',
             type: 'calories',
             value: dashboardCalories,
             timestamp: now,
@@ -821,7 +841,7 @@ class ActivityViewModel extends ChangeNotifier {
           dashboardActiveTimeMins = cloudVitals.totalActiveMinutes!;
           liveActiveMins = cloudVitals.totalActiveMinutes!;
           await repository.saveMetric(HealthMetric(
-            id: 'synced_active_${now.millisecondsSinceEpoch}',
+            id: 'synced_active_$dayKey',
             type: 'active_time',
             value: dashboardActiveTimeMins.toDouble(),
             timestamp: now,
@@ -831,7 +851,7 @@ class ActivityViewModel extends ChangeNotifier {
         if (cloudVitals.distanceMeters != null) {
           dashboardDistanceKm = cloudVitals.distanceMeters! / 1000.0;
           await repository.saveMetric(HealthMetric(
-            id: 'synced_dist_${now.millisecondsSinceEpoch}',
+            id: 'synced_dist_$dayKey',
             type: 'distance',
             value: dashboardDistanceKm,
             timestamp: now,
@@ -841,7 +861,7 @@ class ActivityViewModel extends ChangeNotifier {
         if (cloudVitals.oxygenSaturation != null && cloudVitals.oxygenSaturation! > 0) {
           dashboardSpo2 = cloudVitals.oxygenSaturation!;
           await repository.saveMetric(HealthMetric(
-            id: 'synced_spo2_${now.millisecondsSinceEpoch}',
+            id: 'synced_spo2_$dayKey',
             type: 'blood_oxygen',
             value: dashboardSpo2!,
             timestamp: now,
@@ -853,7 +873,7 @@ class ActivityViewModel extends ChangeNotifier {
           await repository.saveProfileValue('user_height', userHeight.toString());
           await repository.saveProfileValue('height', userHeight.toString());
           await repository.saveMetric(HealthMetric(
-            id: 'synced_height_${now.millisecondsSinceEpoch}',
+            id: 'synced_height_$dayKey',
             type: 'height',
             value: userHeight,
             timestamp: now,
@@ -865,7 +885,7 @@ class ActivityViewModel extends ChangeNotifier {
           await repository.saveProfileValue('user_weight', userWeight.toString());
           await repository.saveProfileValue('weight', userWeight.toString());
           await repository.saveMetric(HealthMetric(
-            id: 'synced_weight_${now.millisecondsSinceEpoch}',
+            id: 'synced_weight_$dayKey',
             type: 'weight',
             value: userWeight,
             timestamp: now,
@@ -878,7 +898,7 @@ class ActivityViewModel extends ChangeNotifier {
         // Persist heart rate metric locally ONLY if real data was measured
         if (realHr != null && realHr > 0) {
           await repository.saveMetric(HealthMetric(
-            id: 'synced_hr_${now.millisecondsSinceEpoch}',
+            id: 'synced_hr_$dayKey',
             type: 'heart_rate',
             value: dashboardHr,
             timestamp: now,
@@ -901,7 +921,14 @@ class ActivityViewModel extends ChangeNotifier {
           gender: cloudVitals.gender ?? cachedGender,
         );
 
-        await vitalsRepository.submitVitals(mergedVitals, userId: userId, orgId: orgId);
+        // Health Connect data changes slowly; don't upload an identical record
+        // again (the service also caches reads for 30s).
+        final payload = Map<String, dynamic>.from(mergedVitals.toJson())..remove('recorded_at');
+        final signature = '$userId|${jsonEncode(payload)}';
+        if (signature != _lastSubmittedVitalsSignature) {
+          await vitalsRepository.submitVitals(mergedVitals, userId: userId, orgId: orgId);
+          _lastSubmittedVitalsSignature = signature;
+        }
         notifyListeners();
         return true;
       }
@@ -918,6 +945,7 @@ class ActivityViewModel extends ChangeNotifier {
   void dispose() {
     _bleHrSub?.cancel();
     _bleHrvSub?.cancel();
+    _bleStatusSub?.cancel();
     _stepsSub?.cancel();
     _autoSyncTimer?.cancel();
     super.dispose();

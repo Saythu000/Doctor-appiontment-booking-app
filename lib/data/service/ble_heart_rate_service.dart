@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
@@ -30,6 +31,12 @@ class BleHeartRateService {
   BluetoothCharacteristic? _hrCharacteristic;
   StreamSubscription<List<int>>? _hrSubscription;
   StreamSubscription<BluetoothConnectionState>? _deviceStateSubscription;
+  StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
+
+  /// Recent beat-to-beat (RR) intervals in ms, used to compute HRV (RMSSD).
+  final List<double> _rrIntervalsMs = [];
+  static const int _rrWindow = 60;
+  static const int minRrIntervalsForHrv = 30;
 
   // Reactive Streams
   final _heartRateController = StreamController<int>.broadcast();
@@ -87,8 +94,10 @@ class BleHeartRateService {
 
       _updateState(BleDeviceState.scanning);
 
-      // Listen to scan results
-      FlutterBluePlus.scanResults.listen((results) {
+      // Listen to scan results. Keep a single subscription: every scan used to
+      // add another permanent listener.
+      await _scanResultsSubscription?.cancel();
+      _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
         // Filter devices that have an identifiable name or advertise Heart Rate service
         final validDevices = results.where((r) {
           return r.device.platformName.isNotEmpty || 
@@ -116,6 +125,8 @@ class BleHeartRateService {
       if (FlutterBluePlus.isScanningNow) {
         await FlutterBluePlus.stopScan();
       }
+      await _scanResultsSubscription?.cancel();
+      _scanResultsSubscription = null;
       if (_currentState == BleDeviceState.scanning) {
         _updateState(BleDeviceState.disconnected);
       }
@@ -126,33 +137,26 @@ class BleHeartRateService {
     }
   }
 
-  /// Connect directly to a chosen smartwatch/fitness tracker
+  /// Connect directly to a chosen smartwatch/fitness tracker.
+  /// Returns true only when the device exposes the standard Heart Rate
+  /// service and live heart-rate notifications were enabled.
   Future<bool> connect(BluetoothDevice device) async {
     try {
       await stopScan();
       _updateState(BleDeviceState.connecting);
-      _connectedDevice = device;
-
-      // Monitor hardware connection lifecycle
-      _deviceStateSubscription?.cancel();
-      _deviceStateSubscription = device.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.connected) {
-          _updateState(BleDeviceState.connected);
-        } else if (state == BluetoothConnectionState.disconnected) {
-          _cleanupConnection();
-          _updateState(BleDeviceState.disconnected);
-        }
-      });
+      await _deviceStateSubscription?.cancel();
+      _deviceStateSubscription = null;
 
       // Connect with autoConnect false for faster initial handshake
       await device.connect(
         timeout: const Duration(seconds: 15),
         autoConnect: false,
       );
+      _connectedDevice = device;
 
       // Discover GATT services
       final services = await device.discoverServices();
-      
+
       // Look for standard Heart Rate Service (0x180D)
       BluetoothService? hrService;
       for (final s in services) {
@@ -182,28 +186,49 @@ class BleHeartRateService {
         }
       }
 
-      if (_hrCharacteristic != null) {
-        // Enable notify on GATT Heart Rate Measurement
-        await _hrCharacteristic!.setNotifyValue(true);
-        _hrSubscription?.cancel();
-        _hrSubscription = _hrCharacteristic!.onValueReceived.listen(_parseHeartRatePacket);
-
-        _updateState(BleDeviceState.connected);
-        if (kDebugMode) {
-          print('[BLE] Successfully subscribed to Heart Rate GATT (0x2A37) on ${device.platformName}');
-        }
-        return true;
-      } else {
+      if (_hrCharacteristic == null) {
+        // No standard heart-rate stream: reporting "connected" would show a
+        // live device that never sends data. Disconnect and report failure.
         if (kDebugMode) {
           print('[BLE] Heart Rate GATT (0x180D/0x2A37) not found on ${device.platformName}. Services discovered: ${services.map((s) => s.uuid).toList()}');
         }
-        _updateState(BleDeviceState.connected); // Still keep connection alive for device tracking
-        return true;
+        try {
+          await device.disconnect();
+        } catch (_) {}
+        _cleanupConnection();
+        _updateState(BleDeviceState.error);
+        return false;
       }
+
+      // Enable notify on GATT Heart Rate Measurement
+      await _hrCharacteristic!.setNotifyValue(true);
+      await _hrSubscription?.cancel();
+      _hrSubscription = _hrCharacteristic!.onValueReceived.listen(_parseHeartRatePacket);
+
+      // Watch for the link dropping. Subscribing only now (after connect)
+      // matters: connectionState replays its last value on listen, which
+      // before connect() was "disconnected" and wiped the connection we were
+      // about to make.
+      _deviceStateSubscription = device.connectionState
+          .where((state) => state == BluetoothConnectionState.disconnected)
+          .listen((_) {
+        if (_connectedDevice?.remoteId != device.remoteId) return;
+        _cleanupConnection();
+        _updateState(BleDeviceState.disconnected);
+      });
+
+      _updateState(BleDeviceState.connected);
+      if (kDebugMode) {
+        print('[BLE] Successfully subscribed to Heart Rate GATT (0x2A37) on ${device.platformName}');
+      }
+      return true;
     } catch (e) {
       if (kDebugMode) {
         print('[BLE] Connection error: $e');
       }
+      try {
+        await device.disconnect();
+      } catch (_) {}
       _cleanupConnection();
       _updateState(BleDeviceState.error);
       return false;
@@ -233,6 +258,8 @@ class BleHeartRateService {
     _deviceStateSubscription?.cancel();
     _deviceStateSubscription = null;
     _connectedDevice = null;
+    _rrIntervalsMs.clear();
+    _latestHrv = null;
   }
 
   void _updateState(BleDeviceState newState) {
@@ -240,57 +267,99 @@ class BleHeartRateService {
     _statusController.add(newState);
   }
 
-  /// Parse Bluetooth SIG Standard Heart Rate Measurement binary packet (GATT 0x2A37)
-  /// Spec: https://www.bluetooth.com/specifications/specs/heart-rate-service-1-0/
   void _parseHeartRatePacket(List<int> data) {
-    if (data.isEmpty) return;
+    final packet = parseHeartRateMeasurement(data);
+    if (packet == null) return;
 
-    final flags = data[0];
-    final is16Bit = (flags & 0x01) != 0;
-    int bpm = 0;
-    int offset = 1;
+    if (packet.bpm > 30 && packet.bpm < 240) {
+      _latestHeartRate = packet.bpm;
+      _heartRateController.add(packet.bpm);
+    }
 
-    if (is16Bit) {
-      if (data.length >= 3) {
-        bpm = data[offset] | (data[offset + 1] << 8);
-        offset += 2;
-      }
-    } else {
-      if (data.length >= 2) {
-        bpm = data[offset];
-        offset += 1;
+    // HRV is RMSSD over a window of successive RR intervals (in ms). A single
+    // RR interval is NOT HRV: it is just the length of one heartbeat.
+    for (final rr in packet.rrIntervalsMs) {
+      if (rr > 300 && rr < 2000) {
+        _rrIntervalsMs.add(rr);
       }
     }
-
-    if (bpm > 30 && bpm < 240) {
-      _latestHeartRate = bpm;
-      _heartRateController.add(bpm);
+    if (_rrIntervalsMs.length > _rrWindow) {
+      _rrIntervalsMs.removeRange(0, _rrIntervalsMs.length - _rrWindow);
     }
-
-    // Check if Energy Expended is present (Bit 3)
-    final energyPresent = (flags & 0x08) != 0;
-    if (energyPresent) {
-      offset += 2;
-    }
-
-    // Check if RR-Interval (HRV) values are present (Bit 4)
-    final rrPresent = (flags & 0x10) != 0;
-    if (rrPresent && data.length >= offset + 2) {
-      final rrRaw = data[offset] | (data[offset + 1] << 8);
-      // RR-interval unit: 1/1024 seconds -> convert to milliseconds
-      final double rrMs = (rrRaw / 1024.0) * 1000.0;
-      if (rrMs > 300 && rrMs < 2000) {
-        _latestHrv = double.parse(rrMs.toStringAsFixed(1));
+    if (_rrIntervalsMs.length >= minRrIntervalsForHrv) {
+      final value = rmssd(_rrIntervalsMs);
+      if (value != null) {
+        _latestHrv = double.parse(value.toStringAsFixed(1));
         _hrvController.add(_latestHrv!);
       }
     }
   }
 
+  /// Parses a Bluetooth SIG Heart Rate Measurement packet (GATT 0x2A37).
+  /// Spec: https://www.bluetooth.com/specifications/specs/heart-rate-service-1-0/
+  /// Returns null for an empty or truncated packet.
+  static HeartRateMeasurement? parseHeartRateMeasurement(List<int> data) {
+    if (data.isEmpty) return null;
+
+    final flags = data[0];
+    final is16Bit = (flags & 0x01) != 0;
+    int offset = 1;
+    int bpm;
+
+    if (is16Bit) {
+      if (data.length < 3) return null;
+      bpm = data[1] | (data[2] << 8);
+      offset = 3;
+    } else {
+      if (data.length < 2) return null;
+      bpm = data[1];
+      offset = 2;
+    }
+
+    // Energy Expended present (bit 3): 2 bytes to skip
+    if ((flags & 0x08) != 0) {
+      offset += 2;
+    }
+
+    // RR-Interval values present (bit 4): every remaining uint16 is one RR
+    // interval in units of 1/1024 s. A packet can carry several.
+    final rr = <double>[];
+    if ((flags & 0x10) != 0) {
+      while (offset + 1 < data.length) {
+        final raw = data[offset] | (data[offset + 1] << 8);
+        rr.add(raw / 1024.0 * 1000.0);
+        offset += 2;
+      }
+    }
+
+    return HeartRateMeasurement(bpm: bpm, rrIntervalsMs: rr);
+  }
+
+  /// Root mean square of successive differences of RR intervals (ms), the
+  /// standard short-term HRV measure. Returns null with fewer than 2 values.
+  static double? rmssd(List<double> rrMs) {
+    if (rrMs.length < 2) return null;
+    double sumSq = 0;
+    for (var i = 1; i < rrMs.length; i++) {
+      final d = rrMs[i] - rrMs[i - 1];
+      sumSq += d * d;
+    }
+    return math.sqrt(sumSq / (rrMs.length - 1));
+  }
+
   void dispose() {
+    _scanResultsSubscription?.cancel();
     _cleanupConnection();
     _heartRateController.close();
     _hrvController.close();
     _statusController.close();
     _scanResultsController.close();
   }
+}
+
+/// One decoded Heart Rate Measurement notification.
+class HeartRateMeasurement {
+  final int bpm;
+  final List<double> rrIntervalsMs;
+  const HeartRateMeasurement({required this.bpm, required this.rrIntervalsMs});
 }

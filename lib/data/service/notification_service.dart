@@ -60,17 +60,32 @@ class NotificationService {
     }
   }
 
-  /// Request permissions for local notifications and exact alarms
+  /// Requests the notification permission. Call it from a screen, in context,
+  /// never before the first frame.
+  ///
+  /// Exact alarms are deliberately NOT requested: on Android 12+ that opens a
+  /// system Settings page, and on Android 14 the permission is denied by
+  /// default. Reminders fall back to inexact delivery instead (see
+  /// [_scheduleMode]).
   Future<bool> requestPermissions() async {
-    // Check and request notification permissions
     final status = await Permission.notification.request();
-    
-    // On Android 13+, check exact alarm permission
-    if (await Permission.scheduleExactAlarm.isDenied) {
-      await Permission.scheduleExactAlarm.request();
-    }
-
     return status.isGranted;
+  }
+
+  /// Exact delivery when the OS allows it, otherwise inexact (may arrive a few
+  /// minutes late). Scheduling with exact mode when it is not allowed throws
+  /// `exact_alarms_not_permitted` on Android 14+.
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    try {
+      final android = _localNotifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final canExact = await android?.canScheduleExactNotifications() ?? false;
+      return canExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+    } catch (_) {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
   }
 
   /// Helper to get next instance of a specific time
@@ -217,7 +232,7 @@ class NotificationService {
       body,
       tzTime,
       details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -291,6 +306,10 @@ class NotificationService {
     required String timeStr, // Format: "HH:mm"
     required String daysStr, // Format: "Sun,Mon..." or "Daily"
   }) async {
+    // Clear every alarm this reminder had before. Otherwise editing a reminder
+    // (e.g. Daily -> Mon, or Mon -> Tue) leaves the old alarms firing.
+    await cancelReminderNotifications(reminderId);
+
     // Parse time
     final parts = timeStr.split(':');
     final int hour = int.parse(parts[0]);
@@ -314,7 +333,7 @@ class NotificationService {
         title,
         scheduledDate,
         details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: await _scheduleMode(),
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
@@ -335,7 +354,7 @@ class NotificationService {
           title,
           scheduledDate,
           details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: await _scheduleMode(),
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
