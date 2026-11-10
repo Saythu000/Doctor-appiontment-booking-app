@@ -1,290 +1,211 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:provider/provider.dart';
 
-class GeneralSettingsScreen extends StatelessWidget {
+/// "Body measurements": height and weight, entered in the user's chosen
+/// units and always saved in cm and kg.
+class GeneralSettingsScreen extends StatefulWidget {
   const GeneralSettingsScreen({super.key});
 
-  void _showEditBodyMetricsSheet(BuildContext context, ActivityViewModel activityVM) {
-    final heightController = TextEditingController(
-      text: activityVM.userHeight > 0 ? activityVM.userHeight.toStringAsFixed(0) : '',
-    );
-    final weightController = TextEditingController(
-      text: activityVM.userWeight > 0 ? activityVM.userWeight.toStringAsFixed(1) : '',
-    );
+  @override
+  State<GeneralSettingsScreen> createState() => _GeneralSettingsScreenState();
+}
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
-            top: 20,
-            left: 20,
-            right: 20,
-          ),
-          decoration: const BoxDecoration(
-            color: PhiaColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: PhiaColors.borderSubtle,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Edit Body Metrics',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: PhiaColors.navyAnchor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                    onPressed: () => Navigator.pop(sheetCtx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'HEIGHT (CM)',
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: PhiaColors.surfaceSubtle,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: PhiaColors.borderSubtle),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: TextField(
-                            controller: heightController,
-                            keyboardType: const TextInputType.numberWithOptions(),
-                            style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
-                            decoration: InputDecoration(
-                              hintText: 'e.g. 175',
-                              hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'WEIGHT (KG)',
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: PhiaColors.textSecondary),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: PhiaColors.surfaceSubtle,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: PhiaColors.borderSubtle),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: TextField(
-                            controller: weightController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
-                            decoration: InputDecoration(
-                              hintText: 'e.g. 70.5',
-                              hintStyle: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textMuted),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  final h = double.tryParse(heightController.text.trim()) ?? 0.0;
-                  final w = double.tryParse(weightController.text.trim()) ?? 0.0;
-                  Navigator.pop(sheetCtx);
-                  if (h > 0 || w > 0) {
-                    await activityVM.saveBioData(
-                      weight: w > 0 ? w : activityVM.userWeight,
-                      height: h > 0 ? h : activityVM.userHeight,
-                      age: activityVM.userAge.toDouble(),
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: PhiaColors.activeGreen,
-                          content: Text(
-                            'Body metrics saved successfully!',
-                            style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white),
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: PhiaColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Save Body Metrics',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+class _GeneralSettingsScreenState extends State<GeneralSettingsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _cm = TextEditingController();
+  final _ft = TextEditingController();
+  final _in = TextEditingController();
+  final _weight = TextEditingController();
+  bool _saving = false;
+  bool? _pounds;
+  bool? _feetInches;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = context.watch<SettingsViewModel>();
+    // Prefill (again) whenever the unit changes, converting the stored value.
+    if (_pounds != settings.usesPounds || _feetInches != settings.usesFeetInches) {
+      _pounds = settings.usesPounds;
+      _feetInches = settings.usesFeetInches;
+      _prefill(context.read<ActivityViewModel>());
+    }
+  }
+
+  void _prefill(ActivityViewModel vm) {
+    final h = vm.userHeight;
+    final w = vm.userWeight;
+    _cm.text = h > 0 ? h.toStringAsFixed(0) : '';
+    if (h > 0) {
+      final (ft, inch) = UnitFormat.cmToFeetInches(h);
+      _ft.text = '$ft';
+      _in.text = '$inch';
+    } else {
+      _ft.clear();
+      _in.clear();
+    }
+    _weight.text = w > 0 ? (_pounds! ? UnitFormat.kgToPounds(w) : w).toStringAsFixed(1) : '';
+  }
+
+  @override
+  void dispose() {
+    _cm.dispose();
+    _ft.dispose();
+    _in.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  static String? Function(String?) _range(double min, double max, String unit, {bool required = true}) {
+    return (v) {
+      final text = v?.trim() ?? '';
+      if (text.isEmpty) return required ? 'Required' : null;
+      final value = double.tryParse(text);
+      if (value == null) return 'Enter a number';
+      if (value < min || value > max) return 'Enter ${min.toStringAsFixed(0)}–${max.toStringAsFixed(0)} $unit';
+      return null;
+    };
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    final activity = context.read<ActivityViewModel>();
+
+    final heightCm = _feetInches!
+        ? UnitFormat.feetInchesToCm(int.parse(_ft.text.trim()), int.tryParse(_in.text.trim()) ?? 0)
+        : double.parse(_cm.text.trim());
+    final rawWeight = double.parse(_weight.text.trim());
+    final weightKg = _pounds! ? UnitFormat.poundsToKg(rawWeight) : rawWeight;
+
+    setState(() => _saving = true);
+    try {
+      final synced = await activity.saveBioData(
+        weight: weightKg,
+        height: heightCm,
+        age: activity.userAge.toDouble(),
+      );
+      if (!mounted) return;
+      showAppMessage(
+        context,
+        synced ? 'Height and weight saved.' : 'Saved on this phone. It will be sent to your care team later.',
+        type: FeedbackType.success,
+      );
+    } catch (_) {
+      if (mounted) {
+        showAppMessage(context, "Couldn't save your measurements. Please try again.", type: FeedbackType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final activityVM = context.watch<ActivityViewModel>();
+    final digits = [FilteringTextInputFormatter.digitsOnly];
+    final decimal = [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}'))];
 
     return Scaffold(
-      backgroundColor: PhiaColors.background,
-      appBar: AppBar(
-        backgroundColor: PhiaColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        centerTitle: true,
-        title: Text(
-          'Body Measurements',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Body measurements')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
-              child: Text(
-                'Body & Physical Metrics',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: PhiaColors.navyAnchor,
-                ),
-              ),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: PhiaColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PhiaColors.borderSubtle),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildSettingsTile(
-                    title: 'Height & Weight',
-                    value: (activityVM.userHeight > 0 || activityVM.userWeight > 0)
-                        ? '${activityVM.userHeight > 0 ? "${activityVM.userHeight.toStringAsFixed(0)} cm" : "--"}, ${activityVM.userWeight > 0 ? "${activityVM.userWeight.toStringAsFixed(1)} kg" : "--"}'
-                        : 'Not Set',
-                    onTap: () => _showEditBodyMetricsSheet(context, activityVM),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile({
-    required String title,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: PhiaColors.textPrimary,
-              ),
-            ),
-            Row(
+        child: Form(
+          key: _formKey,
+          // Not a lazy ListView: every field must stay built so the Form
+          // validates fields that are scrolled out of view.
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: PhiaColors.primary,
-                    fontWeight: FontWeight.w700,
+                  'Used to work out calories and other health numbers. Only you and your care team can see them.',
+                  style: context.text.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(header: true, child: Text('Height', style: context.text.titleMedium)),
+                      const SizedBox(height: AppSpacing.md),
+                      if (_feetInches!)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                key: const ValueKey('height-ft'),
+                                controller: _ft,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: digits,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(labelText: 'Feet', suffixText: 'ft'),
+                                validator: _range(1, 8, 'ft'),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: TextFormField(
+                                key: const ValueKey('height-in'),
+                                controller: _in,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: digits,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(labelText: 'Inches', suffixText: 'in'),
+                                validator: _range(0, 11, 'in', required: false),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        TextFormField(
+                          key: const ValueKey('height-cm'),
+                          controller: _cm,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: digits,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(labelText: 'Height', suffixText: 'cm'),
+                          validator: _range(50, 250, 'cm'),
+                        ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Semantics(header: true, child: Text('Weight', style: context.text.titleMedium)),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        key: const ValueKey('weight'),
+                        controller: _weight,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: decimal,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _save(),
+                        decoration: InputDecoration(labelText: 'Weight', suffixText: _pounds! ? 'lb' : 'kg'),
+                        validator: _pounds! ? _range(5, 880, 'lb') : _range(2, 400, 'kg'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: PhiaColors.textMuted,
-                  size: 14,
+                const SizedBox(height: AppSpacing.xl),
+                AppButton(label: 'Save', isLoading: _saving, onPressed: _save),
+                const SizedBox(height: AppSpacing.sm),
+                Center(
+                  child: AppButton.text(
+                    label: 'Change units',
+                    icon: Icons.straighten_rounded,
+                    onPressed: () => context.push(AppRoutes.units),
+                  ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

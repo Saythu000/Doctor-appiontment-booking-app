@@ -1,251 +1,112 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
+/// Units the app shows weight and height in. Data is always stored in kg/cm;
+/// only the display and input change.
 class ClinicalUnitsScreen extends StatelessWidget {
   const ClinicalUnitsScreen({super.key});
-
-  void _showUnitSelector({
-    required BuildContext context,
-    required String title,
-    required String currentVal,
-    required List<String> options,
-    required String settingKey,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: const BoxDecoration(
-            color: PhiaColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: PhiaColors.borderSubtle,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: PhiaColors.navyAnchor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ...options.map((opt) {
-                final isSelected = opt == currentVal;
-                return InkWell(
-                  onTap: () {
-                    context.read<SettingsViewModel>().saveSetting(settingKey, opt);
-                    Navigator.pop(context);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          opt,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            color: isSelected ? PhiaColors.primary : PhiaColors.textPrimary,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                        ),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: PhiaColors.primary,
-                            size: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final settingsVM = context.watch<SettingsViewModel>();
 
+    Future<void> save(String key, String value) async {
+      try {
+        await context.read<SettingsViewModel>().saveSetting(key, value);
+      } catch (_) {
+        if (context.mounted) {
+          showAppMessage(context, "Couldn't change the unit. Please try again.", type: FeedbackType.error);
+        }
+      }
+    }
+
     return Scaffold(
-      backgroundColor: PhiaColors.background,
-      appBar: AppBar(
-        backgroundColor: PhiaColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        centerTitle: true,
-        title: Text(
-          'Clinical Unit Registrations',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Units')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
-              child: Text(
-                'Clinical Measurement Standards',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: PhiaColors.navyAnchor,
-                ),
-              ),
+            Text(
+              'Choose how weight and height are shown across the app.',
+              style: context.text.bodyMedium,
             ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: PhiaColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PhiaColors.borderSubtle),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildSettingsTile(
-                    title: 'Weight Unit',
-                    value: settingsVM.weightUnit,
-                    onTap: () => _showUnitSelector(
-                      context: context,
-                      title: 'Select Weight Unit',
-                      currentVal: settingsVM.weightUnit,
-                      options: ['kg', 'lbs'],
-                      settingKey: 'weightUnit',
-                    ),
-                  ),
-                  const Divider(color: PhiaColors.borderSubtle, height: 1),
-                  _buildSettingsTile(
-                    title: 'Height Unit',
-                    value: settingsVM.heightUnit,
-                    onTap: () => _showUnitSelector(
-                      context: context,
-                      title: 'Select Height Unit',
-                      currentVal: settingsVM.heightUnit,
-                      options: ['cm', 'in.'],
-                      settingKey: 'heightUnit',
-                    ),
-                  ),
-                  const Divider(color: PhiaColors.borderSubtle, height: 1),
-                  _buildSettingsTile(
-                    title: 'Temperature Unit',
-                    value: settingsVM.tempUnit,
-                    onTap: () => _showUnitSelector(
-                      context: context,
-                      title: 'Select Temperature Unit',
-                      currentVal: settingsVM.tempUnit,
-                      options: ['°C', '°F'],
-                      settingKey: 'tempUnit',
-                    ),
-                  ),
-                  const Divider(color: PhiaColors.borderSubtle, height: 1),
-                  _buildSettingsTile(
-                    title: 'Blood Glucose Unit',
-                    value: settingsVM.glucoseUnit,
-                    onTap: () => _showUnitSelector(
-                      context: context,
-                      title: 'Select Blood Glucose Unit',
-                      currentVal: settingsVM.glucoseUnit,
-                      options: ['mg/dL', 'mmol/L'],
-                      settingKey: 'glucoseUnit',
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: AppSpacing.lg),
+            _UnitCard(
+              icon: Icons.monitor_weight_outlined,
+              title: 'Weight',
+              selected: settingsVM.weightUnit == 'lbs' ? 'lbs' : 'kg',
+              options: const [('kg', 'Kilograms (kg)'), ('lbs', 'Pounds (lb)')],
+              onChanged: (v) => save('weightUnit', v),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _UnitCard(
+              icon: Icons.height_rounded,
+              title: 'Height',
+              selected: settingsVM.heightUnit == 'cm' ? 'cm' : 'in.',
+              options: const [('cm', 'Centimetres (cm)'), ('in.', 'Feet and inches')],
+              onChanged: (v) => save('heightUnit', v),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSettingsTile({
-    required String title,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: PhiaColors.textPrimary,
-              ),
-            ),
-            Row(
+class _UnitCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String selected;
+  final List<(String, String)> options;
+  final ValueChanged<String> onChanged;
+
+  const _UnitCard({
+    required this.icon,
+    required this.title,
+    required this.selected,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xs),
+            child: Row(
               children: [
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: PhiaColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: PhiaColors.textMuted,
-                  size: 14,
-                ),
+                Icon(icon, color: colors.primary, size: AppSizes.iconMd),
+                const SizedBox(width: AppSpacing.sm),
+                Semantics(header: true, child: Text(title, style: context.text.titleMedium)),
               ],
             ),
-          ],
-        ),
+          ),
+          RadioGroup<String>(
+            groupValue: selected,
+            onChanged: (v) {
+              if (v != null && v != selected) onChanged(v);
+            },
+            child: Column(
+              children: [
+                for (final (value, label) in options)
+                  RadioListTile<String>(
+                    value: value,
+                    title: Text(label, style: context.text.bodyLarge),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

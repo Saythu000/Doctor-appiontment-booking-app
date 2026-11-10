@@ -5,10 +5,11 @@ import 'package:phia_flutter/features/notifications/data/notification_service.da
 class SettingsViewModel extends ChangeNotifier {
   final HealthRepository healthRepository;
 
+  /// Stored values: 'kg' or 'lbs'.
   String weightUnit = 'kg';
+
+  /// Stored values: 'cm' or 'in.' (shown to the user as feet and inches).
   String heightUnit = 'cm';
-  String tempUnit = '°C';
-  String glucoseUnit = 'mg/dL';
   String? lastCloudSyncTime;
 
   List<Map<String, dynamic>> remindersList = [];
@@ -24,8 +25,6 @@ class SettingsViewModel extends ChangeNotifier {
   Future<void> loadAppSettings() async {
     weightUnit = await healthRepository.getSetting('weightUnit') ?? 'kg';
     heightUnit = await healthRepository.getSetting('heightUnit') ?? 'cm';
-    tempUnit = await healthRepository.getSetting('tempUnit') ?? '°C';
-    glucoseUnit = await healthRepository.getSetting('glucoseUnit') ?? 'mg/dL';
     lastCloudSyncTime = await healthRepository.getSetting('lastCloudSyncTime');
 
     // Load reminders
@@ -83,12 +82,20 @@ class SettingsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Units ---------------------------------------------------------------
+  // Health data is always stored in kg and cm; these only change what the
+  // user sees and types.
+
+  bool get usesPounds => weightUnit == 'lbs';
+  bool get usesFeetInches => heightUnit != 'cm';
+
+  String formatWeight(double kg) => UnitFormat.weight(kg, pounds: usesPounds);
+  String formatHeight(double cm) => UnitFormat.height(cm, feetInches: usesFeetInches);
+
   Future<void> saveSetting(String key, String value) async {
     await healthRepository.saveSetting(key, value);
     if (key == 'weightUnit') weightUnit = value;
     if (key == 'heightUnit') heightUnit = value;
-    if (key == 'tempUnit') tempUnit = value;
-    if (key == 'glucoseUnit') glucoseUnit = value;
     notifyListeners();
   }
 
@@ -118,7 +125,7 @@ class SettingsViewModel extends ChangeNotifier {
     final reminderMap = remindersList.firstWhere((r) => r['id'] == id);
     final updated = Map<String, dynamic>.from(reminderMap);
     updated['is_active'] = isActive ? 1 : 0;
-    
+
     await healthRepository.saveReminder(updated);
     remindersList = await healthRepository.getReminders();
 
@@ -189,5 +196,36 @@ class SettingsViewModel extends ChangeNotifier {
   Future<void> clearAllInAppNotifications() async {
     await healthRepository.clearAllInAppNotifications();
     await fetchInAppNotifications();
+  }
+}
+
+/// Unit conversion and display helpers (pure functions, easy to test).
+abstract final class UnitFormat {
+  static const double kgPerPound = 0.45359237;
+  static const double cmPerInch = 2.54;
+
+  static double kgToPounds(double kg) => kg / kgPerPound;
+  static double poundsToKg(double lb) => lb * kgPerPound;
+
+  /// Whole feet and remaining inches (0-11) for a height in cm.
+  static (int feet, int inches) cmToFeetInches(double cm) {
+    final totalInches = (cm / cmPerInch).round();
+    return (totalInches ~/ 12, totalInches % 12);
+  }
+
+  static double feetInchesToCm(int feet, int inches) => (feet * 12 + inches) * cmPerInch;
+
+  /// "72.5 kg" / "159.8 lb", or "--" when unknown.
+  static String weight(double kg, {required bool pounds}) {
+    if (kg <= 0) return '--';
+    return pounds ? '${kgToPounds(kg).toStringAsFixed(1)} lb' : '${kg.toStringAsFixed(1)} kg';
+  }
+
+  /// "175 cm" / "5 ft 9 in", or "--" when unknown.
+  static String height(double cm, {required bool feetInches}) {
+    if (cm <= 0) return '--';
+    if (!feetInches) return '${cm.toStringAsFixed(0)} cm';
+    final (ft, inch) = cmToFeetInches(cm);
+    return '$ft ft $inch in';
   }
 }

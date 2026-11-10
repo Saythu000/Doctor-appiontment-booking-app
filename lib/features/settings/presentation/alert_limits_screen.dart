@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
@@ -33,8 +36,7 @@ class _AlertLimitsScreenState extends State<AlertLimitsScreen> {
   void initState() {
     super.initState();
     final th = context.read<SettingsViewModel>().vitalsThresholds;
-    String v(String metric, String bound, double fallback) =>
-        (th[metric]?[bound] ?? fallback).toInt().toString();
+    String v(String metric, String bound, double fallback) => (th[metric]?[bound] ?? fallback).toInt().toString();
 
     _stepsController = TextEditingController(text: v('steps', 'max', 10000));
     _sysMaxController = TextEditingController(text: v('systolic', 'max', 140));
@@ -71,19 +73,12 @@ class _AlertLimitsScreenState extends State<AlertLimitsScreen> {
     final hrMin = double.parse(_hrMinController.text.trim());
     final hrMax = double.parse(_hrMaxController.text.trim());
 
-    final messenger = ScaffoldMessenger.of(context);
     if (hrMin >= hrMax) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Lowest heart rate must be below the highest.'),
-        backgroundColor: PhiaColors.pulseRed,
-      ));
+      showAppMessage(context, 'Lowest heart rate must be below the highest.', type: FeedbackType.error);
       return;
     }
     if (diaMax >= sysMax) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Diastolic limit must be below the systolic limit.'),
-        backgroundColor: PhiaColors.pulseRed,
-      ));
+      showAppMessage(context, 'Diastolic limit must be below the systolic limit.', type: FeedbackType.error);
       return;
     }
 
@@ -95,150 +90,149 @@ class _AlertLimitsScreenState extends State<AlertLimitsScreen> {
       await settingsVM.saveThreshold('diastolic', _diaMin, diaMax);
       await settingsVM.saveThreshold('heart_rate', hrMin, hrMax);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Alert limits saved.')));
+      showAppMessage(context, 'Alert limits saved.', type: FeedbackType.success);
       Navigator.pop(context);
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(const SnackBar(
-        content: Text("Couldn't save your limits. Please try again."),
-        backgroundColor: PhiaColors.pulseRed,
-      ));
+      showAppMessage(context, "Couldn't save your limits. Please try again.", type: FeedbackType.error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: PhiaColors.background,
-      appBar: AppBar(
-        backgroundColor: PhiaColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Vital Alert Limits',
-          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Vital alert limits')),
       body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                "You'll get an alert when a reading from your watch goes outside these limits. "
-                'These alerts do not replace advice from your doctor.',
-                style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary, height: 1.45),
-              ),
-              const SizedBox(height: 16),
-              _section(
-                title: 'Heart rate',
-                note: 'A typical adult resting heart rate is 60–100 BPM.',
-                children: [
-                  _field('Lowest', _hrMinController, 'BPM', _range(30, 120)),
-                  const SizedBox(width: 12),
-                  _field('Highest', _hrMaxController, 'BPM', _range(60, 220)),
-                ],
-              ),
-              _section(
-                title: 'Blood pressure (upper limits)',
-                note: 'Above 140/90 mmHg is generally considered high blood pressure.',
-                children: [
-                  _field('Systolic', _sysMaxController, 'mmHg', _range(90, 250)),
-                  const SizedBox(width: 12),
-                  _field('Diastolic', _diaMaxController, 'mmHg', _range(50, 150)),
-                ],
-              ),
-              _section(
-                title: 'Daily steps goal',
-                note: 'Many guidelines suggest 7,000–10,000 steps a day.',
-                children: [
-                  _field('Steps', _stepsController, 'steps', _range(1000, 50000)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: PhiaColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Not a lazy ListView: every field must stay built so the Form
+          // validates fields that are scrolled out of view.
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  "You'll get an alert when a reading from your watch goes outside these limits. "
+                  'These alerts do not replace advice from your doctor.',
+                  style: context.text.bodyMedium,
                 ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text('Save Limits', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: AppSpacing.lg),
+                _LimitSection(
+                  icon: Icons.favorite_outline_rounded,
+                  title: 'Heart rate',
+                  note: 'A typical adult resting heart rate is 60–100 BPM.',
+                  fields: [
+                    _LimitField('Lowest', _hrMinController, 'BPM', _range(30, 120)),
+                    _LimitField('Highest', _hrMaxController, 'BPM', _range(60, 220)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _LimitSection(
+                  icon: Icons.bloodtype_outlined,
+                  title: 'Blood pressure (upper limits)',
+                  note: 'Above 140/90 mmHg is generally considered high blood pressure.',
+                  fields: [
+                    _LimitField('Systolic', _sysMaxController, 'mmHg', _range(90, 250)),
+                    _LimitField('Diastolic', _diaMaxController, 'mmHg', _range(50, 150)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _LimitSection(
+                  icon: Icons.directions_walk_rounded,
+                  title: 'Daily steps goal',
+                  note: 'Many guidelines suggest 7,000–10,000 steps a day.',
+                  fields: [
+                    _LimitField('Steps', _stepsController, 'steps', _range(1000, 50000)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                AppButton(label: 'Save limits', isLoading: _saving, onPressed: _save),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LimitField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String suffix;
+  final String? Function(String?) validator;
+
+  const _LimitField(this.label, this.controller, this.suffix, this.validator);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(labelText: label, suffixText: suffix),
+    );
+  }
+}
+
+class _LimitSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String note;
+  final List<Widget> fields;
+
+  const _LimitSection({required this.icon, required this.title, required this.note, required this.fields});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: colors.primary, size: AppSizes.iconMd),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Semantics(header: true, child: Text(title, style: context.text.titleMedium)),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _section({required String title, required String note, required List<Widget> children}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PhiaColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: PhiaColors.navyAnchor,
-            ),
+          const SizedBox(height: AppSpacing.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Side by side when there is room, stacked on narrow phones or large text.
+              final stack =
+                  fields.length > 1 && (constraints.maxWidth < 260 || MediaQuery.textScalerOf(context).scale(10) > 13);
+              if (stack || fields.length == 1) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < fields.length; i++) ...[
+                      if (i > 0) const SizedBox(height: AppSpacing.md),
+                      fields[i],
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < fields.length; i++) ...[
+                    if (i > 0) const SizedBox(width: AppSpacing.md),
+                    Expanded(child: fields[i]),
+                  ],
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 12),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: children),
-          const SizedBox(height: 8),
-          Text(note, style: GoogleFonts.inter(fontSize: 12, color: PhiaColors.textSecondary)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(note, style: context.text.bodySmall),
         ],
-      ),
-    );
-  }
-
-  Widget _field(
-    String label,
-    TextEditingController controller,
-    String suffix,
-    String? Function(String?) validator,
-  ) {
-    return Expanded(
-      child: TextFormField(
-        controller: controller,
-        validator: validator,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: GoogleFonts.inter(fontSize: 15, color: PhiaColors.textPrimary),
-        decoration: InputDecoration(
-          labelText: label,
-          suffixText: suffix,
-          filled: true,
-          fillColor: PhiaColors.background,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: PhiaColors.borderSubtle),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: PhiaColors.borderSubtle),
-          ),
-        ),
       ),
     );
   }

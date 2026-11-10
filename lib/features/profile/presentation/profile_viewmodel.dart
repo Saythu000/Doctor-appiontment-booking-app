@@ -239,8 +239,7 @@ class ProfileViewModel extends ChangeNotifier {
     // keep whatever is already on the profile so it is never wiped.
     final existing = currentProfile;
     final existingAddr = (existing?.address?.isNotEmpty ?? false) ? existing!.address!.first : null;
-    String keep(String provided, String? current) =>
-        provided.trim().isNotEmpty ? provided.trim() : (current ?? '');
+    String keep(String provided, String? current) => provided.trim().isNotEmpty ? provided.trim() : (current ?? '');
     final existingName = (existing?.name?.isNotEmpty ?? false) ? existing!.name!.first : null;
     givenName = keep(givenName, existingName?.givenName);
     familyName = keep(familyName, existingName?.familyName);
@@ -317,7 +316,7 @@ class ProfileViewModel extends ChangeNotifier {
         profile ??= await profileRepository.createInitialProfile(userId: userId, orgId: orgId);
         pId = profile.id;
       }
-      
+
       if (pId != 0) {
         // Atomic full update via PATCH /patients/{id}/full
         final updated = await profileRepository.updateFullProfile(
