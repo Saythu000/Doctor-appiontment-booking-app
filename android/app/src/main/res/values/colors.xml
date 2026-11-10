@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same as AppColors.light.background, so there is no flash between the
+         Android launch screen and the Flutter splash screen. -->
+    <color name="splash_background">#F4F8FB</color>
+</resources>

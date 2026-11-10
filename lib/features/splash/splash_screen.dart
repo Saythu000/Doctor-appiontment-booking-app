@@ -1,9 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/app/app_routes.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/brand.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
@@ -17,10 +22,10 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _sliderController;
+class _SplashScreenState extends State<SplashScreen> {
   Timer? _slowTimer;
+
+  /// Shown after a few seconds so a slow network doesn't look frozen.
   bool _showSlowLoader = false;
   bool _hasError = false;
   bool _isRedirecting = false;
@@ -28,18 +33,13 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _sliderController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-
     _startSlowTimer();
     _checkAuthAndRedirect();
   }
 
   void _startSlowTimer() {
     _slowTimer?.cancel();
-    _slowTimer = Timer(const Duration(milliseconds: 1500), () {
+    _slowTimer = Timer(const Duration(seconds: 4), () {
       if (mounted && !_isRedirecting && !_hasError) {
         setState(() {
           _showSlowLoader = true;
@@ -115,146 +115,110 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _sliderController.dispose();
     _slowTimer?.cancel();
     super.dispose();
   }
 
+  void _retry() {
+    setState(() => _showSlowLoader = false);
+    _startSlowTimer();
+    _checkAuthAndRedirect();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF0F1715) : const Color(0xFFF7F9F8);
-    final tileBorder = isDark ? Border.all(color: const Color(0xFF2A4A43)) : null;
-    final trackColor = isDark ? const Color(0xFF2A4A43) : const Color(0xFFDDE4E2);
-    final sliderColor = isDark ? const Color(0xFF5FB3A1) : const Color(0xFF1F6F5F);
-    final titleColor = isDark ? const Color(0xFFF7F9F8) : const Color(0xFF1A1F1E);
-    const subtitleColor = Color(0xFF5F6B68);
-
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // State 1, 2, 3: Centered minimalist Brand Tile
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                margin: EdgeInsets.only(bottom: _hasError ? 24.0 : 0.0),
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF12302B),
-                  borderRadius: BorderRadius.circular(13),
-                  border: tileBorder,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.06),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'DG',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
+    final colors = context.colors;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemBarsFor(context),
+      child: Scaffold(
+        backgroundColor: colors.background,
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Same logo, size and place as the Android launch screen,
+                  // so the hand-over is seamless; then it gently "beats".
+                  const Heartbeat(child: BrandMark(size: 96)),
+                  const SizedBox(height: AppSpacing.xl),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 150),
+                    child: Text('DrGodly', style: context.text.headlineMedium),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.xs),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 300),
+                    child: Text(
+                      'Your doctor and your health, in one place',
+                      textAlign: TextAlign.center,
+                      style: context.text.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  AnimatedSwitcher(
+                    duration: AppMotion.medium,
+                    switchInCurve: AppMotion.emphasizedDecelerate,
+                    child: _hasError ? _buildError(context) : _buildLoading(context),
+                  ),
+                ],
               ),
-
-              // State 2: Sleek linear sliding indeterminate loader (appears after 1.5s)
-              if (_showSlowLoader && !_hasError) ...[
-                const SizedBox(height: 28),
-                _buildSlidingLoader(trackColor, sliderColor),
-              ],
-
-              // State 3: Connection failure / offline recovery
-              if (_hasError) ...[
-                Text(
-                  "Can't connect",
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: titleColor,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                  child: Text(
-                    'Check your internet connection and try again.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: subtitleColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                OutlinedButton(
-                  onPressed: () {
-                    _startSlowTimer();
-                    _checkAuthAndRedirect();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: sliderColor,
-                    side: BorderSide(color: sliderColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    minimumSize: const Size(96, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: Text(
-                    'Try again',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: sliderColor,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSlidingLoader(Color trackColor, Color sliderColor) {
-    return Container(
-      width: 72,
-      height: 2,
-      decoration: BoxDecoration(
-        color: trackColor,
-        borderRadius: BorderRadius.circular(1),
+  Widget _buildLoading(BuildContext context) {
+    return Semantics(
+      key: const ValueKey('loading'),
+      liveRegion: true,
+      label: _showSlowLoader ? 'Still connecting' : 'Loading',
+      child: Column(
+        children: [
+          const PulseLine(),
+          const SizedBox(height: AppSpacing.sm),
+          AnimatedOpacity(
+            opacity: _showSlowLoader ? 1 : 0,
+            duration: AppMotion.medium,
+            child: Text('Still connecting…', style: context.text.bodySmall),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: AnimatedBuilder(
-        animation: _sliderController,
-        builder: (context, child) {
-          return FractionalTranslation(
-            translation: Offset(-1.0 + (_sliderController.value * 3.5), 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                width: 72 * 0.4, // 40% width per design specification
-                height: 2,
-                decoration: BoxDecoration(
-                  color: sliderColor,
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      key: const ValueKey('error'),
+      constraints: const BoxConstraints(maxWidth: 360),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: AppRadius.lgAll,
+        border: Border.all(color: colors.border),
+      ),
+      child: Semantics(
+        liveRegion: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, color: colors.textSecondary, size: 32),
+            const SizedBox(height: AppSpacing.md),
+            Text("Can't connect right now", style: context.text.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Check your internet connection and try again.',
+              style: context.text.bodyMedium,
+              textAlign: TextAlign.center,
             ),
-          );
-        },
+            const SizedBox(height: AppSpacing.lg),
+            AppButton.secondary(label: 'Try again', icon: Icons.refresh_rounded, onPressed: _retry),
+          ],
+        ),
       ),
     );
   }

@@ -1,9 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phia_flutter/app/app_routes.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phia_flutter/app/app_routes.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/brand.dart';
+
+/// First screen for a signed-out user: three short slides explaining what the
+/// app does, then one way forward (sign in or create an account).
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -11,323 +18,339 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
+class _Slide {
+  final IconData icon;
+  final String title;
+  final String body;
+  final List<(IconData, String)> chips;
+  final bool showPulse;
+
+  const _Slide({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.chips,
+    this.showPulse = false,
+  });
+}
+
+const _slides = [
+  _Slide(
+    icon: Icons.video_camera_front_rounded,
+    title: 'See a doctor, without the wait',
+    body: 'Book a video or in-person visit with a verified doctor, at a time that suits you.',
+    chips: [(Icons.verified_rounded, 'Verified doctors'), (Icons.event_available_rounded, 'Pick your time')],
+  ),
+  _Slide(
+    icon: Icons.record_voice_over_rounded,
+    title: 'Tell us how you feel, before you visit',
+    body: 'Answer a few questions by chat or voice, so your doctor can see a clear summary.',
+    chips: [(Icons.mic_rounded, 'Voice or chat'), (Icons.description_rounded, 'Summary for your doctor')],
+  ),
+  _Slide(
+    icon: Icons.favorite_rounded,
+    title: 'Your health, followed every day',
+    body: 'Bring in heart rate, steps and sleep from your watch through Health Connect.',
+    chips: [(Icons.watch_rounded, 'Health Connect'), (Icons.notifications_active_rounded, 'Alerts you choose')],
+    showPulse: true,
+  ),
+];
+
 class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+  final _pages = PageController();
+  int _index = 0;
+
+  /// Drives the slow "floating" of the illustration chips.
+  late final AnimationController _float =
+      AnimationController(vsync: this, duration: const Duration(seconds: 4));
+
+  bool get _isLast => _index == _slides.length - 1;
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 900),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-    _controller.forward();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _float.stop();
+    } else if (!_float.isAnimating) {
+      _float.repeat();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pages.dispose();
+    _float.dispose();
     super.dispose();
+  }
+
+  void _next() {
+    if (_isLast) {
+      context.push(AppRoutes.login);
+      return;
+    }
+    _pages.nextPage(
+      duration: AppMotion.reduced(context) ? const Duration(milliseconds: 1) : AppMotion.slow,
+      curve: AppMotion.emphasized,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: PhiaColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+    final colors = context.colors;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemBarsFor(context),
+      child: Scaffold(
+        backgroundColor: colors.background,
+        body: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Top Clinical App Bar Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/app_logo.jpeg',
-                          width: 28,
-                          height: 28,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: PhiaColors.primaryLight,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.medical_services_rounded,
-                              color: PhiaColors.primary,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'DrGodly',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: PhiaColors.navyAnchor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: PhiaColors.activeGreenBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: PhiaColors.activeGreen.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: PhiaColors.activeGreen,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Certified Care',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF15803D),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // 2. Hero Feature Card (Navy Header Banner pattern matching reference)
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: PhiaColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: PhiaColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Deep Oxford Navy Header Banner
-                      Container(
-                        color: PhiaColors.navyAnchor,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Virtual Clinic & Health Enclave',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const Icon(Icons.verified_user_rounded, color: Colors.white70, size: 18),
-                          ],
-                        ),
-                      ),
-                      // Card Body with Benefit Items
-                      Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: [
-                            _buildBenefitRow(
-                              icon: Icons.video_camera_front_rounded,
-                              title: 'Instant Telehealth Consultations',
-                              subtitle: 'Connect with verified physicians from top clinics.',
-                              iconColor: PhiaColors.primary,
-                              iconBg: PhiaColors.primaryLight,
-                            ),
-                            const Divider(color: PhiaColors.borderSubtle, height: 24),
-                            _buildBenefitRow(
-                              icon: Icons.monitor_heart_rounded,
-                              title: 'Continuous Biometric Vitals',
-                              subtitle: 'Heart rate, steps and sleep from your watch via Health Connect.',
-                              iconColor: const Color(0xFF15803D),
-                              iconBg: PhiaColors.activeGreenBg,
-                            ),
-                            const Divider(color: PhiaColors.borderSubtle, height: 24),
-                            _buildBenefitRow(
-                              icon: Icons.shield_rounded,
-                              title: 'Your Health Records, Secured',
-                              subtitle: 'Signed-in access and encrypted connections protect your data.',
-                              iconColor: PhiaColors.navyAnchor,
-                              iconBg: PhiaColors.primaryLight,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // 3. Hero Titles in High-Contrast Deep Navy
-              Text(
-                'Healthcare Reimagined.\nAt Your Fingertips.',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: PhiaColors.navyAnchor,
-                  height: 1.25,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Access world-class specialists, schedule consultations seamlessly, and keep all your vitals synced in one clinical portal.',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: PhiaColors.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // 4. Primary Get Started Button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: PhiaColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
-                ),
-                onPressed: () {
-                  context.push(AppRoutes.login);
-                },
+              // Header: brand on the left, Skip on the right.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.sm, 0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Get Started',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                        fontSize: 15,
+                    const Expanded(child: Align(alignment: Alignment.centerLeft, child: BrandHeader(markSize: 32))),
+                    AnimatedOpacity(
+                      opacity: _isLast ? 0 : 1,
+                      duration: AppMotion.fast,
+                      child: TextButton(
+                        onPressed: _isLast ? null : () => context.push(AppRoutes.login),
+                        child: const Text('Skip'),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward_rounded, size: 18),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // 5. Secondary Login Link
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    context.push(AppRoutes.login);
-                  },
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'Already registered? ',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: PhiaColors.textSecondary,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: 'Sign In',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: PhiaColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+              Expanded(
+                child: PageView.builder(
+                  controller: _pages,
+                  itemCount: _slides.length,
+                  onPageChanged: (i) => setState(() => _index = i),
+                  itemBuilder: (context, i) => _SlideView(
+                    slide: _slides[i],
+                    pages: _pages,
+                    index: i,
+                    float: _float,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+                child: Column(
+                  children: [
+                    _Dots(count: _slides.length, index: _index),
+                    const SizedBox(height: AppSpacing.xl),
+                    AppButton(
+                      label: _isLast ? 'Get started' : 'Next',
+                      icon: _isLast ? null : Icons.arrow_forward_rounded,
+                      onPressed: _next,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AnimatedOpacity(
+                      opacity: _isLast ? 1 : 0,
+                      duration: AppMotion.medium,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.lock_outline_rounded, size: 14, color: colors.textMuted),
+                          const SizedBox(width: AppSpacing.xs),
+                          Flexible(
+                            child: Text(
+                              "You'll sign in or create your account on DrGodly's secure page.",
+                              textAlign: TextAlign.center,
+                              style: context.text.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildBenefitRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color iconColor,
-    required Color iconBg,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: iconBg,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: PhiaColors.navyAnchor,
+class _SlideView extends StatelessWidget {
+  final _Slide slide;
+  final PageController pages;
+  final int index;
+  final Animation<double> float;
+
+  const _SlideView({required this.slide, required this.pages, required this.index, required this.float});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pages,
+      builder: (context, child) {
+        // How far this slide is from the centre (0 = fully in view).
+        final page = pages.hasClients && pages.position.haveDimensions ? pages.page ?? 0 : 0.0;
+        final delta = (index - page).clamp(-1.0, 1.0);
+        return Opacity(
+          opacity: 1 - delta.abs() * 0.6,
+          child: Transform.translate(offset: Offset(delta * 40, 0), child: child),
+        );
+      },
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Scales down on narrow phones instead of overflowing.
+                FittedBox(fit: BoxFit.scaleDown, child: _Illustration(slide: slide, float: float)),
+                const SizedBox(height: AppSpacing.xxl),
+                Semantics(
+                  header: true,
+                  child: Text(slide.title, textAlign: TextAlign.center, style: context.text.headlineSmall),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: PhiaColors.textSecondary,
-                  height: 1.35,
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  slide.body,
+                  textAlign: TextAlign.center,
+                  style: context.text.bodyLarge!.copyWith(color: context.colors.textSecondary),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Soft concentric circles with the slide's icon, and two labels that float
+/// slowly around it. Decorative only (hidden from screen readers).
+class _Illustration extends StatelessWidget {
+  final _Slide slide;
+  final Animation<double> float;
+
+  const _Illustration({required this.slide, required this.float});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    const size = 230.0;
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: size + 60,
+        height: size,
+        child: AnimatedBuilder(
+          animation: float,
+          builder: (context, _) {
+            final t = float.value * 2 * math.pi;
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: colors.primaryContainer.withValues(alpha: 0.6)),
+                ),
+                Container(
+                  width: size * 0.68,
+                  height: size * 0.68,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: colors.primaryContainer),
+                ),
+                Container(
+                  width: size * 0.42,
+                  height: size * 0.42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.surface,
+                    boxShadow: [
+                      BoxShadow(color: colors.primary.withValues(alpha: 0.18), blurRadius: 24, offset: const Offset(0, 8)),
+                    ],
+                  ),
+                  child: Icon(slide.icon, size: 44, color: slide.showPulse ? colors.vitalHeart : colors.primary),
+                ),
+                if (slide.showPulse)
+                  Positioned(
+                    bottom: size * 0.16,
+                    child: PulseLine(width: size * 0.6, height: 28, color: colors.vitalHeart, strokeWidth: 2),
+                  ),
+                Positioned(
+                  top: size * 0.08 + math.sin(t) * 5,
+                  right: 0,
+                  child: _Chip(icon: slide.chips[0].$1, label: slide.chips[0].$2),
+                ),
+                Positioned(
+                  bottom: size * 0.04 + math.sin(t + math.pi) * 5,
+                  left: 0,
+                  child: _Chip(icon: slide.chips[1].$1, label: slide.chips[1].$2),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Chip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: colors.border),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: colors.primary),
+          const SizedBox(width: AppSpacing.xs + 2),
+          Text(label, style: context.text.labelMedium!.copyWith(color: colors.textPrimary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Dots extends StatelessWidget {
+  final int count;
+  final int index;
+  const _Dots({required this.count, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      label: 'Step ${index + 1} of $count',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < count; i++)
+            AnimatedContainer(
+              duration: AppMotion.medium,
+              curve: AppMotion.emphasized,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: i == index ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: i == index ? colors.primary : colors.borderStrong,
+                borderRadius: AppRadius.smAll,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

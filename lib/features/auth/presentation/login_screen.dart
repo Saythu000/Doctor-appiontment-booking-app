@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/app/app_routes.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/brand.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
@@ -23,6 +27,9 @@ class _LoginScreenState extends State<LoginScreen> {
   /// after sign-in too), so the button can't start a second sign-in.
   bool _busy = false;
 
+  /// Signed in; now loading the user's profile and appointments.
+  bool _loadingAccount = false;
+
   Future<void> _handlePkceLogin(BuildContext context) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -37,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!success) setState(() => _busy = false);
 
     if (success) {
+      setState(() => _loadingAccount = true);
       activityVM.resetState();
       profileVM.resetState();
       
@@ -73,212 +81,161 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
+    final colors = context.colors;
+    final busy = authVM.isLoading || _busy;
+    final error = busy ? null : authVM.errorMessage;
 
-    return Scaffold(
-      backgroundColor: PhiaColors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Brand Icon & Header
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: PhiaColors.primaryLight,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: PhiaColors.primary.withValues(alpha: 0.3), width: 1.5),
-                        ),
-                        child: const Icon(
-                          Icons.medical_services_rounded,
-                          color: PhiaColors.primary,
-                          size: 40,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'DrGodly',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: PhiaColors.navyAnchor,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Secure Clinical Patient & Wearable Portal',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: PhiaColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 36),
-
-                // Card Container
-                Container(
-                  decoration: BoxDecoration(
-                    color: PhiaColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: PhiaColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header Banner
-                      Container(
-                        color: PhiaColors.navyAnchor,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Patient Authentication',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.2,
-                              ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemBarsFor(context),
+      child: Scaffold(
+        backgroundColor: colors.background,
+        // Back to the welcome slides when opened from there.
+        appBar: Navigator.of(context).canPop() ? AppBar(backgroundColor: Colors.transparent) : null,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - AppSpacing.xxl),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const FadeSlideIn(child: Center(child: BrandMark())),
+                        const SizedBox(height: AppSpacing.xl),
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 80),
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              'Sign in to DrGodly',
+                              textAlign: TextAlign.center,
+                              style: context.text.headlineSmall,
                             ),
-                            const Icon(Icons.lock_rounded, color: Colors.white70, size: 16),
-                          ],
+                          ),
                         ),
-                      ),
-
-                      // Card Body
-                      Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Sign in using your unified DrGodly IAM identity account to access your medical records, appointments, and vitals.',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                height: 1.5,
-                                color: PhiaColors.textSecondary,
+                        const SizedBox(height: AppSpacing.sm),
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 140),
+                          child: Text(
+                            'See your appointments, visit summaries and vitals. '
+                            'New to DrGodly? You can create an account on the next page.',
+                            textAlign: TextAlign.center,
+                            style: context.text.bodyMedium,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxl),
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 200),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AnimatedSize(
+                                duration: AppMotion.medium,
+                                curve: AppMotion.emphasized,
+                                child: error == null ? const SizedBox(width: double.infinity) : _ErrorBanner(message: error),
                               ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Error Banner
-                            if (authVM.errorMessage != null) ...[
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 20),
-                                decoration: BoxDecoration(
-                                  color: PhiaColors.pulseRedLight,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: PhiaColors.pulseRed.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.error_outline_rounded, color: PhiaColors.pulseRed, size: 18),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        authVM.errorMessage!,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: PhiaColors.pulseRed,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              AppButton(
+                                label: 'Continue with DrGodly account',
+                                icon: Icons.lock_rounded,
+                                isLoading: busy,
+                                onPressed: () => _handlePkceLogin(context),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              AnimatedSwitcher(
+                                duration: AppMotion.medium,
+                                child: Text(
+                                  _loadingAccount
+                                      ? 'Signed in. Setting up your account…'
+                                      : busy
+                                          ? 'Finish signing in on the secure page that opened.'
+                                          : '',
+                                  key: ValueKey('$_loadingAccount$busy'),
+                                  textAlign: TextAlign.center,
+                                  style: context.text.bodySmall,
                                 ),
                               ),
                             ],
-
-                            // Single Authoritative Action: DrGodly IAM OAuth PKCE
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: PhiaColors.navyAnchor,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: const BorderSide(color: PhiaColors.primary, width: 1.5),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                              ),
-                              onPressed: (authVM.isLoading || _busy) ? null : () => _handlePkceLogin(context),
-                              child: (authVM.isLoading || _busy)
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.shield_outlined, color: PhiaColors.primaryLight, size: 20),
-                                        const SizedBox(width: 10),
-                                        Flexible(
-                                          child: Text(
-                                            'Sign In with DrGodly IAM',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.white,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.xxl),
+                        const FadeSlideIn(delay: Duration(milliseconds: 260), child: _TrustNote()),
+                      ],
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 28),
-
-                // Trust Badge / Footer
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.verified_user_rounded, color: PhiaColors.activeGreen, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Secure sign-in with your DrGodly account',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: PhiaColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = context.colors.danger;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(color: danger.background, borderRadius: AppRadius.mdAll),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline_rounded, color: danger.foreground, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(message, style: context.text.bodyMedium!.copyWith(color: danger.foreground)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Explains, in plain words, why this sign-in is safe.
+class _TrustNote extends StatelessWidget {
+  const _TrustNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    Widget row(IconData icon, String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: colors.success.foreground),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(text, style: context.text.bodySmall!.copyWith(color: colors.textSecondary))),
+            ],
+          ),
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: AppRadius.lgAll,
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          row(Icons.verified_user_rounded, 'Sign-in happens on a secure DrGodly page in your browser.'),
+          row(Icons.password_rounded, 'This app never sees your password.'),
+          row(Icons.https_rounded, 'Your health data travels over encrypted connections.'),
+        ],
       ),
     );
   }
