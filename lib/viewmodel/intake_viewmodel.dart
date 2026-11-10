@@ -115,15 +115,8 @@ class IntakeViewModel extends ChangeNotifier {
         } catch (_) {}
       }
 
-      // email: Lowest-rank email entry from telecom
-      if (email != null && email.trim().isNotEmpty) {
-        contextFields.add('email=${email.trim()}');
-      }
-
-      // phone: Lowest-rank phone entry from telecom
-      if (phone != null && phone.trim().isNotEmpty) {
-        contextFields.add('phone=${phone.trim()}');
-      }
+      // Email and phone are deliberately NOT sent: the AI agent does not need
+      // contact details to take a history, and every copy is a leak risk.
 
       if (contextFields.isNotEmpty) {
         final contextPrefix = '[Patient context: ${contextFields.join(', ')}]';

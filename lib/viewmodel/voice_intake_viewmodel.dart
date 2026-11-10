@@ -140,12 +140,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
       } catch (_) {}
     }
 
-    if (email != null && email.trim().isNotEmpty) {
-      contextFields.add('email=${email.trim()}');
-    }
-    if (phone != null && phone.trim().isNotEmpty) {
-      contextFields.add('phone=${phone.trim()}');
-    }
+    // Email and phone are deliberately NOT sent: this context travels in the
+    // WebSocket URL (server/proxy logs) and the agent does not need them.
 
     final patientContextString = contextFields.isNotEmpty
         ? '[Patient context: ${contextFields.join(', ')}]'

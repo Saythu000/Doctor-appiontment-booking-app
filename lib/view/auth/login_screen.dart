@@ -15,8 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // ponytail: pruned legacy direct password/email controllers & register toggle.
-  // DrGodly IAM OAuth 2.0 PKCE is the single authoritative source of truth for authentication.
+  // Sign-in is OAuth 2.0 + PKCE in a Chrome Custom Tab only (see AuthViewModel.loginWithPKCE).
 
   Future<void> _handlePkceLogin(BuildContext context) async {
     final authVM = Provider.of<AuthViewModel>(context, listen: false);
@@ -26,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
-    final success = await authVM.loginWithPKCE(context: context);
+    final success = await authVM.loginWithPKCE();
     if (!mounted) return;
 
     if (success) {

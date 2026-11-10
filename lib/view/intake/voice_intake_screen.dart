@@ -165,7 +165,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
+    final token = authVm.jwtToken ?? '';
 
     await voiceVm.endCall(
       authToken: token,

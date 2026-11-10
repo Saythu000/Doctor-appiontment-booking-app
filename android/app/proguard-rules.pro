@@ -18,10 +18,6 @@
 # Security & EncryptedSharedPreferences (flutter_secure_storage)
 -keep class androidx.security.crypto.** { *; }
 
-# SQLite / SQLCipher
--keep class net.sqlcipher.** { *; }
--keep class io.requery.android.database.sqlite.** { *; }
-
 # Desugaring & Kotlin Coroutines
 -dontwarn java.lang.invoke.StringConcatFactory
 -dontwarn java.lang.invoke.MethodHandles$Lookup

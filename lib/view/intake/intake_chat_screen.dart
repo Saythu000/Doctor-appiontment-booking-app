@@ -74,7 +74,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
     final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
+    final token = authVm.jwtToken ?? '';
 
     // Extract patient details for first-turn context header (text guide §2.0)
     // 1. name: Better Auth display name or fallback to Patient.name / cached name
@@ -114,7 +114,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
     final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
+    final token = authVm.jwtToken ?? '';
     final patientProfile = profileVm.currentProfile;
     final displayName = authVm.user?.name ??
         (patientProfile?.primaryName.isNotEmpty == true ? patientProfile!.primaryName : null);
@@ -152,7 +152,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
       return;
     }
 
-    final token = authVm.jwtToken ?? authVm.sessionToken ?? '';
+    final token = authVm.jwtToken ?? '';
 
     showDialog(
       context: context,

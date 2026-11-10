@@ -5,11 +5,11 @@ void main() {
   group('PatientProfile Unit Tests', () {
     test('PlainPatientName parsing and fullName computation', () {
       final name1 = PlainPatientName.fromJson({
-        'given_name': 'Surya',
-        'family_name': 'Saythu',
+        'given_name': 'Alex',
+        'family_name': 'Rivera',
         'use': 'official',
       });
-      expect(name1.fullName, equals('Surya Saythu'));
+      expect(name1.fullName, equals('Alex Rivera'));
       expect(name1.use, equals('official'));
 
       // Test with given as a list
@@ -21,24 +21,24 @@ void main() {
 
       // Test without family name
       final name3 = PlainPatientName.fromJson({
-        'given_name': 'Surya',
+        'given_name': 'Alex',
       });
-      expect(name3.fullName, equals('Surya'));
+      expect(name3.fullName, equals('Alex'));
     });
 
     test('PlainPatientTelecom parsing and serialization', () {
       final json = {
         'system': 'phone',
-        'value': '6309758257',
+        'value': '5550100123',
         'use': 'mobile',
       };
       final telecom = PlainPatientTelecom.fromJson(json);
       expect(telecom.system, equals('phone'));
-      expect(telecom.value, equals('6309758257'));
+      expect(telecom.value, equals('5550100123'));
       expect(telecom.use, equals('mobile'));
 
       final outJson = telecom.toJson();
-      expect(outJson['value'], equals('6309758257'));
+      expect(outJson['value'], equals('5550100123'));
       expect(outJson['system'], equals('phone'));
     });
 
@@ -59,22 +59,22 @@ void main() {
     test('PlainPatient full profile parsing from DrGodly FHIR me endpoint', () {
       final fhirJson = {
         'id': 10008,
-        'user_id': 'usr_surya_99',
+        'user_id': 'usr_alex_99',
         'org_id': '0fb41e50-82a4-461e-96c7-bd11359d892d',
         'active': true,
         'gender': 'male',
-        'birth_date': '2002-12-21',
+        'birth_date': '1990-01-15',
         'name': [
           {
-            'given_name': 'surya',
-            'family_name': 'saythu',
+            'given_name': 'alex',
+            'family_name': 'rivera',
             'use': 'official',
           }
         ],
         'telecom': [
           {
             'system': 'phone',
-            'value': '6309758257',
+            'value': '5550100123',
             'use': 'mobile',
           }
         ],
@@ -90,9 +90,9 @@ void main() {
       final patient = PlainPatient.fromJson(fhirJson);
       expect(patient.id, equals(10008));
       expect(patient.gender, equals('male'));
-      expect(patient.birthDate, equals('2002-12-21'));
-      expect(patient.name?.first.fullName, equals('surya saythu'));
-      expect(patient.telecom?.first.value, equals('6309758257'));
+      expect(patient.birthDate, equals('1990-01-15'));
+      expect(patient.name?.first.fullName, equals('alex rivera'));
+      expect(patient.telecom?.first.value, equals('5550100123'));
       expect(patient.orgId, equals('0fb41e50-82a4-461e-96c7-bd11359d892d'));
     });
   });

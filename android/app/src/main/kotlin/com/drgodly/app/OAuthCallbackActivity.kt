@@ -1,4 +1,4 @@
-package com.example.phia_flutter
+package com.drgodly.app
 
 import android.app.Activity
 import android.content.Intent

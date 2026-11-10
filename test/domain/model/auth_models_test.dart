@@ -86,8 +86,8 @@ void main() {
       );
       final user = User(
         id: 'usr_777',
-        email: 'saythuk9@gmail.com',
-        name: 'surya saythu',
+        email: 'test.patient@example.com',
+        name: 'alex rivera',
       );
 
       final result = OAuth2AuthResult(
@@ -98,7 +98,7 @@ void main() {
       );
 
       expect(result.tokens.accessToken, equals('atk_123'));
-      expect(result.user.name, equals('surya saythu'));
+      expect(result.user.name, equals('alex rivera'));
       expect(result.sessionJwt, equals('jwt_signed_eddsa_token'));
       expect(result.cookies, contains('__Secure-better-auth.session_token'));
     });
