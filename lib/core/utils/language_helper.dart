@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../viewmodel/settings_viewmodel.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 
 class AppLanguageHelper {
   static const Map<String, Map<String, String>> _translations = {

@@ -1,0 +1,408 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:phia_flutter/core/data/local/health_repository.dart';
+
+class NotificationService {
+  static final NotificationService instance = NotificationService._init();
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+
+  bool _isInitialized = false;
+
+  NotificationService._init();
+
+  Future<void> init() async {
+    if (_isInitialized) return;
+
+    // 1. Initialize Timezones
+    tz.initializeTimeZones();
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+      if (kDebugMode) {
+        print('[NotificationService] Failed to set local location, using UTC fallback: $e');
+      }
+      tz.setLocalLocation(tz.getLocation('UTC'));
+    }
+
+    // 2. Configure Android & iOS Initialization Settings
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/launcher_icon');
+
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    // 3. Initialize Plugin
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (kDebugMode) {
+          print('[NotificationService] Notification clicked: ${response.payload}');
+        }
+      },
+    );
+
+    _isInitialized = true;
+    if (kDebugMode) {
+      print('[NotificationService] Successfully initialized.');
+    }
+  }
+
+  /// Requests the notification permission. Call it from a screen, in context,
+  /// never before the first frame.
+  ///
+  /// Exact alarms are deliberately NOT requested: on Android 12+ that opens a
+  /// system Settings page, and on Android 14 the permission is denied by
+  /// default. Reminders fall back to inexact delivery instead (see
+  /// [_scheduleMode]).
+  Future<bool> requestPermissions() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  /// Exact delivery when the OS allows it, otherwise inexact (may arrive a few
+  /// minutes late). Scheduling with exact mode when it is not allowed throws
+  /// `exact_alarms_not_permitted` on Android 14+.
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    try {
+      final android = _localNotifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final canExact = await android?.canScheduleExactNotifications() ?? false;
+      return canExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+    } catch (_) {
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+  }
+
+  /// Helper to get next instance of a specific time
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  /// Helper to get next instance of a weekday at a specific time
+  tz.TZDateTime _nextInstanceOfWeekdayAndTime(int weekday, int hour, int minute) {
+    tz.TZDateTime scheduledDate = _nextInstanceOfTime(hour, minute);
+    while (scheduledDate.weekday != weekday) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  /// Build channel details for Android
+  NotificationDetails _buildChannelDetails({
+    required String channelId,
+    required String channelName,
+    required String channelDesc,
+    Importance importance = Importance.max,
+    Priority priority = Priority.high,
+  }) {
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDesc,
+      importance: importance,
+      priority: priority,
+      playSound: true,
+      enableVibration: true,
+      styleInformation: const BigTextStyleInformation(''),
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
+  }
+
+  /// Show an immediate high-priority alert (congratulatory, warnings, etc.)
+  Future<void> showImmediateNotification({
+    required int id,
+    required String title,
+    required String body,
+    String channelId = 'immediate_alerts',
+    String channelName = 'Immediate Alerts',
+    String channelDesc = 'Critical vitals alerts and congratulations',
+    String type = 'WARNING',
+  }) async {
+    final details = _buildChannelDetails(
+      channelId: channelId,
+      channelName: channelName,
+      channelDesc: channelDesc,
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    await _localNotifications.show(id, title, body, details);
+
+    // Save alert to SQLite DB for in-app notification log
+    try {
+      final repository = HealthRepository();
+      await repository.saveInAppNotification({
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'title': title,
+        'body': body,
+        'type': type,
+        'timestamp': DateTime.now().toIso8601String(),
+        'is_read': 0,
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('[NotificationService] Failed to log immediate notification to SQLite: $e');
+      }
+    }
+  }
+
+  /// Trigger a phone system notification for critical vitals warnings
+  Future<void> showVitalsAlert({
+    required String title,
+    required String body,
+  }) async {
+    final int notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+    await showImmediateNotification(
+      id: notifId,
+      title: title,
+      body: body,
+      channelId: 'vitals_warnings',
+      channelName: 'Vitals Warnings',
+      channelDesc: 'Alerts for abnormal vital signs outside healthy thresholds',
+      type: 'VITALS_WARNING',
+    );
+  }
+
+  /// Trigger a phone system notification when appointment status changes (booked, cancelled, rescheduled)
+  Future<void> showAppointmentStatusAlert({
+    required String title,
+    required String body,
+  }) async {
+    final int notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+    await showImmediateNotification(
+      id: notifId,
+      title: title,
+      body: body,
+      channelId: 'appointment_status',
+      channelName: 'Appointment Status Updates',
+      channelDesc: 'Real-time notifications when appointments are confirmed, cancelled, or rescheduled',
+      type: 'APPOINTMENT_STATUS',
+    );
+  }
+
+  /// Schedule a one-off notification for a specific future date and time (e.g. Appointment)
+  Future<void> scheduleOneOffNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDateTime,
+  }) async {
+    final details = _buildChannelDetails(
+      channelId: 'appointments',
+      channelName: 'Appointments',
+      channelDesc: 'Appointment check-in alerts',
+    );
+
+    final tz.TZDateTime tzTime = tz.TZDateTime.from(scheduledDateTime, tz.local);
+    if (tzTime.isBefore(tz.TZDateTime.now(tz.local))) {
+      // Don't schedule past dates
+      return;
+    }
+
+    await _localNotifications.zonedSchedule(
+      id,
+      title,
+      body,
+      tzTime,
+      details,
+      androidScheduleMode: await _scheduleMode(),
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  /// Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before an appointment
+  Future<void> scheduleAppointmentReminders({
+    required String appointmentId,
+    required String doctorName,
+    required String specialty,
+    required DateTime appointmentTime,
+    required bool isVirtual,
+  }) async {
+    final int baseId = appointmentId.hashCode.abs() % 100000;
+    final now = DateTime.now();
+
+    final reminders = [
+      {
+        'id': baseId + 101,
+        'offsetMinutes': 60,
+        'title': 'Upcoming Consultation (1 Hour)',
+        'body': 'Your appointment with $doctorName ($specialty) begins in 1 hour.',
+      },
+      {
+        'id': baseId + 102,
+        'offsetMinutes': 30,
+        'title': 'Consultation in 30 Minutes',
+        'body': 'Reminder: Your appointment with $doctorName starts in 30 minutes.',
+      },
+      {
+        'id': baseId + 103,
+        'offsetMinutes': 10,
+        'title': 'Consultation in 10 Minutes',
+        'body': 'Get ready! Your ${isVirtual ? "virtual visit" : "in-person visit"} with $doctorName starts in 10 minutes.',
+      },
+    ];
+
+    for (final rem in reminders) {
+      final scheduledTime = appointmentTime.subtract(Duration(minutes: rem['offsetMinutes'] as int));
+      if (scheduledTime.isAfter(now)) {
+        await scheduleOneOffNotification(
+          id: rem['id'] as int,
+          title: rem['title'] as String,
+          body: rem['body'] as String,
+          scheduledDateTime: scheduledTime,
+        );
+        if (kDebugMode) {
+          print('[NotificationService] Scheduled reminder (${rem['offsetMinutes']}m before) for $doctorName at $scheduledTime (id: ${rem['id']})');
+        }
+      } else {
+        if (kDebugMode) {
+          print('[NotificationService] Skipped reminder (${rem['offsetMinutes']}m before) as $scheduledTime is in the past.');
+        }
+      }
+    }
+  }
+
+  /// Cancel all 3 appointment reminders
+  Future<void> cancelAppointmentReminders(String appointmentId) async {
+    final int baseId = appointmentId.hashCode.abs() % 100000;
+    await cancelNotification(baseId + 101);
+    await cancelNotification(baseId + 102);
+    await cancelNotification(baseId + 103);
+  }
+
+  /// Schedule daily or weekly medication / vitals check alarms
+  Future<void> scheduleReminderNotifications({
+    required String reminderId,
+    required String title,
+    required String type,
+    required String timeStr, // Format: "HH:mm"
+    required String daysStr, // Format: "Sun,Mon..." or "Daily"
+  }) async {
+    // Clear every alarm this reminder had before. Otherwise editing a reminder
+    // (e.g. Daily -> Mon, or Mon -> Tue) leaves the old alarms firing.
+    await cancelReminderNotifications(reminderId);
+
+    // Parse time
+    final parts = timeStr.split(':');
+    final int hour = int.parse(parts[0]);
+    final int minute = int.parse(parts[1]);
+
+    // Unique numeric ID base from reminderId hash
+    final int idBase = reminderId.hashCode.abs() % 100000;
+
+    final details = _buildChannelDetails(
+      channelId: 'reminders',
+      channelName: 'Reminders',
+      channelDesc: 'Medication and Vitals check-in alarms',
+    );
+
+    if (daysStr.trim().toLowerCase() == 'daily') {
+      // Schedule daily recurring
+      final scheduledDate = _nextInstanceOfTime(hour, minute);
+      await _localNotifications.zonedSchedule(
+        idBase,
+        '$type Reminder',
+        title,
+        scheduledDate,
+        details,
+        androidScheduleMode: await _scheduleMode(),
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } else {
+      // Schedule for specific days weekly
+      final days = daysStr.split(',');
+      for (var day in days) {
+        final weekday = _mapDayToWeekday(day);
+        final scheduledDate = _nextInstanceOfWeekdayAndTime(weekday, hour, minute);
+        
+        // Create unique ID for each day of the week reminder
+        final int finalId = idBase + weekday;
+
+        await _localNotifications.zonedSchedule(
+          finalId,
+          '$type Reminder',
+          title,
+          scheduledDate,
+          details,
+          androidScheduleMode: await _scheduleMode(),
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        );
+      }
+    }
+  }
+
+  /// Cancel all scheduled alarms for a specific reminder
+  Future<void> cancelReminderNotifications(String reminderId) async {
+    final int idBase = reminderId.hashCode.abs() % 100000;
+    // Cancel the daily ID
+    await _localNotifications.cancel(idBase);
+    
+    // Cancel all possible weekly weekday IDs (1-7)
+    for (int weekday = 1; weekday <= 7; weekday++) {
+      await _localNotifications.cancel(idBase + weekday);
+    }
+  }
+
+  /// Cancel a single notification by exact ID
+  Future<void> cancelNotification(int id) async {
+    await _localNotifications.cancel(id);
+  }
+
+  /// Cancel all notifications
+  Future<void> cancelAll() async {
+    await _localNotifications.cancelAll();
+  }
+
+  int _mapDayToWeekday(String dayStr) {
+    switch (dayStr.trim().toLowerCase()) {
+      case 'mon':
+        return DateTime.monday;
+      case 'tue':
+        return DateTime.tuesday;
+      case 'wed':
+        return DateTime.wednesday;
+      case 'thu':
+        return DateTime.thursday;
+      case 'fri':
+        return DateTime.friday;
+      case 'sat':
+        return DateTime.saturday;
+      case 'sun':
+        return DateTime.sunday;
+      default:
+        return DateTime.monday;
+    }
+  }
+}

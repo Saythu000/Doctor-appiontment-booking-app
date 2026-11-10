@@ -1,47 +1,47 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'core/theme/colors.dart';
-import 'core/theme/typography.dart';
-import 'data/repository/health_repository.dart';
-import 'data/repository/profile_repository.dart';
-import 'data/repository/booking_repository.dart';
-import 'view/auth/login_screen.dart';
-import 'view/onboarding/welcome_screen.dart';
-import 'view/onboarding/profile_setup_screen.dart';
-import 'view/onboarding/goals_screen.dart';
-import 'view/onboarding/complete_screen.dart';
-import 'view/dashboard/main_navigation_shell.dart';
-import 'view/dashboard/activity_tracking_screen.dart';
-import 'view/profile/profile_screen.dart';
-import 'view/profile/clinical_units_screen.dart';
-import 'view/profile/vitals_reminders_screen.dart';
-import 'view/profile/vitals_thresholds_screen.dart';
-import 'view/profile/general_settings_screen.dart';
-import 'view/profile/appointment_history_screen.dart';
-import 'view/booking/select_specialist_screen.dart';
-import 'view/booking/select_date_time_screen.dart';
-import 'view/booking/review_booking_screen.dart';
-import 'view/booking/booking_confirmed_screen.dart';
-import 'view/splash/splash_screen.dart';
-import 'viewmodel/activity_viewmodel.dart';
-import 'viewmodel/profile_viewmodel.dart';
-import 'viewmodel/booking_viewmodel.dart';
-import 'viewmodel/settings_viewmodel.dart';
-import 'viewmodel/auth_viewmodel.dart';
-import 'viewmodel/intake_viewmodel.dart';
-import 'data/service/intake_service.dart';
-import 'view/intake/intake_chat_screen.dart';
-import 'view/intake/intake_completion_screen.dart';
-import 'view/intake/voice_intake_screen.dart';
-import 'viewmodel/voice_intake_viewmodel.dart';
-import 'data/repository/auth_repository.dart';
-import 'data/service/notification_service.dart';
+import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/typography.dart';
+import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/features/profile/data/profile_repository.dart';
+import 'package:phia_flutter/features/booking/data/booking_repository.dart';
+import 'package:phia_flutter/features/auth/presentation/login_screen.dart';
+import 'package:phia_flutter/features/onboarding/welcome_screen.dart';
+import 'package:phia_flutter/features/onboarding/profile_setup_screen.dart';
+import 'package:phia_flutter/features/onboarding/goals_screen.dart';
+import 'package:phia_flutter/features/onboarding/complete_screen.dart';
+import 'package:phia_flutter/features/home/presentation/main_navigation_shell.dart';
+import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/clinical_units_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/reminders_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/alert_limits_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/general_settings_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/appointment_history_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/select_specialist_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/select_date_time_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/review_booking_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_confirmed_screen.dart';
+import 'package:phia_flutter/features/splash/splash_screen.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
+import 'package:phia_flutter/features/intake/data/intake_service.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_chat_screen.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
+import 'package:phia_flutter/features/intake/presentation/voice_intake_screen.dart';
+import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
+import 'package:phia_flutter/features/auth/data/auth_repository.dart';
+import 'package:phia_flutter/features/notifications/data/notification_service.dart';
 
-import 'data/service/background_sync_service.dart';
-import 'data/service/fhir_api_client.dart';
-import 'core/utils/app_logging.dart';
-import 'core/constants/api_constants.dart';
+import 'package:phia_flutter/features/vitals/data/background_sync_service.dart';
+import 'package:phia_flutter/core/network/fhir_api_client.dart';
+import 'package:phia_flutter/core/utils/app_logging.dart';
+import 'package:phia_flutter/core/config/api_constants.dart';
 
 void main() async {
   silenceDebugPrintInRelease();
@@ -199,14 +199,14 @@ class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
         '/complete': (context) => const CompleteScreen(),
         '/dashboard': (context) => const MainNavigationShell(),
         '/profile': (context) => const ProfileScreen(),
-        '/activity_tracking': (context) => const ActivityTrackingScreen(),
+        '/activity_tracking': (context) => const VitalsScreen(),
         '/booking_specialist': (context) => const SelectSpecialistScreen(),
         '/booking_date_time': (context) => const SelectDateTimeScreen(),
         '/booking_review': (context) => const ReviewBookingScreen(),
         '/booking_confirmed': (context) => const BookingConfirmedScreen(),
         '/clinical_units': (context) => const ClinicalUnitsScreen(),
-        '/vitals_reminders': (context) => const VitalsRemindersScreen(),
-        '/vitals_thresholds': (context) => const VitalsThresholdsScreen(),
+        '/vitals_reminders': (context) => const RemindersScreen(),
+        '/vitals_thresholds': (context) => const AlertLimitsScreen(),
         '/general_settings': (context) => const GeneralSettingsScreen(),
         '/appointment_history': (context) => const AppointmentHistoryScreen(),
         '/intake': (context) => const IntakeChatScreen(),

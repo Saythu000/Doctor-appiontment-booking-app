@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../viewmodel/profile_viewmodel.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 
 /// Dynamically resolves an image provider for doctors or profiles, supporting assets, network URLs, or local files.
 ImageProvider getImageProvider(String? urlOrPath, {String fallback = 'assets/doctors/doctor_1.png'}) {

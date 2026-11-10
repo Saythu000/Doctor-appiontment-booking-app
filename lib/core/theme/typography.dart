@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'colors.dart';
+import 'package:phia_flutter/core/theme/colors.dart';
 
 class PhiaTypography {
   static TextTheme get textTheme => TextTheme(
