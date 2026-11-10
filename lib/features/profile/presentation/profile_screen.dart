@@ -754,8 +754,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
-                      title: 'Preferred Language',
-                      value: settingsVM.appLanguage,
+                      title: 'Height & Weight',
+                      value: (activityVM.userHeight > 0 && activityVM.userWeight > 0)
+                          ? '${activityVM.userHeight.toStringAsFixed(0)} cm · ${activityVM.userWeight.toStringAsFixed(1)} kg'
+                          : 'Not set',
                       onTap: () => context.push(AppRoutes.generalSettings),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),

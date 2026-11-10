@@ -1,195 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/core/utils/language_helper.dart';
-import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 class GeneralSettingsScreen extends StatelessWidget {
   const GeneralSettingsScreen({super.key});
-
-  void _showLanguageSelector(BuildContext context, String currentLang) {
-    final languages = [
-      'English', 'Français', 'Italiano', 'Deutsch', 'Español', 
-      'Русский', 'Português', 'Nederlands', 'Polski', '日本語', 
-      '한국어', 'Türkçe', 'العربية', 'Indonesia', '简体中文', 
-      '繁體中文', 'فارسی', 'Tiếng Việt', 'ไทย'
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: const BoxDecoration(
-            color: PhiaColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: PhiaColors.borderSubtle,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    AppLanguageHelper.translate(context, 'select_language', defaultText: 'Select Language'),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: PhiaColors.navyAnchor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: languages.length,
-                  separatorBuilder: (_, __) => const Divider(color: PhiaColors.borderSubtle, height: 1),
-                  itemBuilder: (context, index) {
-                    final lang = languages[index];
-                    final isSelected = lang == currentLang;
-                    return InkWell(
-                      onTap: () {
-                        context.read<SettingsViewModel>().saveSetting('appLanguage', lang);
-                        Navigator.pop(context);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              lang,
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                color: isSelected ? PhiaColors.primary : PhiaColors.textPrimary,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              ),
-                            ),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: PhiaColors.primary,
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showStartWeekSelector(BuildContext context, String currentDay) {
-    final days = ['Sunday', 'Monday'];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: const BoxDecoration(
-            color: PhiaColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: PhiaColors.borderSubtle,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    AppLanguageHelper.translate(context, 'start_week_title', defaultText: 'Start Week On'),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: PhiaColors.navyAnchor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: PhiaColors.textMuted),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ...days.map((day) {
-                final isSelected = day == currentDay;
-                return InkWell(
-                  onTap: () {
-                    context.read<SettingsViewModel>().saveSetting('startWeekDay', day);
-                    Navigator.pop(context);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          day,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            color: isSelected ? PhiaColors.primary : PhiaColors.textPrimary,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                        ),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: PhiaColors.primary,
-                            size: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _showEditBodyMetricsSheet(BuildContext context, ActivityViewModel activityVM) {
     final heightController = TextEditingController(
@@ -362,7 +178,6 @@ class GeneralSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settingsVM = context.watch<SettingsViewModel>();
     final activityVM = context.watch<ActivityViewModel>();
 
     return Scaffold(
@@ -376,7 +191,7 @@ class GeneralSettingsScreen extends StatelessWidget {
         ),
         centerTitle: true,
         title: Text(
-          'Preferred Language & Settings',
+          'Body Measurements',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -388,47 +203,6 @@ class GeneralSettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
-              child: Text(
-                'Localization & Calendar Preferences',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: PhiaColors.navyAnchor,
-                ),
-              ),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: PhiaColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PhiaColors.borderSubtle),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildSettingsTile(
-                    title: AppLanguageHelper.translate(context, 'app_language', defaultText: 'App Language'),
-                    value: settingsVM.appLanguage,
-                    onTap: () => _showLanguageSelector(context, settingsVM.appLanguage),
-                  ),
-                  const Divider(color: PhiaColors.borderSubtle, height: 1),
-                  _buildSettingsTile(
-                    title: AppLanguageHelper.translate(context, 'start_week_on', defaultText: 'Start week on'),
-                    value: settingsVM.startWeekDay,
-                    onTap: () => _showStartWeekSelector(context, settingsVM.startWeekDay),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
               child: Text(

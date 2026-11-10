@@ -9,8 +9,6 @@ class SettingsViewModel extends ChangeNotifier {
   String heightUnit = 'cm';
   String tempUnit = '°C';
   String glucoseUnit = 'mg/dL';
-  String appLanguage = 'English';
-  String startWeekDay = 'Sunday';
   String? lastCloudSyncTime;
 
   List<Map<String, dynamic>> remindersList = [];
@@ -28,8 +26,6 @@ class SettingsViewModel extends ChangeNotifier {
     heightUnit = await healthRepository.getSetting('heightUnit') ?? 'cm';
     tempUnit = await healthRepository.getSetting('tempUnit') ?? '°C';
     glucoseUnit = await healthRepository.getSetting('glucoseUnit') ?? 'mg/dL';
-    appLanguage = await healthRepository.getSetting('appLanguage') ?? 'English';
-    startWeekDay = await healthRepository.getSetting('startWeekDay') ?? 'Sunday';
     lastCloudSyncTime = await healthRepository.getSetting('lastCloudSyncTime');
 
     // Load reminders
@@ -93,8 +89,6 @@ class SettingsViewModel extends ChangeNotifier {
     if (key == 'heightUnit') heightUnit = value;
     if (key == 'tempUnit') tempUnit = value;
     if (key == 'glucoseUnit') glucoseUnit = value;
-    if (key == 'appLanguage') appLanguage = value;
-    if (key == 'startWeekDay') startWeekDay = value;
     notifyListeners();
   }
 

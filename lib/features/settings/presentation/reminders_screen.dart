@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/core/utils/language_helper.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
@@ -75,8 +74,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
                         children: [
                           Text(
                             isEdit
-                                ? AppLanguageHelper.translate(context, 'edit_reminder', defaultText: 'Edit Reminder')
-                                : AppLanguageHelper.translate(context, 'new_reminder', defaultText: 'New Reminder'),
+                                ? 'Edit Reminder'
+                                : 'New Reminder',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
