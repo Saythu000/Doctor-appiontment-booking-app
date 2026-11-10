@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/app/app_routes.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
+import 'package:phia_flutter/features/onboarding/widgets/goal_card.dart';
+import 'package:phia_flutter/features/onboarding/widgets/onboarding_scaffold.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
+/// Onboarding step 2: what the patient wants to use DrGodly for.
+/// The choice is saved (setting `focus_areas`); nothing is preselected.
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
 
@@ -13,360 +19,80 @@ class GoalsScreen extends StatefulWidget {
   State<GoalsScreen> createState() => _GoalsScreenState();
 }
 
+class _Goal {
+  final IconData icon;
+  final String title;
+  final String description;
+  const _Goal(this.icon, this.title, this.description);
+}
+
+const _goals = [
+  _Goal(Icons.video_camera_front_rounded, 'See doctors', 'Book video or in-person visits with verified doctors.'),
+  _Goal(Icons.forum_rounded, 'Prepare for visits', 'Answer pre-visit questions by chat or voice.'),
+  _Goal(Icons.monitor_heart_rounded, 'Follow my vitals', 'Heart rate, steps and sleep from your watch via Health Connect.'),
+  _Goal(Icons.notifications_active_rounded, 'Reminders and alerts', 'Medicine reminders, and alerts when a reading is outside your limits.'),
+];
+
 class _GoalsScreenState extends State<GoalsScreen> {
-  final Set<int> _selectedMissionIndices = {0, 1}; // Default select first two
+  final Set<int> _selected = {};
+  bool _saving = false;
 
-  final List<Map<String, dynamic>> _missions = [
-    {
-      'id': '01',
-      'title': 'Consult Certified Specialists',
-      'desc': 'Book virtual appointments and follow-up reviews with certified doctors.',
-      'icon': Icons.calendar_today_rounded,
-    },
-    {
-      'id': '02',
-      'title': 'Track Continuous Vitals',
-      'desc': 'Daily steps, resting heart rate and sleep from your watch.',
-      'icon': Icons.monitor_heart_rounded,
-    },
-    {
-      'id': '03',
-      'title': 'Digital Health Records (FHIR)',
-      'desc': 'Keep your clinical vitals, observations, and prescriptions securely synced.',
-      'icon': Icons.health_and_safety_rounded,
-    },
-    {
-      'id': '04',
-      'title': 'Vital Alerts & Reminders',
-      'desc': 'Receive proactive thresholds alerts when HR or vitals exceed baseline.',
-      'icon': Icons.notifications_active_rounded,
-    },
-  ];
-
-  Widget _buildMissionCard(int index) {
-    final mission = _missions[index];
-    final isSelected = _selectedMissionIndices.contains(index);
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (_selectedMissionIndices.contains(index)) {
-            _selectedMissionIndices.remove(index);
-          } else {
-            _selectedMissionIndices.add(index);
-          }
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isSelected ? PhiaColors.primaryLight.withValues(alpha: 0.5) : PhiaColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? PhiaColors.primary : PhiaColors.borderSubtle,
-            width: isSelected ? 1.5 : 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected ? PhiaColors.primary : PhiaColors.primaryLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                mission['icon'] as IconData,
-                color: isSelected ? Colors.white : PhiaColors.primary,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        mission['title'] as String,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: PhiaColors.navyAnchor,
-                        ),
-                      ),
-                      Icon(
-                        isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                        color: isSelected ? PhiaColors.primary : PhiaColors.textSecondary.withValues(alpha: 0.4),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    mission['desc'] as String,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: PhiaColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _continue() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final chosen = (_selected.toList()..sort()).map((i) => _goals[i].title).join('|');
+    try {
+      await context.read<SettingsViewModel>().saveSetting('focus_areas', chosen);
+      if (!mounted) return;
+      context.push(AppRoutes.onboardingComplete);
+    } catch (_) {
+      if (mounted) {
+        showAppMessage(context, "Couldn't save your choice. Please try again.", type: FeedbackType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: PhiaColors.background,
-      appBar: AppBar(
-        backgroundColor: PhiaColors.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        automaticallyImplyLeading: false,
-        titleSpacing: 20,
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/app_logo.jpeg',
-                width: 28,
-                height: 28,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: PhiaColors.primaryLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.medical_services_rounded, color: PhiaColors.primary, size: 16),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'DrGodly',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: PhiaColors.navyAnchor,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: PhiaColors.primaryLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: PhiaColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Step 2 of 3',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: PhiaColors.primary,
-                  ),
-                ),
-              ],
-            ),
+    return OnboardingScaffold(
+      step: 2,
+      showBack: true,
+      title: 'What would you like to do?',
+      subtitle: 'Pick any that apply. This helps us understand what matters to you.',
+      bottom: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppButton(
+            label: 'Continue',
+            isLoading: _saving,
+            onPressed: _selected.isEmpty ? null : _continue,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          AppButton.text(
+            label: 'Skip for now',
+            onPressed: _saving ? null : () => context.push(AppRoutes.onboardingComplete),
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header Banner Card
-                    Container(
-                      decoration: BoxDecoration(
-                        color: PhiaColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: PhiaColors.borderSubtle),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            color: PhiaColors.navyAnchor,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Care Programs & Goals',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                                const Icon(Icons.track_changes_rounded, color: Colors.white70, size: 18),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              'Choose what matters most to you. You can skip this step.',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: PhiaColors.textSecondary,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    Text(
-                      'Select Your Focus Areas',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: PhiaColors.navyAnchor,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // List of goals
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _missions.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _buildMissionCard(index),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+      child: Column(
+        children: [
+          for (var i = 0; i < _goals.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: FadeSlideIn(
+                delay: Duration(milliseconds: 60 * i),
+                child: GoalCard(
+                  icon: _goals[i].icon,
+                  title: _goals[i].title,
+                  description: _goals[i].description,
+                  selected: _selected.contains(i),
+                  onTap: () => setState(() => _selected.contains(i) ? _selected.remove(i) : _selected.add(i)),
                 ),
               ),
             ),
-
-            // Bottom Action Area
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: PhiaColors.surface,
-                border: const Border(top: BorderSide(color: PhiaColors.borderSubtle)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: PhiaColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        minimumSize: const Size(double.infinity, 52),
-                        shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
-                      ),
-                      onPressed: () async {
-                        // Keep the patient's choice instead of discarding it.
-                        final chosen = (_selectedMissionIndices.toList()..sort())
-                            .map((i) => _missions[i]['title'] as String)
-                            .join('|');
-                        await context.read<SettingsViewModel>().saveSetting('focus_areas', chosen);
-                        if (!context.mounted) return;
-                        context.push(AppRoutes.onboardingComplete);
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Complete Setup',
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        context.push(AppRoutes.onboardingComplete);
-                      },
-                      child: Text(
-                        'Skip for now',
-                        style: GoogleFonts.inter(
-                          color: PhiaColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
