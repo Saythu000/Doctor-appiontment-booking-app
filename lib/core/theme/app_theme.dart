@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/core/theme/app_colors.dart';
 import 'package:phia_flutter/core/theme/app_tokens.dart';
@@ -104,6 +105,8 @@ abstract final class AppTheme {
         centerTitle: false,
         titleTextStyle: text.titleLarge,
         iconTheme: IconThemeData(color: c.textPrimary),
+        // Edge-to-edge: transparent system bars, icons that suit the theme.
+        systemOverlayStyle: systemBarsStyle(brightness),
       ),
       cardTheme: CardThemeData(
         color: c.surface,
@@ -248,4 +251,19 @@ abstract final class AppTheme {
       ),
     );
   }
+}
+
+/// Transparent status and navigation bars (the app draws edge-to-edge),
+/// with dark icons on light screens and light icons on dark screens.
+SystemUiOverlayStyle systemBarsStyle(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+    statusBarBrightness: brightness, // iOS
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+  );
 }

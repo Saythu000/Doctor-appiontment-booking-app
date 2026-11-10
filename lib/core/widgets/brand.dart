@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:phia_flutter/core/theme/app_theme.dart';
 import 'package:phia_flutter/core/theme/app_tokens.dart';
 import 'package:phia_flutter/core/theme/theme_extensions.dart';
 
@@ -182,13 +183,4 @@ class _PulsePainter extends CustomPainter {
 
 /// Status bar and navigation bar icon colours that suit the current theme,
 /// for screens without an AppBar (splash, welcome, login).
-SystemUiOverlayStyle systemBarsFor(BuildContext context) {
-  final dark = context.isDark;
-  return SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-    statusBarBrightness: dark ? Brightness.dark : Brightness.light,
-    systemNavigationBarColor: context.colors.background,
-    systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-  );
-}
+SystemUiOverlayStyle systemBarsFor(BuildContext context) => systemBarsStyle(Theme.of(context).brightness);

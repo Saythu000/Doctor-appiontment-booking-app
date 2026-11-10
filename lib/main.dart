@@ -31,6 +31,9 @@ void main() async {
   GoogleFonts.config.allowRuntimeFetching = false;
   LicenseRegistry.addLicense(_fontLicenses);
   WidgetsFlutterBinding.ensureInitialized();
+  // Draw behind the status and navigation bars on every Android version
+  // (Android 15+ always does). Screens keep content clear with SafeArea.
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
   // Fast, prompt-free setup only. Permission requests happen later, in
   // context, from the dashboard (never before the first frame).
   await BackgroundSyncService.initialize();
