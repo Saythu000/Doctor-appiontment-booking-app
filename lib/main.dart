@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:phia_flutter/app/app.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
@@ -23,6 +26,10 @@ import 'package:provider/provider.dart';
 
 void main() async {
   silenceDebugPrintInRelease();
+  // Fonts ship inside the app (assets/google_fonts), so text looks right on
+  // the first launch even without internet. Never download them.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(_fontLicenses);
   WidgetsFlutterBinding.ensureInitialized();
   // Fast, prompt-free setup only. Permission requests happen later, in
   // context, from the dashboard (never before the first frame).
@@ -91,4 +98,12 @@ void main() async {
       child: const DrGodlyApp(),
     ),
   );
+}
+
+/// The bundled fonts' SIL Open Font License, shown on the licences page.
+Stream<LicenseEntry> _fontLicenses() async* {
+  for (final family in ['Inter', 'PlusJakartaSans']) {
+    final text = await rootBundle.loadString('assets/google_fonts/$family-OFL.txt');
+    yield LicenseEntryWithLineBreaks(['google_fonts'], text);
+  }
 }

@@ -39,6 +39,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/app_logo.jpeg
+    - assets/google_fonts/
     - assets/avatars/avatar_1.png
     - assets/doctors/doctor_1.png
     - assets/doctors/doctor_2.png
