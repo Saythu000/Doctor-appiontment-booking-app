@@ -21,6 +21,7 @@ Future<void> signOutAndResetSession(BuildContext context) async {
   final voiceVm = context.read<VoiceIntakeViewModel>();
   final authVm = context.read<AuthViewModel>();
 
+  activityVm.pauseAutoSync();
   await voiceVm.abortCall();
   voiceVm.reset();
   intakeVm.reset();

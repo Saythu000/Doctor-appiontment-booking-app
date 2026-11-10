@@ -193,6 +193,12 @@ class HealthRepository {
     }
   }
 
+  /// Removes recorded GPS workout routes (location data).
+  Future<void> clearWorkoutRoutes() async {
+    final db = await _dbHelper.database;
+    await db.delete('workout_route_points');
+  }
+
   Future<void> clearMetrics() async {
     final db = await _dbHelper.database;
     await db.delete('health_metrics');
@@ -252,23 +258,52 @@ class HealthRepository {
     return null;
   }
 
-  static const Set<String> _secureKeys = {
+  /// Credentials. These live ONLY in encrypted secure storage, never in the
+  /// plaintext SQLite `app_settings` table.
+  static const Set<String> secureKeys = {
     'iam_session_token',
     'iam_jwt_token',
+    'iam_refresh_token',
+    'iam_id_token',
   };
 
-  // --- Settings Table Helpers with Secure Storage Routing & SQLite Resiliency ---
+  /// Moves any credentials left in plaintext SQLite by older app versions
+  /// into secure storage and deletes the plaintext rows. Safe to call often.
+  Future<void> purgeLegacyPlaintextCredentials() async {
+    final db = await _dbHelper.database;
+    for (final key in secureKeys) {
+      final rows = await db.query('app_settings', where: 'key = ?', whereArgs: [key]);
+      if (rows.isEmpty) continue;
+      final legacyVal = (rows.first['value'] as String?) ?? '';
+      final secureVal = await SecureStorageService().readSecure(key);
+      if ((secureVal == null || secureVal.isEmpty) && legacyVal.isNotEmpty) {
+        await SecureStorageService().writeSecure(key, legacyVal);
+      }
+      await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
+    }
+  }
+
+  // --- Settings Table Helpers with Secure Storage Routing ---
   Future<String?> getSetting(String key) async {
-    if (_secureKeys.contains(key)) {
-      try {
-        final secureVal = await SecureStorageService().readSecure(key);
-        if (secureVal != null && secureVal.isNotEmpty) {
-          return secureVal;
-        }
-      } catch (_) {}
+    final db = await _dbHelper.database;
+
+    if (secureKeys.contains(key)) {
+      final secureVal = await SecureStorageService().readSecure(key);
+      if (secureVal != null && secureVal.isNotEmpty) {
+        return secureVal;
+      }
+      // One-time migration: older versions also wrote credentials to SQLite
+      // in plaintext. Move them into secure storage and delete the row.
+      final legacy = await db.query('app_settings', where: 'key = ?', whereArgs: [key]);
+      if (legacy.isEmpty) return null;
+      final legacyVal = (legacy.first['value'] as String?) ?? '';
+      if (legacyVal.isNotEmpty) {
+        await SecureStorageService().writeSecure(key, legacyVal);
+      }
+      await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
+      return legacyVal.isEmpty ? null : legacyVal;
     }
 
-    final db = await _dbHelper.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'app_settings',
       where: 'key = ?',
@@ -285,17 +320,13 @@ class HealthRepository {
 
   Future<void> saveSetting(String key, String value) async {
     final db = await _dbHelper.database;
-    if (_secureKeys.contains(key)) {
+    if (secureKeys.contains(key)) {
+      // Always remove any legacy plaintext copy.
+      await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
       if (value.isEmpty) {
         await SecureStorageService().deleteSecure(key);
-        await db.delete('app_settings', where: 'key = ?', whereArgs: [key]);
       } else {
         await SecureStorageService().writeSecure(key, value);
-        await db.insert(
-          'app_settings',
-          {'key': key, 'value': value},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
       }
       return;
     }

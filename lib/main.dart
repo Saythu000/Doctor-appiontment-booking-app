@@ -42,6 +42,7 @@ import 'data/service/vitals_foreground_service.dart';
 import 'data/service/background_sync_service.dart';
 import 'data/service/fhir_api_client.dart';
 import 'core/utils/app_logging.dart';
+import 'core/constants/api_constants.dart';
 
 void main() async {
   silenceDebugPrintInRelease();
@@ -54,10 +55,16 @@ void main() async {
   await NotificationService.instance.requestPermissions();
   
   final healthRepo = HealthRepository();
+  try {
+    // Remove plaintext credentials written by older app versions.
+    await healthRepo.purgeLegacyPlaintextCredentials();
+  } catch (_) {
+    // Never block startup; getSetting() migrates lazily as a fallback.
+  }
   final savedToken = await healthRepo.getSetting('iam_jwt_token');
   if (savedToken != null && savedToken.isNotEmpty) {
     FhirApiClient().configure(
-      baseUrl: 'https://fhirgql.drgodly.com',
+      baseUrl: ApiConstants.fhirGqlUrl,
       token: savedToken,
       isLiveMode: true,
     );

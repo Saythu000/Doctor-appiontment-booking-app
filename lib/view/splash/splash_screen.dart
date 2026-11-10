@@ -45,7 +45,12 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
+  bool _isChecking = false;
+
   Future<void> _checkAuthAndRedirect() async {
+    // "Try again" while a check is still running must not start a second one.
+    if (_isChecking) return;
+    _isChecking = true;
     setState(() {
       _hasError = false;
     });
@@ -57,39 +62,32 @@ class _SplashScreenState extends State<SplashScreen>
             onTimeout: () => false,
           );
 
-      if (!mounted) return;
+      if (!mounted || _isRedirecting) return;
+
+      // Only a verified session may open the app. A cached profile on its own
+      // is not a session: routing on it would show a signed-out (or revoked)
+      // user's health data without authentication.
+      if (!isAuthenticated) {
+        _redirect('/welcome');
+        return;
+      }
 
       final profileVM = context.read<ProfileViewModel>();
       final bookingVM = context.read<BookingViewModel>();
       final activityVM = context.read<ActivityViewModel>();
-
-      if (isAuthenticated) {
+      try {
         await Future.wait([
           profileVM.fetchOrInitProfile(),
           bookingVM.fetchAppointments(),
           bookingVM.fetchSpecialists(),
           activityVM.initDashboard(),
         ]).timeout(const Duration(seconds: 12));
-      } else {
-        await profileVM.fetchOrInitProfile().timeout(const Duration(seconds: 8));
+      } catch (_) {
+        // Slow or failed preload must not lock a signed-in user out:
+        // each screen loads its own data again when opened.
       }
 
-      if (mounted && !_isRedirecting) {
-        _isRedirecting = true;
-        _slowTimer?.cancel();
-
-        final profile = profileVM.currentProfile;
-        final bool hasProfile = profile != null &&
-            profile.name != null &&
-            profile.name!.isNotEmpty &&
-            profile.name!.first.givenName.isNotEmpty;
-
-        if (isAuthenticated || hasProfile) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
-        } else {
-          Navigator.pushReplacementNamed(context, '/welcome');
-        }
-      }
+      if (mounted) _redirect('/dashboard');
     } catch (e) {
       if (mounted && !_isRedirecting) {
         setState(() {
@@ -97,7 +95,16 @@ class _SplashScreenState extends State<SplashScreen>
           _showSlowLoader = false;
         });
       }
+    } finally {
+      _isChecking = false;
     }
+  }
+
+  void _redirect(String route) {
+    if (_isRedirecting) return;
+    _isRedirecting = true;
+    _slowTimer?.cancel();
+    Navigator.pushReplacementNamed(context, route);
   }
 
   @override

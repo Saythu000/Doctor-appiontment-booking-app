@@ -11,10 +11,10 @@ class SecureStorageService {
     ),
   );
 
+  /// Throws if the value could not be stored. Callers must not fall back to
+  /// plaintext storage for secrets.
   Future<void> writeSecure(String key, String value) async {
-    try {
-      await _storage.write(key: key, value: value);
-    } catch (_) {}
+    await _storage.write(key: key, value: value);
   }
 
   Future<String?> readSecure(String key) async {

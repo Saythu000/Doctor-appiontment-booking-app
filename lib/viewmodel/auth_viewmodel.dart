@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../core/constants/api_constants.dart';
 import '../data/repository/auth_repository.dart';
 import '../data/repository/health_repository.dart';
+import '../data/service/background_sync_service.dart';
 import '../data/service/fhir_api_client.dart';
+import '../data/service/secure_storage_service.dart';
 import '../domain/model/auth_models.dart';
 
 class AuthViewModel extends ChangeNotifier {
@@ -21,6 +24,12 @@ class AuthViewModel extends ChangeNotifier {
   String? _userId;
   String? _orgId;
   User? _user;
+
+  /// Incremented on every sign-out. Async work (token refresh) captures it at
+  /// start and discards its result if the user signed out in the meantime, so
+  /// a late refresh can never bring a signed-out session back.
+  int _sessionGeneration = 0;
+  bool _isSigningOut = false;
 
   AuthViewModel({
     required this.authRepository,
@@ -42,16 +51,30 @@ class AuthViewModel extends ChangeNotifier {
       final payloadJson = utf8.decode(base64Url.decode(payloadB64));
       final Map<String, dynamic> data = jsonDecode(payloadJson);
       final exp = data['exp'];
-      if (exp is num) {
-        final expiry = DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
-        // Add 10-second buffer
-        if (DateTime.now().isAfter(expiry.subtract(const Duration(seconds: 10)))) {
-          return false;
-        }
-      }
-      return true;
+      // A token without an expiry claim cannot be checked, so it is not trusted.
+      if (exp is! num) return false;
+      final expiry = DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
+      // Add 10-second buffer
+      return DateTime.now().isBefore(expiry.subtract(const Duration(seconds: 10)));
     } catch (_) {
       return false;
+    }
+  }
+
+  /// True when [error] means the server could not be reached at all
+  /// (offline, DNS failure, timeout), as opposed to the server rejecting us.
+  static bool _isNetworkError(Object error) {
+    if (error is! DioException) return false;
+    switch (error.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return true;
+      case DioExceptionType.unknown:
+        return error.response == null;
+      default:
+        return false;
     }
   }
 
@@ -87,16 +110,20 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Refresh expired JWT token transparently using active session cookie or OAuth 2.0 refresh_token
   Future<String?> refreshToken() async {
+    final generation = _sessionGeneration;
+    bool signedOutMeanwhile() => generation != _sessionGeneration;
+
     // 1. Prioritize session cookie refresh (mints authentic Better-Auth Session JWT for FHIR and AI Intake)
     final session = _sessionToken ?? await healthRepository.getSetting('iam_session_token');
     if (session != null && session.isNotEmpty) {
       try {
         final freshJwt = await authRepository.getJwtToken(sessionCookie: session);
+        if (signedOutMeanwhile()) return null;
         if (freshJwt.isNotEmpty) {
           _jwtToken = freshJwt;
           await healthRepository.saveSetting('iam_jwt_token', freshJwt);
           FhirApiClient().configure(
-            baseUrl: 'https://fhirgql.drgodly.com',
+            baseUrl: ApiConstants.fhirGqlUrl,
             token: freshJwt,
             isLiveMode: true,
           );
@@ -114,6 +141,7 @@ class AuthViewModel extends ChangeNotifier {
     if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
       try {
         final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
+        if (signedOutMeanwhile()) return null;
         if (isJwtValid(tokenResponse.idToken)) {
           _jwtToken = tokenResponse.idToken;
         } else {
@@ -129,7 +157,7 @@ class AuthViewModel extends ChangeNotifier {
         }
         await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
         FhirApiClient().configure(
-          baseUrl: 'https://fhirgql.drgodly.com',
+          baseUrl: ApiConstants.fhirGqlUrl,
           token: _jwtToken,
           isLiveMode: true,
         );
@@ -218,7 +246,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Step 6: Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhirgql.drgodly.com',
+        baseUrl: ApiConstants.fhirGqlUrl,
         token: _jwtToken,
         isLiveMode: true,
       );
@@ -289,7 +317,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhirgql.drgodly.com',
+        baseUrl: ApiConstants.fhirGqlUrl,
         token: _jwtToken,
         isLiveMode: true,
       );
@@ -362,7 +390,7 @@ class AuthViewModel extends ChangeNotifier {
 
       // Configure the FHIR API client for live server mode
       FhirApiClient().configure(
-        baseUrl: 'https://fhirgql.drgodly.com',
+        baseUrl: ApiConstants.fhirGqlUrl,
         token: _jwtToken,
         isLiveMode: true,
       );
@@ -433,7 +461,7 @@ class AuthViewModel extends ChangeNotifier {
           await _saveCredentials();
 
           FhirApiClient().configure(
-            baseUrl: 'https://fhirgql.drgodly.com',
+            baseUrl: ApiConstants.fhirGqlUrl,
             token: _jwtToken,
             isLiveMode: true,
           );
@@ -505,7 +533,7 @@ class AuthViewModel extends ChangeNotifier {
           await _saveCredentials();
 
           FhirApiClient().configure(
-            baseUrl: 'https://fhirgql.drgodly.com',
+            baseUrl: ApiConstants.fhirGqlUrl,
             token: _jwtToken,
             isLiveMode: true,
           );
@@ -516,15 +544,17 @@ class AuthViewModel extends ChangeNotifier {
           if (kDebugMode) {
             print('[AuthViewModel] PKCE token refresh during auto-login failed: $pkceErr');
           }
-          // If refresh failed (e.g. offline/network unreachable), fallback to stored JWT if present
-          if (storedJwtToken != null && storedJwtToken.isNotEmpty) {
-            _jwtToken = storedJwtToken;
-            _refreshToken = storedRefreshToken;
+          // Only when the server could not be reached (offline) may we keep
+          // using a stored JWT, and only while it is unexpired. A server
+          // rejection (revoked/expired refresh token) must end the session.
+          if (_isNetworkError(pkceErr) && isJwtValid(storedJwtToken)) {
             final savedUserId = await healthRepository.getSetting('iam_user_id');
             final savedUserName = await healthRepository.getSetting('user_name');
             final savedUserEmail = await healthRepository.getSetting('user_email');
             final savedOrg = await healthRepository.getSetting('iam_org_id');
             if (savedUserId != null && savedUserId.isNotEmpty) {
+              _jwtToken = storedJwtToken;
+              _refreshToken = storedRefreshToken;
               _userId = savedUserId;
               _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
               _user = User(
@@ -533,7 +563,7 @@ class AuthViewModel extends ChangeNotifier {
                 name: savedUserName ?? 'User',
               );
               FhirApiClient().configure(
-                baseUrl: 'https://fhirgql.drgodly.com',
+                baseUrl: ApiConstants.fhirGqlUrl,
                 token: _jwtToken,
                 isLiveMode: true,
               );
@@ -544,14 +574,14 @@ class AuthViewModel extends ChangeNotifier {
         }
       }
 
-      // Case 3: Fallback to stored JWT token if present
-      if (storedJwtToken != null && storedJwtToken.isNotEmpty) {
-        _jwtToken = storedJwtToken;
+      // Case 3: Fallback to a stored JWT, only while it is still unexpired.
+      if (isJwtValid(storedJwtToken)) {
         final savedUserId = await healthRepository.getSetting('iam_user_id');
         final savedUserName = await healthRepository.getSetting('user_name');
         final savedUserEmail = await healthRepository.getSetting('user_email');
         final savedOrg = await healthRepository.getSetting('iam_org_id');
         if (savedUserId != null && savedUserId.isNotEmpty) {
+          _jwtToken = storedJwtToken;
           _userId = savedUserId;
           _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
           _user = User(
@@ -560,7 +590,7 @@ class AuthViewModel extends ChangeNotifier {
             name: savedUserName ?? 'User',
           );
           FhirApiClient().configure(
-            baseUrl: 'https://fhirgql.drgodly.com',
+            baseUrl: ApiConstants.fhirGqlUrl,
             token: _jwtToken,
             isLiveMode: true,
           );
@@ -578,71 +608,111 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Sign out the user, revoke server token, clear local state, end browser session, and reset FhirApiClient to mock mode.
+  /// Signs the user out.
+  ///
+  /// Local data is wiped FIRST, so the device is clean even if the network
+  /// calls fail or hang. Server-side revocation is best effort afterwards.
+  /// Prefer `signOutAndResetSession(context)`, which also resets the other
+  /// view models.
   Future<void> signOut() async {
-    // 1. Revoke active token on IAM server (RFC 7009)
-    final tokenToRevoke = _refreshToken ?? _sessionToken ?? _jwtToken;
-    if (tokenToRevoke != null && tokenToRevoke.isNotEmpty) {
-      await authRepository.revokeToken(token: tokenToRevoke);
+    if (_isSigningOut) return;
+    _isSigningOut = true;
+    // Invalidate any token refresh that is still in flight (see refreshToken).
+    _sessionGeneration++;
+
+    // Keep what the server needs to revoke before clearing memory.
+    final refreshTokenToRevoke = _refreshToken;
+    final sessionCookie = _sessionToken;
+
+    try {
+      // 1. Clear in-memory session state
+      _sessionToken = null;
+      _refreshToken = null;
+      _jwtToken = null;
+      _idToken = null;
+      _userId = null;
+      _orgId = null;
+      _user = null;
+      _errorMessage = null;
+
+      // 2. Point the API client at the live backend with no credentials.
+      // (Never switch to the mock backend: it would fake successful syncs.)
+      FhirApiClient().configure(
+        baseUrl: ApiConstants.fhirGqlUrl,
+        token: null,
+        isLiveMode: true,
+      );
+
+      // 3. Stop the hourly background vitals upload for this user
+      await BackgroundSyncService.cancelAll();
+
+      // 4. Wipe stored credentials and per-user data
+      await _wipeLocalUserData();
+    } finally {
+      _isSigningOut = false;
+      notifyListeners();
     }
 
-    // 2. Call Better-Auth sign-out API
-    if (_sessionToken != null && _sessionToken!.isNotEmpty) {
-      await authRepository.signOutBetterAuth(sessionCookie: _sessionToken);
+    // 5. Best-effort server-side sign-out (local state is already clean)
+    try {
+      if (refreshTokenToRevoke != null && refreshTokenToRevoke.isNotEmpty) {
+        await authRepository
+            .revokeToken(token: refreshTokenToRevoke, tokenTypeHint: 'refresh_token')
+            .timeout(const Duration(seconds: 5));
+      }
+      if (sessionCookie != null && sessionCookie.isNotEmpty) {
+        await authRepository
+            .signOutBetterAuth(sessionCookie: sessionCookie)
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {
+      // Ignore: the session is already gone from this device.
     }
 
-    // ponytail: Invalidate WebView session cookies so re-login starts completely fresh
+    // 6. Invalidate WebView session cookies so the next login starts fresh
     try {
       await WebViewCookieManager().clearCookies();
     } catch (e) {
       debugPrint('[AuthViewModel] Error clearing WebView cookies: $e');
     }
+  }
 
-    // 3. Clear in-memory session tokens and state
+  /// Deletes every credential and every piece of user data stored locally.
+  /// Each step runs even if an earlier one fails.
+  Future<void> _wipeLocalUserData() async {
+    Future<void> attempt(Future<void> Function() step) async {
+      try {
+        await step();
+      } catch (e) {
+        if (kDebugMode) {
+          print('[AuthViewModel] Local wipe step failed: $e');
+        }
+      }
+    }
 
-    _sessionToken = null;
-    _refreshToken = null;
-    _jwtToken = null;
-    _idToken = null;
-    _userId = null;
-    _orgId = null;
-    _user = null;
-    _errorMessage = null;
+    // Credentials (secure storage) and account settings
+    for (final key in HealthRepository.secureKeys) {
+      await attempt(() => healthRepository.saveSetting(key, ''));
+    }
+    await attempt(() => SecureStorageService().clearAll());
+    for (final key in const [
+      'iam_user_id',
+      'iam_org_id',
+      'user_name',
+      'user_email',
+      // Per-user caches that must not survive into the next session
+      'last_intake_record_id',
+      'cached_specialists_json',
+    ]) {
+      await attempt(() => healthRepository.saveSetting(key, ''));
+    }
 
-    // Remove stored credentials
-    await healthRepository.saveSetting('iam_session_token', '');
-    await healthRepository.saveSetting('iam_refresh_token', '');
-    await healthRepository.saveSetting('iam_jwt_token', '');
-    await healthRepository.saveSetting('iam_id_token', '');
-    await healthRepository.saveSetting('iam_user_id', '');
-    await healthRepository.saveSetting('iam_org_id', '');
-    await healthRepository.saveSetting('user_name', '');
-    await healthRepository.saveSetting('user_email', '');
-    // Per-user caches that must not survive into the next session
-    await healthRepository.saveSetting('last_intake_record_id', '');
-    await healthRepository.saveSetting('cached_specialists_json', '');
-
-    // Wipe cached demographics/profile settings to prevent local leakage
-    await healthRepository.saveProfileValue('given_name', '');
-    await healthRepository.saveProfileValue('family_name', '');
-    await healthRepository.saveProfileValue('gender', '');
-    await healthRepository.saveProfileValue('birth_date', '');
-    await healthRepository.saveProfileValue('profile_image_path', '');
-
-    // Clear user cached metrics, profile & appointments from local database
-    await healthRepository.clearProfile();
-    await healthRepository.clearMetrics();
-    await healthRepository.clearLocalAppointments();
-    await healthRepository.clearAllInAppNotifications();
-
-    // Reset FhirApiClient to default mock mode (no token, isLiveMode = false)
-    FhirApiClient().configure(
-      baseUrl: 'http://10.0.2.2:8000',
-      token: null,
-      isLiveMode: false,
-    );
-
-    notifyListeners();
+    // Cached profile, health data, appointments, notifications, GPS routes
+    await attempt(healthRepository.clearProfile);
+    await attempt(healthRepository.clearMetrics);
+    await attempt(healthRepository.clearLocalAppointments);
+    await attempt(healthRepository.clearAllInAppNotifications);
+    await attempt(healthRepository.clearWorkoutRoutes);
   }
 
   Future<void> _saveCredentials() async {

@@ -20,8 +20,10 @@ void backgroundSyncCallbackDispatcher() {
     if (taskName == kPeriodicHealthSyncTask || taskName == Workmanager.iOSBackgroundTask) {
       try {
         final healthRepo = HealthRepository();
-        final userId = await healthRepo.getSetting('iam_user_id') ?? 'usr_demo_101';
-        final orgId = await healthRepo.getSetting('iam_org_id') ?? 'org_drgodly_default';
+        final userId = await healthRepo.getSetting('iam_user_id') ?? '';
+        final orgId = await healthRepo.getSetting('iam_org_id') ?? '';
+        // Signed out: nothing to upload (never fall back to a demo account).
+        if (userId.isEmpty || orgId.isEmpty) return true;
 
         final openWearablesService = OpenWearablesService();
         final vitals = await openWearablesService.fetchLatestVitals(

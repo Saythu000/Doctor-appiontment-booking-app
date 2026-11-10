@@ -17,7 +17,10 @@ class FhirApiClient {
       },
     ));
 
-    // Offline / Mock mode interceptor to bypass external FHIR server requests
+    // Offline / Mock mode interceptor to bypass external FHIR server requests.
+    // Debug builds only: in release a fake backend would report fake successes
+    // (e.g. vitals "synced", appointments "booked") that never happened.
+    if (kDebugMode) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -158,6 +161,7 @@ class FhirApiClient {
         },
       ),
     );
+    }
 
     // Request Interceptor to dynamically inject active JWT token
     _dio.interceptors.add(
@@ -184,20 +188,28 @@ class FhirApiClient {
         onError: (DioException e, handler) async {
           debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.type.name}');
 
-          // If 401 Unauthorized encountered and refresher is registered, refresh token and retry request once
-          if (e.response?.statusCode == 401 && _tokenRefresher != null) {
+          // On 401: refresh the token (shared across concurrent requests) and
+          // retry the request exactly once. A retried request that fails again
+          // is passed through, so a rejected token can never loop forever.
+          final alreadyRetried = e.requestOptions.extra[_retriedKey] == true;
+          if (e.response?.statusCode == 401 && _tokenRefresher != null && !alreadyRetried) {
+            String? freshToken;
             try {
-              debugPrint('[FHIR API] 401 Unauthorized encountered. Invoking automatic token refresh...');
-              final freshToken = await _tokenRefresher!();
-              if (freshToken != null && freshToken.isNotEmpty) {
-                _token = freshToken;
-                final retryOptions = e.requestOptions;
-                retryOptions.headers['Authorization'] = 'Bearer $freshToken';
+              debugPrint('[FHIR API] 401 Unauthorized encountered. Refreshing token...');
+              freshToken = await _refreshTokenOnce();
+            } catch (refreshErr) {
+              debugPrint('[FHIR API] Token refresh failed: $refreshErr');
+            }
+            if (freshToken != null && freshToken.isNotEmpty) {
+              final retryOptions = e.requestOptions;
+              retryOptions.extra[_retriedKey] = true;
+              retryOptions.headers['Authorization'] = 'Bearer $freshToken';
+              try {
                 final response = await _dio.fetch(retryOptions);
                 return handler.resolve(response);
+              } on DioException catch (retryErr) {
+                return handler.next(retryErr);
               }
-            } catch (refreshErr) {
-              debugPrint('[FHIR API] Token refresh during retry failed: $refreshErr');
             }
           }
 
@@ -212,6 +224,19 @@ class FhirApiClient {
   String? _token;
   bool _isLiveMode = true;
   Future<String?> Function()? _tokenRefresher;
+  Future<String?>? _refreshInFlight;
+  static const String _retriedKey = 'phia_auth_retried';
+
+  /// Runs at most one token refresh at a time. Concurrent 401s await the same
+  /// refresh instead of each spending (and possibly invalidating) the refresh
+  /// token in parallel.
+  Future<String?> _refreshTokenOnce() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+    final future = _tokenRefresher!().whenComplete(() => _refreshInFlight = null);
+    _refreshInFlight = future;
+    return future;
+  }
 
   Dio get client => _dio;
   String get baseUrl => _baseUrl;

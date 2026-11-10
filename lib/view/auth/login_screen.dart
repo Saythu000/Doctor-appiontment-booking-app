@@ -33,13 +33,19 @@ class _LoginScreenState extends State<LoginScreen> {
       activityVM.resetState();
       profileVM.resetState();
       
-      // Parallelize complete clinical and booking sync
-      await Future.wait([
-        profileVM.fetchOrInitProfile(),
-        activityVM.initDashboard(),
-        bookingVM.fetchAppointments(),
-        bookingVM.fetchSpecialists(),
-      ]);
+      // Parallelize complete clinical and booking sync. Login has already
+      // succeeded, so a failed or slow preload must not strand the user here.
+      try {
+        await Future.wait([
+          profileVM.fetchOrInitProfile(),
+          activityVM.initDashboard(),
+          bookingVM.fetchAppointments(),
+          bookingVM.fetchSpecialists(),
+        ]).timeout(const Duration(seconds: 15));
+      } catch (_) {
+        // Screens reload their own data when opened.
+      }
+      if (!mounted) return;
 
       final profile = profileVM.currentProfile;
       final bool hasProfile = profile != null &&

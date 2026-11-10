@@ -146,8 +146,10 @@ class ActivityViewModel extends ChangeNotifier {
       // Throttle FHIR server POSTs to once every 15 seconds to avoid network spam
       if (_lastBleFhirSyncTime == null || now.difference(_lastBleFhirSyncTime!).inSeconds >= 15) {
         _lastBleFhirSyncTime = now;
-        final userId = await repository.getSetting('iam_user_id') ?? 'usr_demo_101';
-        final orgId = await repository.getSetting('iam_org_id') ?? 'org_drgodly_default';
+        final userId = await repository.getSetting('iam_user_id') ?? '';
+        final orgId = await repository.getSetting('iam_org_id') ?? '';
+        // Only upload for a signed-in user; never under a demo/fallback account.
+        if (userId.isEmpty || orgId.isEmpty) return;
 
         await vitalsRepository.submitVitals(
           VitalsRecord(
@@ -728,8 +730,10 @@ class ActivityViewModel extends ChangeNotifier {
   /// Returns true if real records were fetched and synced, false otherwise
   Future<bool> syncOpenWearablesVitals([String? providerName]) async {
     try {
-      final userId = await repository.getSetting('iam_user_id') ?? 'usr_demo_101';
-      final orgId = await repository.getSetting('iam_org_id') ?? 'org_drgodly_default';
+      final userId = await repository.getSetting('iam_user_id') ?? '';
+      final orgId = await repository.getSetting('iam_org_id') ?? '';
+      // Not signed in: nothing to sync, and never sync under a demo account.
+      if (userId.isEmpty || orgId.isEmpty) return false;
 
       final cloudVitals = await openWearablesService.fetchLatestVitals(userId: userId, orgId: orgId);
       if (cloudVitals != null) {
