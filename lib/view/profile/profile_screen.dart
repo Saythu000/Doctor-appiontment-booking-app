@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/colors.dart';
 import '../../core/widgets/image_helper.dart';
+import '../../core/session/session_reset.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/auth_viewmodel.dart';
@@ -795,9 +796,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: TextButton.icon(
                 onPressed: () async {
-                  context.read<ActivityViewModel>().resetState();
-                  context.read<ProfileViewModel>().resetState();
-                  await context.read<AuthViewModel>().signOut();
+                  await signOutAndResetSession(context);
                   if (context.mounted) {
                     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                   }

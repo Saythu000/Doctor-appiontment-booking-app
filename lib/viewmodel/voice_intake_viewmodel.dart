@@ -41,6 +41,11 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   StreamSubscription<VoiceAgentEvent>? _eventsSubscription;
   bool _isEndingCall = false;
 
+  // Patient identity captured when the call starts, so an agent-initiated end
+  // saves the intake to the right patient (never a hardcoded fallback).
+  int? _patientFhirId;
+  String? _orgId;
+
   VoiceCallState get callState => _callState;
   String get statusLabel => _statusLabel;
   String get statusDotColor => _statusDotColor;
@@ -75,12 +80,31 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     _savedIntakeRecordId = null;
     _clinicalReport = null;
     _isEndingCall = false;
+    _patientFhirId = null;
+    _orgId = null;
+    notifyListeners();
+  }
+
+  /// Immediately stops the microphone, playback and WebSocket without saving.
+  /// Used when the user leaves the screen mid-call.
+  Future<void> abortCall() async {
+    await _eventsSubscription?.cancel();
+    _eventsSubscription = null;
+    await _voiceService.disconnect();
+    _callState = VoiceCallState.offline;
+    _statusLabel = 'Offline';
+    _statusDotColor = 'grey';
+    _pendingUser = '';
+    _pendingAgent = '';
+    _isEndingCall = false;
     notifyListeners();
   }
 
   /// Start voice intake call (§2)
   Future<void> startCall({
     required String authToken,
+    int? patientFhirId,
+    String? orgId,
     String? patientName,
     String? birthDate,
     String? email,
@@ -88,6 +112,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     String? wsUrlOverride,
   }) async {
     reset();
+    _patientFhirId = patientFhirId;
+    _orgId = orgId;
     _callState = VoiceCallState.connecting;
     _statusLabel = 'Connecting...';
     _statusDotColor = 'amber';
@@ -274,6 +300,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   /// Restart Call (§5.3)
   Future<void> restartCall({
     required String authToken,
+    int? patientFhirId,
+    String? orgId,
     String? patientName,
     String? birthDate,
     String? email,
@@ -287,6 +315,8 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     _pendingAgent = '';
     await startCall(
       authToken: authToken,
+      patientFhirId: patientFhirId ?? _patientFhirId,
+      orgId: orgId ?? _orgId,
       patientName: patientName,
       birthDate: birthDate,
       email: email,
@@ -351,26 +381,40 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     }
 
     // 5. Create & Save Intake Record with mode: "VOICE" (§6.2, §6.3)
+    final resolvedPatientId = patientFhirId ?? _patientFhirId;
+    final resolvedOrgId = orgId ?? _orgId;
+    if (resolvedPatientId == null || resolvedPatientId <= 0) {
+      _errorMessage = 'Your patient profile is not loaded, so this intake could not be saved. Please try again.';
+      _callState = VoiceCallState.error;
+      _isEndingCall = false;
+      notifyListeners();
+      return;
+    }
+
     _callState = VoiceCallState.saving;
     notifyListeners();
 
     try {
       final record = await _intakeService.createIntakeRecord(
-        patientFhirId: patientFhirId ?? 10001,
+        patientFhirId: resolvedPatientId,
         mode: 'VOICE',
         authToken: authToken,
-        orgId: orgId,
+        orgId: resolvedOrgId,
       );
-      if (record != null) {
-        _savedIntakeRecordId = record.id;
+      if (record == null) {
+        throw Exception('The intake record could not be created on the server.');
+      }
+      _savedIntakeRecordId = record.id;
 
-        await _intakeService.updateIntakeRecord(
-          id: record.id,
-          conversation: _committedMessages,
-          report: rawReport,
-          authToken: authToken,
-          orgId: orgId,
-        );
+      final updated = await _intakeService.updateIntakeRecord(
+        id: record.id,
+        conversation: _committedMessages,
+        report: rawReport,
+        authToken: authToken,
+        orgId: resolvedOrgId,
+      );
+      if (!updated) {
+        throw Exception('The conversation could not be saved to the intake record.');
       }
 
       _callState = VoiceCallState.completed;

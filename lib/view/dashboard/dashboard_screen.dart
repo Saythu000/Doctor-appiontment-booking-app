@@ -1537,7 +1537,8 @@ class DashboardScreen extends StatelessWidget {
                       await activityVM.saveBioData(
                         weight: w > 0 ? w : activityVM.userWeight,
                         height: h > 0 ? h : activityVM.userHeight,
-                        age: a > 0 ? a : (activityVM.userAge > 0 ? activityVM.userAge.toDouble() : 25.0),
+                        // Unknown age stays unknown (0 is skipped on save/sync), never a made-up 25.
+                        age: a > 0 ? a : activityVM.userAge.toDouble(),
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

@@ -617,12 +617,14 @@ class ActivityViewModel extends ChangeNotifier {
       value: height,
       timestamp: now,
     ));
-    await repository.saveMetric(HealthMetric(
-      id: 'bio_age_${now.millisecondsSinceEpoch}',
-      type: 'age',
-      value: age,
-      timestamp: now,
-    ));
+    if (age > 0) {
+      await repository.saveMetric(HealthMetric(
+        id: 'bio_age_${now.millisecondsSinceEpoch}',
+        type: 'age',
+        value: age,
+        timestamp: now,
+      ));
+    }
     
     // Remote Sync biometrics immediately if authenticated
     try {

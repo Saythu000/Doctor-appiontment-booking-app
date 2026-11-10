@@ -23,6 +23,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   String _selectedGender = 'MALE';
   bool _initializedFromState = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -326,10 +327,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                 flex: 2,
                                 child: _buildInputField(
                                   label: 'Age',
-                                  hint: '25',
+                                  hint: 'From DOB',
                                   controller: _ageController,
                                   icon: Icons.cake_outlined,
                                   keyboardType: TextInputType.number,
+                                  // Age is derived from the date of birth so the two can't disagree.
+                                  readOnly: true,
                                 ),
                               ),
                             ],
@@ -452,7 +455,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shadowColor: PhiaColors.primary.withValues(alpha: 0.3),
                   ),
-                  onPressed: _handleContinue,
+                  onPressed: _isSaving ? null : _handleContinue,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -595,47 +598,98 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
   }
 
+  /// Validates the form. Returns a user-facing message, or null when valid.
+  /// Values are never silently replaced with defaults: a wrong height, weight
+  /// or age would be synced to the medical record as if it were real.
+  String? _validate({
+    required String firstName,
+    required DateTime? dob,
+    required double? height,
+    required double? weight,
+  }) {
+    if (firstName.isEmpty) return 'Please enter your first name.';
+    if (dob == null) return 'Please select your date of birth.';
+    final age = _ageFromDob(dob);
+    if (age < 0 || age > 130) return 'Please check your date of birth.';
+    if (height == null || height < 50 || height > 250) {
+      return 'Please enter your height in cm (50–250).';
+    }
+    if (weight == null || weight < 2 || weight > 400) {
+      return 'Please enter your weight in kg (2–400).';
+    }
+    return null;
+  }
+
+  int _ageFromDob(DateTime dob) {
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age;
+  }
+
   Future<void> _handleContinue() async {
     final profileVM = Provider.of<ProfileViewModel>(context, listen: false);
     final activityVM = Provider.of<ActivityViewModel>(context, listen: false);
-
-    final double height = double.tryParse(_heightController.text) ?? 175.0;
-    final double weight = double.tryParse(_weightController.text) ?? 70.0;
-    final double age = double.tryParse(_ageController.text) ?? 25.0;
 
     final String firstName = _firstNameController.text.trim();
     final String lastName = _lastNameController.text.trim();
     final String dob = _dobController.text.trim();
     final String gender = _selectedGender;
+    final DateTime? dobDate = DateTime.tryParse(dob);
+    final double? height = double.tryParse(_heightController.text.trim());
+    final double? weight = double.tryParse(_weightController.text.trim());
 
-    // 1. Save local physical vitals
-    await activityVM.saveBioData(weight: weight, height: height, age: age);
+    final error = _validate(
+      firstName: firstName,
+      dob: dobDate,
+      height: height,
+      weight: weight,
+    );
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: PhiaColors.pulseRed),
+      );
+      return;
+    }
 
-    // 2. Sync demographics safely to the local/remote FHIR server
-    if (firstName.isNotEmpty || lastName.isNotEmpty || dob.isNotEmpty || gender.isNotEmpty) {
+    setState(() => _isSaving = true);
+    try {
+      // 1. Save local physical vitals
+      await activityVM.saveBioData(
+        weight: weight!,
+        height: height!,
+        age: _ageFromDob(dobDate!).toDouble(),
+      );
+
+      // 2. Sync demographics to the FHIR server. Contact and address fields are
+      // left blank on purpose: saveProfileDetails keeps the existing values.
       try {
         await profileVM.saveProfileDetails(
           givenName: firstName,
           familyName: lastName,
           gender: gender,
           birthDate: dob,
-          email: "",
-          phone: "",
-          street: "",
-          city: "",
-          state: "",
-          zip: "",
-          country: "",
+          email: '',
+          phone: '',
+          street: '',
+          city: '',
+          state: '',
+          zip: '',
+          country: '',
         );
       } catch (e) {
         if (kDebugMode) {
           print('[ProfileSetupScreen] FHIR profile sync error: $e');
         }
       }
-    }
 
-    if (mounted) {
-      Navigator.pushNamed(context, '/goals');
+      if (mounted) {
+        Navigator.pushNamed(context, '/goals');
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 }

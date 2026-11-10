@@ -226,6 +226,25 @@ class ProfileViewModel extends ChangeNotifier {
     isProfileLoading = true;
     notifyListeners();
 
+    // Blank contact/address fields mean "not provided here", not "delete":
+    // keep whatever is already on the profile so it is never wiped.
+    final existing = currentProfile;
+    final existingAddr = (existing?.address?.isNotEmpty ?? false) ? existing!.address!.first : null;
+    String keep(String provided, String? current) =>
+        provided.trim().isNotEmpty ? provided.trim() : (current ?? '');
+    final existingName = (existing?.name?.isNotEmpty ?? false) ? existing!.name!.first : null;
+    givenName = keep(givenName, existingName?.givenName);
+    familyName = keep(familyName, existingName?.familyName);
+    gender = keep(gender, existing?.gender);
+    birthDate = keep(birthDate, existing?.birthDate);
+    email = keep(email, existing?.primaryEmail);
+    phone = keep(phone, existing?.primaryPhone);
+    street = keep(street, (existingAddr?.line.isNotEmpty ?? false) ? existingAddr!.line.first : null);
+    city = keep(city, existingAddr?.city);
+    state = keep(state, existingAddr?.state);
+    zip = keep(zip, existingAddr?.postalCode);
+    country = keep(country, existingAddr?.country);
+
     // 1. Save profile details locally first to ensure we always have offline cache
     await healthRepository.saveProfileValue('given_name', givenName);
     await healthRepository.saveProfileValue('family_name', familyName);

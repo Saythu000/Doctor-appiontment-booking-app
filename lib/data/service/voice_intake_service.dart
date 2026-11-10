@@ -112,7 +112,8 @@ class VoiceIntakeService {
     };
 
     final uri = Uri.parse(baseWsUrl).replace(queryParameters: queryParams);
-    debugPrint('[VoiceIntakeService] Connecting to WebSocket: $uri');
+    // Never log the full URI: its query string carries the JWT and patient details.
+    debugPrint('[VoiceIntakeService] Connecting to WebSocket: ${uri.host}${uri.path}');
 
     // Configure global AudioContext for voice communication so AudioPlayer never steals focus from recorder
     try {
@@ -157,7 +158,7 @@ class VoiceIntakeService {
               final Map<String, dynamic> json = jsonDecode(data);
               final event = VoiceAgentEvent.fromJson(json);
 
-              debugPrint('[VoiceIntakeService] Received event type=${event.type} status=${event.status} text=${event.text}');
+              debugPrint('[VoiceIntakeService] Received event type=${event.type} status=${event.status} textLength=${event.text?.length ?? 0}');
 
               // Handle audio stream buffering (§3.2)
               if (event.type == 'audio' && event.audioBase64 != null) {

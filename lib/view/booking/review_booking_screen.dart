@@ -229,7 +229,16 @@ class ReviewBookingScreen extends StatelessWidget {
                           if (time.toUpperCase().contains('PM') && hour < 12) hour += 12;
                           if (time.toUpperCase().contains('AM') && hour == 12) hour = 0;
 
-                          final int pId = specialist?.practitionerDetail?.id ?? specialist?.practitionerRefId ?? specialist?.id ?? 1;
+                          final int? pId = specialist?.practitionerDetail?.id ?? specialist?.practitionerRefId ?? specialist?.id;
+                          if (pId == null || slotId == null || slotId <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please go back and select a doctor and an available time slot.'),
+                                backgroundColor: PhiaColors.pulseRed,
+                              ),
+                            );
+                            return;
+                          }
 
                           try {
                             final result = await context.read<BookingViewModel>().executeBooking(

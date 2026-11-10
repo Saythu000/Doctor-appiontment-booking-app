@@ -4,6 +4,7 @@ import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/voice_intake_viewmodel.dart';
 import 'intake_completion_screen.dart';
+import '../../core/session/session_reset.dart';
 
 class VoiceIntakeScreen extends StatefulWidget {
   const VoiceIntakeScreen({super.key});
@@ -16,6 +17,8 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   final ScrollController _scrollController = ScrollController();
+  // Cached so dispose() can stop the call without touching context.
+  late final VoiceIntakeViewModel _voiceVm;
 
   @override
   void initState() {
@@ -24,6 +27,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+    _voiceVm = Provider.of<VoiceIntakeViewModel>(context, listen: false);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
@@ -40,6 +44,10 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
 
   @override
   void dispose() {
+    // Leaving the screen must never leave the microphone streaming.
+    if (_voiceVm.isCallActive) {
+      _voiceVm.abortCall();
+    }
     _pulseController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -112,7 +120,8 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                 ),
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  await authVm.signOut();
+                  if (!mounted) return;
+                  await signOutAndResetSession(context);
                   if (mounted) {
                     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                   }
@@ -134,6 +143,8 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
 
     await voiceVm.startCall(
       authToken: token!,
+      patientFhirId: profileVm.patientFhirId,
+      orgId: authVm.orgId,
       patientName: name,
       birthDate: dob,
       email: email,
@@ -180,7 +191,34 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
       _scrollToBottom();
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: !voiceVm.isCallActive,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('End voice intake?'),
+            content: const Text(
+              'Leaving now stops the call. This conversation will not be saved.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Stay'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Leave'),
+              ),
+            ],
+          ),
+        );
+        if (leave != true) return;
+        await _voiceVm.abortCall();
+        if (context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
@@ -544,6 +582,8 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                                   final profile = profileVm.currentProfile;
                                   voiceVm.restartCall(
                                     authToken: authVm.jwtToken ?? '',
+                                    patientFhirId: profileVm.patientFhirId,
+                                    orgId: authVm.orgId,
                                     patientName: authVm.user?.name ?? profile?.primaryName,
                                     birthDate: profile?.birthDate,
                                     email: profile?.primaryEmail ?? authVm.user?.email,
@@ -580,6 +620,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
           ],
         ),
       ),
+    ),
     );
   }
 }

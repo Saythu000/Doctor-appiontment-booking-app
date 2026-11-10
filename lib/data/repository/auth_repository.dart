@@ -96,7 +96,7 @@ class AuthRepository {
         );
         if (jwtResp.statusCode == 200 && jwtResp.data is Map) {
           sessionJwt = jwtResp.data['token'] as String?;
-          debugPrint('[AuthRepository] Successfully minted Session JWT from WebView cookie: ${sessionJwt?.substring(0, 15)}...');
+          debugPrint('[AuthRepository] Successfully minted Session JWT from WebView cookie');
         }
       } catch (e) {
         debugPrint('[AuthRepository] Failed to mint Session JWT from cookies: $e');

@@ -4,12 +4,14 @@ import 'package:workmanager/workmanager.dart';
 import '../repository/health_repository.dart';
 import '../repository/vitals_repository.dart';
 import 'open_wearables_service.dart';
+import '../../core/utils/app_logging.dart';
 
 const String kPeriodicHealthSyncTask = 'drgodly_periodic_health_sync';
 const String kPeriodicHealthSyncUniqueName = 'drgodly_health_sync_periodic_worker';
 
 @pragma('vm:entry-point')
 void backgroundSyncCallbackDispatcher() {
+  silenceDebugPrintInRelease();
   Workmanager().executeTask((taskName, inputData) async {
     if (kDebugMode) {
       print('[BackgroundSyncWorker] Executing background task: $taskName');

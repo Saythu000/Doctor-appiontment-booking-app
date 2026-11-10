@@ -182,7 +182,7 @@ class FhirApiClient {
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
-          debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.message} | data: ${e.response?.data}');
+          debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.type.name}');
 
           // If 401 Unauthorized encountered and refresher is registered, refresh token and retry request once
           if (e.response?.statusCode == 401 && _tokenRefresher != null) {

@@ -618,6 +618,9 @@ class AuthViewModel extends ChangeNotifier {
     await healthRepository.saveSetting('iam_org_id', '');
     await healthRepository.saveSetting('user_name', '');
     await healthRepository.saveSetting('user_email', '');
+    // Per-user caches that must not survive into the next session
+    await healthRepository.saveSetting('last_intake_record_id', '');
+    await healthRepository.saveSetting('cached_specialists_json', '');
 
     // Wipe cached demographics/profile settings to prevent local leakage
     await healthRepository.saveProfileValue('given_name', '');
@@ -630,6 +633,7 @@ class AuthViewModel extends ChangeNotifier {
     await healthRepository.clearProfile();
     await healthRepository.clearMetrics();
     await healthRepository.clearLocalAppointments();
+    await healthRepository.clearAllInAppNotifications();
 
     // Reset FhirApiClient to default mock mode (no token, isLiveMode = false)
     FhirApiClient().configure(

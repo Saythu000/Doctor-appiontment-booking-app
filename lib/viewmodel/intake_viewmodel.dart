@@ -413,14 +413,11 @@ class IntakeViewModel extends ChangeNotifier {
     required String authToken,
     String? orgId,
   }) async {
-    int? intakeId = intakeRecordId ?? _savedIntakeRecordId;
-    if (intakeId == null) {
-      final savedStr = await HealthRepository().getSetting('last_intake_record_id');
-      if (savedStr != null && savedStr.isNotEmpty) {
-        intakeId = int.tryParse(savedStr);
-      }
-    }
-    if (intakeId == null) return false;
+    // Only link the intake explicitly carried through this booking flow.
+    // Falling back to a remembered/persisted id could attach a stale (or
+    // another user's) intake to this appointment.
+    final int? intakeId = intakeRecordId;
+    if (intakeId == null || intakeId <= 0) return false;
 
     if (kDebugMode) {
       print('[IntakeViewModel] Linking intake ID $intakeId to appointment $fhirAppointmentId');

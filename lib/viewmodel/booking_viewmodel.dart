@@ -7,7 +7,6 @@ import '../../data/repository/booking_repository.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/profile_repository.dart';
 import '../core/constants/api_constants.dart';
-import '../data/service/fhir_api_client.dart';
 import '../data/service/notification_service.dart';
 
 class BookingViewModel extends ChangeNotifier {
@@ -33,6 +32,19 @@ class BookingViewModel extends ChangeNotifier {
     fetchAppointments();
     _loadLastBookingFromLocal();
     _loadCachedSpecialists();
+  }
+
+  /// Clears all in-memory booking state (used on sign-out so the next user
+  /// never sees the previous user's appointments or confirmation).
+  void reset() {
+    specialists = [];
+    availableSlots = [];
+    appointmentsList = [];
+    lastBookingConfirmed = null;
+    isSpecialistsLoading = false;
+    isSlotsLoading = false;
+    isBookingExecuting = false;
+    notifyListeners();
   }
 
   Future<void> _loadCachedSpecialists() async {
@@ -146,6 +158,12 @@ class BookingViewModel extends ChangeNotifier {
     int? slotId,
     String? note,
   }) async {
+    // Never book a slot the user did not explicitly pick. Previously a missing
+    // slot id fell back to "first free slot" (possibly another time or doctor).
+    if (slotId == null || slotId <= 0) {
+      throw Exception('Please select an available time slot before confirming.');
+    }
+
     isBookingExecuting = true;
     notifyListeners();
 
@@ -173,17 +191,13 @@ class BookingViewModel extends ChangeNotifier {
         final family = await healthRepository.getProfileValue('family_name') ?? '';
         pName = '$given $family'.trim();
       }
-      if (pName.isEmpty) {
-        pName = await healthRepository.getSetting('iam_user_name') ?? '';
-      }
-      if (pName.isEmpty) {
-        pName = 'surya';
-      }
+      // No hardcoded fallback name: if nothing is known, the booking is sent
+      // without patient_display and no name is written to the FHIR record.
 
       final int pId = profile.id;
 
       // If the FHIR profile on server is missing names, sync the resolved real name to FHIR server
-      if (profile.name == null || profile.name!.isEmpty) {
+      if (pName.isNotEmpty && (profile.name == null || profile.name!.isEmpty)) {
         try {
           final parts = pName.split(' ');
           final gName = parts.first;
@@ -198,55 +212,9 @@ class BookingViewModel extends ChangeNotifier {
 
       final String apptTypeDisplay = isVirtual ? 'Virtual Consultation' : 'In-Person Visit';
 
-      // Resolve valid real free slot from server if not supplied
-      int effectiveSlotId = slotId ?? 0;
-      if (effectiveSlotId <= 0) {
-        // Attempt to find a matching slot from already fetched availableSlots
-        for (var s in availableSlots) {
-          if (s.displayTime == timeString) {
-            effectiveSlotId = s.id;
-            break;
-          }
-        }
-
-        if (effectiveSlotId <= 0) {
-          try {
-            final dateStr = date.toIso8601String().split('T')[0];
-            final freeSlots = await bookingRepository.getAvailableSlots(
-              practitionerRoleId: practitionerId,
-              dateString: dateStr,
-              orgId: orgId,
-            );
-            if (freeSlots.isNotEmpty) {
-              effectiveSlotId = freeSlots.first.id;
-            } else {
-              final slotQuery = <String, dynamic>{
-                'status': 'free',
-                'limit': 5,
-              };
-              if (orgId.isNotEmpty) {
-                slotQuery['org_id'] = orgId;
-              }
-              final resp = await FhirApiClient().client.get(
-                '/api/v1/slots/',
-                queryParameters: slotQuery,
-              );
-              final dataList = resp.data['data'] as List?;
-              if (dataList != null && dataList.isNotEmpty) {
-                effectiveSlotId = dataList.first['id'] as int;
-              }
-            }
-          } catch (slotErr) {
-            if (kDebugMode) {
-              print('[BookingViewModel] Dynamic slot resolution error: $slotErr');
-            }
-          }
-        }
-      }
-
       final result = await bookingRepository.bookSlotAtomic(
         practitionerId: practitionerId,
-        slotId: effectiveSlotId,
+        slotId: slotId,
         patientId: pId,
         userId: userId,
         orgId: orgId,
@@ -290,9 +258,9 @@ class BookingViewModel extends ChangeNotifier {
 
       String finalStartStr = calculatedStart.toIso8601String();
       if (result['start'] != null) {
+        // The server's slot start is the source of truth for what was booked.
         final serverStart = DateTime.tryParse(result['start'].toString());
-        // If server start is in the future, honor it; if it is in the past (e.g. stale server seed slot), keep user's chosen date
-        if (serverStart != null && serverStart.isAfter(DateTime.now())) {
+        if (serverStart != null) {
           finalStartStr = serverStart.toIso8601String();
         }
       }

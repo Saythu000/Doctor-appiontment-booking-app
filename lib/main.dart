@@ -41,8 +41,10 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'data/service/vitals_foreground_service.dart';
 import 'data/service/background_sync_service.dart';
 import 'data/service/fhir_api_client.dart';
+import 'core/utils/app_logging.dart';
 
 void main() async {
+  silenceDebugPrintInRelease();
   WidgetsFlutterBinding.ensureInitialized();
   FlutterForegroundTask.initCommunicationPort();
   VitalsForegroundService.init();

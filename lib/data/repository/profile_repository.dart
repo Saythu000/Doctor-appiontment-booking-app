@@ -124,6 +124,17 @@ class ProfileRepository {
     String? zip,
     String? country,
   }) async {
+    // Only send sections that carry data. Sending an empty `telecom` list or an
+    // empty address object replaces (erases) what is stored on the server.
+    final telecom = <Map<String, dynamic>>[
+      if (phone != null && phone.isNotEmpty)
+        {'system': 'phone', 'value': phone, 'rank': 1},
+      if (email != null && email.isNotEmpty)
+        {'system': 'email', 'value': email, 'rank': 1},
+    ];
+    final hasAddress = [street, city, state, zip, country]
+        .any((v) => v != null && v.isNotEmpty);
+
     final payload = <String, dynamic>{
       if (gender != null && gender.isNotEmpty) 'gender': gender.toLowerCase(),
       if (birthDate != null && birthDate.isNotEmpty) 'birth_date': birthDate,
@@ -134,13 +145,8 @@ class ProfileRepository {
             if (familyName != null && familyName.isNotEmpty) 'family': familyName,
           }
         ],
-      'telecom': [
-        if (phone != null && phone.isNotEmpty)
-          {'system': 'phone', 'value': phone, 'rank': 1},
-        if (email != null && email.isNotEmpty)
-          {'system': 'email', 'value': email, 'rank': 1},
-      ],
-      if (street != null || city != null || state != null || zip != null || country != null)
+      if (telecom.isNotEmpty) 'telecom': telecom,
+      if (hasAddress)
         'addresses': [
           {
             if (street != null && street.isNotEmpty) 'line': [street],
