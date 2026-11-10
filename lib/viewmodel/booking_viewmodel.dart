@@ -49,7 +49,8 @@ class BookingViewModel extends ChangeNotifier {
 
   Future<void> _loadCachedSpecialists() async {
     try {
-      final cachedJson = await healthRepository.getSetting('cached_specialists_json');
+      final cachedJson =
+          await healthRepository.getSetting('cached_specialists_json');
       if (cachedJson != null && cachedJson.isNotEmpty) {
         final decoded = jsonDecode(cachedJson) as List?;
         if (decoded != null && decoded.isNotEmpty) {
@@ -73,11 +74,15 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadLastBookingFromLocal() async {
-    final lastBookedDoctor = await healthRepository.getProfileValue('last_booking_practitioner');
+    final lastBookedDoctor =
+        await healthRepository.getProfileValue('last_booking_practitioner');
     if (lastBookedDoctor != null) {
-      final lastBookedStart = await healthRepository.getProfileValue('last_booking_start');
-      final lastBookedType = await healthRepository.getProfileValue('last_booking_type');
-      final lastBookedId = await healthRepository.getProfileValue('last_booking_id');
+      final lastBookedStart =
+          await healthRepository.getProfileValue('last_booking_start');
+      final lastBookedType =
+          await healthRepository.getProfileValue('last_booking_type');
+      final lastBookedId =
+          await healthRepository.getProfileValue('last_booking_id');
       lastBookingConfirmed = {
         'practitioner_name': lastBookedDoctor,
         'start': lastBookedStart,
@@ -99,12 +104,16 @@ class BookingViewModel extends ChangeNotifier {
 
     try {
       final rawOrgId = await healthRepository.getSetting('iam_org_id');
-      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : ApiConstants.defaultOrganizationId;
-      final fetched = await bookingRepository.getActivePractitionerRoles(orgId: orgId);
+      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty)
+          ? rawOrgId
+          : ApiConstants.defaultOrganizationId;
+      final fetched =
+          await bookingRepository.getActivePractitionerRoles(orgId: orgId);
       if (fetched.isNotEmpty) {
         specialists = fetched;
         final jsonList = fetched.map((s) => s.toJson()).toList();
-        await healthRepository.saveSetting('cached_specialists_json', jsonEncode(jsonList));
+        await healthRepository.saveSetting(
+            'cached_specialists_json', jsonEncode(jsonList));
       } else if (specialists.isEmpty) {
         await _loadCachedSpecialists();
       }
@@ -128,7 +137,9 @@ class BookingViewModel extends ChangeNotifier {
 
     try {
       final rawOrgId = await healthRepository.getSetting('iam_org_id');
-      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty) ? rawOrgId : ApiConstants.defaultOrganizationId;
+      final orgId = (rawOrgId != null && rawOrgId.isNotEmpty)
+          ? rawOrgId
+          : ApiConstants.defaultOrganizationId;
       final dateStr = date.toIso8601String().split('T')[0];
       availableSlots = await bookingRepository.getAvailableSlots(
         practitionerRoleId: practitionerRoleId,
@@ -161,9 +172,14 @@ class BookingViewModel extends ChangeNotifier {
     // Never book a slot the user did not explicitly pick. Previously a missing
     // slot id fell back to "first free slot" (possibly another time or doctor).
     if (slotId == null || slotId <= 0) {
-      throw Exception('Please select an available time slot before confirming.');
+      throw Exception(
+          'Please select an available time slot before confirming.');
     }
 
+    // A second tap while a booking is in flight must not book twice.
+    if (isBookingExecuting) {
+      throw Exception('Your booking is already being processed.');
+    }
     isBookingExecuting = true;
     notifyListeners();
 
@@ -175,20 +191,26 @@ class BookingViewModel extends ChangeNotifier {
         orgId = ApiConstants.defaultOrganizationId;
         await healthRepository.saveSetting('iam_org_id', orgId);
       }
-      PlainPatient? profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
-      profile ??= await profileRepository.createInitialProfile(userId: userId, orgId: orgId);
+      PlainPatient? profile =
+          await profileRepository.getMyProfile(userId: userId, orgId: orgId);
+      profile ??= await profileRepository.createInitialProfile(
+          userId: userId, orgId: orgId);
 
       // Robust resolution of patient name: check FHIR profile -> auth user_name -> profile cache
       String pName = '';
-      if (profile.name != null && profile.name!.isNotEmpty && profile.name!.first.fullName.trim().isNotEmpty) {
+      if (profile.name != null &&
+          profile.name!.isNotEmpty &&
+          profile.name!.first.fullName.trim().isNotEmpty) {
         pName = profile.name!.first.fullName.trim();
       }
       if (pName.isEmpty) {
         pName = await healthRepository.getSetting('user_name') ?? '';
       }
       if (pName.isEmpty) {
-        final given = await healthRepository.getProfileValue('given_name') ?? '';
-        final family = await healthRepository.getProfileValue('family_name') ?? '';
+        final given =
+            await healthRepository.getProfileValue('given_name') ?? '';
+        final family =
+            await healthRepository.getProfileValue('family_name') ?? '';
         pName = '$given $family'.trim();
       }
       // No hardcoded fallback name: if nothing is known, the booking is sent
@@ -210,7 +232,8 @@ class BookingViewModel extends ChangeNotifier {
         } catch (_) {}
       }
 
-      final String apptTypeDisplay = isVirtual ? 'Virtual Consultation' : 'In-Person Visit';
+      final String apptTypeDisplay =
+          isVirtual ? 'Virtual Consultation' : 'In-Person Visit';
 
       final result = await bookingRepository.bookSlotAtomic(
         practitionerId: practitionerId,
@@ -226,83 +249,111 @@ class BookingViewModel extends ChangeNotifier {
 
       lastBookingConfirmed = result;
 
-      // Automatically provision consultation room on web app if appointmentId is present
-      if (result['appointment_id'] != null) {
-        final aId = result['appointment_id'];
-        final intId = aId is int ? aId : int.tryParse(aId.toString()) ?? 0;
-        if (intId > 0) {
-          bookingRepository.provisionConsultationRoom(intId).catchError((_) => false);
-        }
-      }
-      
-      await healthRepository.saveProfileValue('last_booking_practitioner', practitionerName);
-      if (result['start'] != null) {
-        await healthRepository.saveProfileValue('last_booking_start', result['start'].toString());
-      }
-      if (result['type'] != null) {
-        await healthRepository.saveProfileValue('last_booking_type', result['type'].toString());
-      }
-      if (result['appointment_id'] != null) {
-        await healthRepository.saveProfileValue('last_booking_id', result['appointment_id'].toString());
-      }
-
-      // Compute exact start timestamp using the user's selected date and time
-      DateTime calculatedStart = date;
+      // The appointment now exists on the server. Nothing below may turn this
+      // into a reported failure, or the user would retry and double-book.
       try {
-        final cleanTime = timeString.trim();
-        final dt = DateFormat('hh:mm a').tryParse(cleanTime) ?? DateFormat('HH:mm').tryParse(cleanTime);
-        if (dt != null) {
-          calculatedStart = DateTime(date.year, date.month, date.day, dt.hour, dt.minute);
+        // Automatically provision consultation room on web app if appointmentId is present
+        if (result['appointment_id'] != null) {
+          final aId = result['appointment_id'];
+          final intId = aId is int ? aId : int.tryParse(aId.toString()) ?? 0;
+          if (intId > 0) {
+            bookingRepository
+                .provisionConsultationRoom(intId)
+                .catchError((_) => false);
+          }
         }
-      } catch (_) {}
 
-      String finalStartStr = calculatedStart.toIso8601String();
-      if (result['start'] != null) {
-        // The server's slot start is the source of truth for what was booked.
-        final serverStart = DateTime.tryParse(result['start'].toString());
-        if (serverStart != null) {
-          finalStartStr = serverStart.toIso8601String();
+        await healthRepository.saveProfileValue(
+            'last_booking_practitioner', practitionerName);
+        if (result['start'] != null) {
+          await healthRepository.saveProfileValue(
+              'last_booking_start', result['start'].toString());
         }
-      }
+        if (result['type'] != null) {
+          await healthRepository.saveProfileValue(
+              'last_booking_type', result['type'].toString());
+        }
+        if (result['appointment_id'] != null) {
+          await healthRepository.saveProfileValue(
+              'last_booking_id', result['appointment_id'].toString());
+        }
 
-      final appointmentId = result['appointment_id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
-      final bookingInitialStatus = (result['status']?.toString().toLowerCase() == 'booked') ? 'pending' : (result['status']?.toString().toLowerCase() ?? 'pending');
-      final apptData = {
-        'id': appointmentId,
-        'practitioner_name': practitionerName,
-        'practitioner_role': practitionerRole,
-        'practitioner_image': practitionerImage,
-        'start_time': finalStartStr,
-        'type': isVirtual ? 'Virtual Consultation' : 'In-Person Visit',
-        'is_virtual': isVirtual ? 1 : 0,
-        'status': bookingInitialStatus,
-      };
-      await healthRepository.saveAppointment(apptData);
+        // Compute exact start timestamp using the user's selected date and time
+        DateTime calculatedStart = date;
+        try {
+          final cleanTime = timeString.trim();
+          final dt = DateFormat('hh:mm a').tryParse(cleanTime) ??
+              DateFormat('HH:mm').tryParse(cleanTime);
+          if (dt != null) {
+            calculatedStart =
+                DateTime(date.year, date.month, date.day, dt.hour, dt.minute);
+          }
+        } catch (_) {}
 
-      // Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before consultation
-      // and trigger an immediate phone notification confirming the appointment
-      try {
-        final parsedStart = DateTime.tryParse(finalStartStr) ?? calculatedStart;
-        final formattedDate = DateFormat('EEE, MMM d @ h:mm a').format(parsedStart.toLocal());
-        await NotificationService.instance.showAppointmentStatusAlert(
-          title: 'Appointment Confirmed ✅',
-          body: 'Your consultation with $practitionerName on $formattedDate has been confirmed.',
-        );
-        await NotificationService.instance.scheduleAppointmentReminders(
-          appointmentId: appointmentId,
-          doctorName: practitionerName,
-          specialty: practitionerRole,
-          appointmentTime: parsedStart,
-          isVirtual: isVirtual,
-        );
-      } catch (notifErr) {
+        String finalStartStr = calculatedStart.toIso8601String();
+        if (result['start'] != null) {
+          // The server's slot start is the source of truth for what was booked.
+          final serverStart = DateTime.tryParse(result['start'].toString());
+          if (serverStart != null) {
+            finalStartStr = serverStart.toIso8601String();
+          }
+        }
+
+        final appointmentId = result['appointment_id']?.toString() ?? '';
+        final bookingInitialStatus =
+            (result['status']?.toString().toLowerCase() == 'booked')
+                ? 'pending'
+                : (result['status']?.toString().toLowerCase() ?? 'pending');
+        final apptData = {
+          'id': appointmentId,
+          'practitioner_name': practitionerName,
+          'practitioner_role': practitionerRole,
+          'practitioner_image': practitionerImage,
+          'start_time': finalStartStr,
+          'type': isVirtual ? 'Virtual Consultation' : 'In-Person Visit',
+          'is_virtual': isVirtual ? 1 : 0,
+          'status': bookingInitialStatus,
+        };
+        if (appointmentId.isNotEmpty) {
+          await healthRepository.saveAppointment(apptData);
+        }
+
+        // Schedule 3 sequential reminders (1 hour, 30 min, 10 min) before consultation
+        // and trigger an immediate phone notification confirming the appointment
+        try {
+          final parsedStart =
+              DateTime.tryParse(finalStartStr) ?? calculatedStart;
+          final formattedDate =
+              DateFormat('EEE, MMM d @ h:mm a').format(parsedStart.toLocal());
+          await NotificationService.instance.showAppointmentStatusAlert(
+            title: 'Appointment Confirmed ✅',
+            body:
+                'Your consultation with $practitionerName on $formattedDate has been confirmed.',
+          );
+          if (appointmentId.isNotEmpty) {
+            await NotificationService.instance.scheduleAppointmentReminders(
+              appointmentId: appointmentId,
+              doctorName: practitionerName,
+              specialty: practitionerRole,
+              appointmentTime: parsedStart,
+              isVirtual: isVirtual,
+            );
+          }
+        } catch (notifErr) {
+          if (kDebugMode) {
+            print(
+                '[BookingViewModel] Failed to schedule appointment reminders: $notifErr');
+          }
+        }
+
+        await fetchAppointments();
+      } catch (postErr) {
         if (kDebugMode) {
-          print('[BookingViewModel] Failed to schedule appointment reminders: $notifErr');
+          print(
+              '[BookingViewModel] Booked, but local follow-up failed: $postErr');
         }
       }
 
-      await fetchAppointments();
-      
       return result;
     } catch (e) {
       if (kDebugMode) {
@@ -316,12 +367,14 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   /// Reschedule an appointment to a new slot
-  Future<bool> rescheduleAppointment(String appointmentId, int newSlotId) async {
+  Future<bool> rescheduleAppointment(
+      String appointmentId, int newSlotId) async {
     try {
       // Look up appointment doctor name if available
       String doctorName = 'Doctor';
       try {
-        final found = appointmentsList.firstWhere((a) => a['id'] == appointmentId);
+        final found =
+            appointmentsList.firstWhere((a) => a['id'] == appointmentId);
         doctorName = found['practitioner_name'] ?? 'Doctor';
       } catch (_) {}
 
@@ -332,7 +385,8 @@ class BookingViewModel extends ChangeNotifier {
 
       await NotificationService.instance.showAppointmentStatusAlert(
         title: 'Appointment Rescheduled 📅',
-        body: 'Your consultation with $doctorName has been rescheduled successfully.',
+        body:
+            'Your consultation with $doctorName has been rescheduled successfully.',
       );
 
       await fetchAppointments();
@@ -354,20 +408,21 @@ class BookingViewModel extends ChangeNotifier {
       }
       int? patientId;
       try {
-        final profile = await profileRepository.getMyProfile(userId: userId, orgId: orgId);
+        final profile =
+            await profileRepository.getMyProfile(userId: userId, orgId: orgId);
         patientId = profile?.id;
       } catch (_) {}
 
       if (userId.isNotEmpty && orgId.isNotEmpty) {
         final serverAppts = await bookingRepository.getUserAppointments(
-          userId: userId, 
+          userId: userId,
           orgId: orgId,
           patientId: patientId,
         );
-        
+
         // Clear local cache to purge any cancelled/mock records
         await healthRepository.clearLocalAppointments();
-        
+
         for (var appt in serverAppts) {
           final id = appt['id']?.toString() ?? '';
           if (id.isEmpty) continue;
@@ -384,8 +439,11 @@ class BookingViewModel extends ChangeNotifier {
               if (p is Map<String, dynamic>) {
                 final refType = p['reference_type']?.toString() ?? '';
                 final actor = p['actor']?.toString() ?? '';
-                if (refType == 'Practitioner' || actor.startsWith('Practitioner/')) {
-                  practitionerName = p['reference_display']?.toString() ?? p['actor_display']?.toString() ?? practitionerName;
+                if (refType == 'Practitioner' ||
+                    actor.startsWith('Practitioner/')) {
+                  practitionerName = p['reference_display']?.toString() ??
+                      p['actor_display']?.toString() ??
+                      practitionerName;
                   break;
                 }
               }
@@ -394,8 +452,13 @@ class BookingViewModel extends ChangeNotifier {
 
           final start = appt['start']?.toString() ?? '';
 
-          final type = appt['appointment_type_display']?.toString() ?? 'Consultation';
-          final isVirtual = appt['appointment_type_code']?.toString().toUpperCase() == 'VIRTUAL' ? 1 : 0;
+          final type =
+              appt['appointment_type_display']?.toString() ?? 'Consultation';
+          final isVirtual =
+              appt['appointment_type_code']?.toString().toUpperCase() ==
+                      'VIRTUAL'
+                  ? 1
+                  : 0;
 
           String role = 'Specialist Care';
           String image = 'assets/doctors/doctor_1.png';
@@ -421,7 +484,9 @@ class BookingViewModel extends ChangeNotifier {
             normalizedStatus = 'rescheduled';
           } else if (status == 'confirmed') {
             normalizedStatus = 'confirmed';
-          } else if (status == 'booked' || status == 'arrived' || status == 'checked-in') {
+          } else if (status == 'booked' ||
+              status == 'arrived' ||
+              status == 'checked-in') {
             normalizedStatus = 'booked';
           } else {
             normalizedStatus = status.isNotEmpty ? status : 'pending';
@@ -452,16 +517,21 @@ class BookingViewModel extends ChangeNotifier {
     for (var appt in appointmentsList) {
       try {
         final status = (appt['status'] as String? ?? '').toLowerCase();
-        if (status == 'cancelled' || status == 'canceled' || status == 'fulfilled' || status == 'completed' || status == 'noshow') {
+        if (status == 'cancelled' ||
+            status == 'canceled' ||
+            status == 'fulfilled' ||
+            status == 'completed' ||
+            status == 'noshow') {
           continue;
         }
 
         final startTimeStr = appt['start_time'] as String;
         final startTime = DateTime.parse(startTimeStr).toLocal();
-        
+
         if (startTime.isAfter(now)) {
           final docName = appt['practitioner_name'] as String? ?? 'Specialist';
-          final role = appt['practitioner_role'] as String? ?? 'Specialist Care';
+          final role =
+              appt['practitioner_role'] as String? ?? 'Specialist Care';
           final isVirtual = (appt['is_virtual'] == 1);
           final id = appt['id']?.toString() ?? '';
 
@@ -485,6 +555,8 @@ class BookingViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cancels on the server first. Throws if the server did not accept the
+  /// cancellation, so the UI never shows "cancelled" for a live appointment.
   Future<void> cancelAppointment(String id) async {
     // Look up the appointment to get doctor name before deleting
     String doctorName = 'Doctor';
@@ -493,19 +565,12 @@ class BookingViewModel extends ChangeNotifier {
       doctorName = found['practitioner_name'] ?? 'Doctor';
     } catch (_) {}
 
-    try {
-      if (!id.startsWith('mock_')) {
-        await bookingRepository.cancelAppointmentServer(id);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[BookingViewModel] Cancel on server failed, but proceeding with local removal: $e');
-      }
-    }
+    await bookingRepository.cancelAppointmentServer(id);
     await healthRepository.deleteAppointment(id);
 
     // Clear cached last booking from profile if it matches this cancelled appointment
-    final lastBookedId = await healthRepository.getProfileValue('last_booking_id');
+    final lastBookedId =
+        await healthRepository.getProfileValue('last_booking_id');
     if (lastBookedId == id || lastBookingConfirmed?['appointment_id'] == id) {
       await healthRepository.saveProfileValue('last_booking_practitioner', '');
       await healthRepository.saveProfileValue('last_booking_start', '');
@@ -528,12 +593,14 @@ class BookingViewModel extends ChangeNotifier {
   }
 
   /// Helper to find matching PractitionerRoleBooking for an appointment record
-  PractitionerRoleBooking? findSpecialistForAppointment(Map<String, dynamic> appt) {
+  PractitionerRoleBooking? findSpecialistForAppointment(
+      Map<String, dynamic> appt) {
     final docName = (appt['practitioner_name'] ?? '').toString().toLowerCase();
     for (final s in specialists) {
       final specDisplay = (s.practitionerDisplay ?? '').toLowerCase();
       if (specDisplay.isEmpty) continue;
-      if (docName.isNotEmpty && (docName.contains(specDisplay) || specDisplay.contains(docName))) {
+      if (docName.isNotEmpty &&
+          (docName.contains(specDisplay) || specDisplay.contains(docName))) {
         return s;
       }
       final parts = docName.split(' ');
@@ -541,7 +608,8 @@ class BookingViewModel extends ChangeNotifier {
         return s;
       }
     }
-    if (specialists.isNotEmpty) return specialists.first;
+    // No match: return null. Falling back to the first doctor in the list
+    // used to reschedule the appointment with someone else.
     return null;
   }
 }

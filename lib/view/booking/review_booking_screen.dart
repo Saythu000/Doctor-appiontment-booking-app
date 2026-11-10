@@ -161,42 +161,6 @@ class ReviewBookingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Payment Summary Card (Deep Navy Header)
-                  _buildNavyCard(
-                    title: 'Consultation Fee Summary',
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          _buildFeeRow('Clinical Specialist Fee', '\$100.00'),
-                          const SizedBox(height: 8),
-                          _buildFeeRow('DrGodly Platform Telemetry', '\$20.00'),
-                          const Divider(color: PhiaColors.borderSubtle, height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Total Payable',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: PhiaColors.navyAnchor,
-                                ),
-                              ),
-                              Text(
-                                '\$120.00',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: PhiaColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -322,7 +286,7 @@ class ReviewBookingScreen extends StatelessWidget {
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
                       : Text(
-                          'Confirm Appointment · \$120.00',
+                          'Confirm Appointment',
                           style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                 ),
@@ -401,22 +365,6 @@ class ReviewBookingScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeeRow(String title, String amount) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(fontSize: 13, color: PhiaColors.textSecondary),
-        ),
-        Text(
-          amount,
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: PhiaColors.textPrimary),
         ),
       ],
     );

@@ -366,43 +366,65 @@ class IntakeViewModel extends ChangeNotifier {
 
     // Step 2: Section 5.1 - Create intake record in DB
     _state = IntakeState.saving;
+    _errorMessage = null;
     notifyListeners();
 
-    final record = await _intakeService.createIntakeRecord(
-      patientFhirId: patientFhirId,
-      authToken: effectiveToken,
-      orgId: orgId,
-    );
+    if (patientFhirId == null || patientFhirId <= 0) {
+      _failSave('Your patient profile is not loaded yet, so the intake could not be saved. Check your connection and tap End again.');
+      return;
+    }
 
-    if (record != null) {
-      _savedIntakeRecordId = record.id;
-      try {
-        await HealthRepository().saveSetting('last_intake_record_id', record.id.toString());
-      } catch (_) {}
+    try {
+      // On a retry after a failed update, reuse the record already created
+      // instead of creating a second one.
+      int? recordId = _savedIntakeRecordId;
+      if (recordId == null) {
+        final record = await _intakeService.createIntakeRecord(
+          patientFhirId: patientFhirId,
+          authToken: effectiveToken,
+          orgId: orgId,
+        );
+        if (record == null) {
+          _failSave('Could not save your intake to your health record. Check your connection and tap End again.');
+          return;
+        }
+        recordId = record.id;
+        _savedIntakeRecordId = recordId;
+        try {
+          await HealthRepository().saveSetting('last_intake_record_id', recordId.toString());
+        } catch (_) {}
+      }
 
       // Step 3: Section 5.2 - Save transcript + report, mark complete
       final success = await _intakeService.updateIntakeRecord(
-        id: record.id,
+        id: recordId,
         conversation: _messages,
         report: rawReport,
         authToken: effectiveToken,
         orgId: orgId,
       );
-
-      if (success) {
-        _state = IntakeState.completed;
-      } else {
-        // Even if update failed, we have record created
-        _state = IntakeState.completed;
+      if (!success) {
+        _failSave('Your conversation could not be saved. Check your connection and tap End again.');
+        return;
       }
-    } else {
-      // Offline fallback: mark completed locally with report
+    } catch (e) {
       if (kDebugMode) {
-        print('[IntakeViewModel] Server intake create unreachable. Persisting locally as completed.');
+        print('[IntakeViewModel] Saving intake failed: $e');
       }
-      _state = IntakeState.completed;
+      _failSave('Could not save your intake. Check your connection and tap End again.');
+      return;
     }
 
+    _state = IntakeState.completed;
+    notifyListeners();
+  }
+
+  /// Save failed: keep the conversation so the user can retry; never report
+  /// "completed" for an intake the doctor will not see.
+  void _failSave(String message) {
+    _state = IntakeState.error;
+    _errorMessage = message;
+    _canRetry = false;
     notifyListeners();
   }
 

@@ -366,29 +366,6 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                         const Icon(Icons.verified_rounded, size: 16, color: PhiaColors.primary),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFBBF24)),
-                        const SizedBox(width: 3),
-                        Text(
-                          '4.9',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: PhiaColors.navyAnchor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '(120+ clinical reviews)',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: PhiaColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -400,27 +377,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: PhiaColors.activeGreen,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Available Today',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF15803D),
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox.shrink(),
               ElevatedButton(
                 onPressed: () {
                   if (intakeCompleted) {

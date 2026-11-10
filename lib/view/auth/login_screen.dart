@@ -263,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Icon(Icons.verified_user_rounded, color: PhiaColors.activeGreen, size: 16),
                       const SizedBox(width: 6),
                       Text(
-                        'HIPAA & OpenID Connect PKCE Compliant',
+                        'Secure sign-in with your DrGodly account',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

@@ -430,20 +430,26 @@ class AppointmentHistoryScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
-                Navigator.pop(context);
                 final bookingVM = context.read<BookingViewModel>();
-                await bookingVM.cancelAppointment(id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Appointment cancelled',
-                        style: GoogleFonts.inter(),
-                      ),
-                      backgroundColor: PhiaColors.navyAnchor,
-                    ),
-                  );
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(context);
+                bool ok = true;
+                try {
+                  await bookingVM.cancelAppointment(id);
+                } catch (_) {
+                  ok = false;
                 }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ok
+                          ? 'Appointment cancelled'
+                          : 'Could not cancel the appointment. Check your connection and try again.',
+                      style: GoogleFonts.inter(),
+                    ),
+                    backgroundColor: ok ? PhiaColors.navyAnchor : PhiaColors.pulseRed,
+                  ),
+                );
               },
               child: Text(
                 'Cancel Visit',

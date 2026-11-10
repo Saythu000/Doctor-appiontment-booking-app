@@ -171,15 +171,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                             _buildBenefitRow(
                               icon: Icons.monitor_heart_rounded,
                               title: 'Continuous Biometric Vitals',
-                              subtitle: 'Real-time telemetry tracking for HR, steps, and activity.',
+                              subtitle: 'Heart rate, steps and sleep from your watch via Health Connect.',
                               iconColor: const Color(0xFF15803D),
                               iconBg: PhiaColors.activeGreenBg,
                             ),
                             const Divider(color: PhiaColors.borderSubtle, height: 24),
                             _buildBenefitRow(
                               icon: Icons.shield_rounded,
-                              title: 'HIPAA & FHIR Ready Records',
-                              subtitle: 'Secure encryption standards protecting your health data.',
+                              title: 'Your Health Records, Secured',
+                              subtitle: 'Signed-in access and encrypted connections protect your data.',
                               iconColor: PhiaColors.navyAnchor,
                               iconBg: PhiaColors.primaryLight,
                             ),

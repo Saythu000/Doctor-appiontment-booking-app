@@ -57,7 +57,7 @@ class BookingConfirmedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Your visit is confirmed within the DrGodly clinical network. Real-time notifications and reminders are active.',
+                'Your visit is booked. We will remind you before it starts.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 13,

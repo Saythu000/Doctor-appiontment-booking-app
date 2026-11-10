@@ -412,7 +412,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'HIPAA & FHIR Standard Encryption // Safe & Private',
+                            'Your details are sent over an encrypted connection',
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

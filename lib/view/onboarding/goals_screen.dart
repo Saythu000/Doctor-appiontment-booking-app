@@ -22,7 +22,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     {
       'id': '02',
       'title': 'Track Continuous Vitals',
-      'desc': 'Real-time telemetry for daily steps, resting heart rate, and sleep.',
+      'desc': 'Daily steps, resting heart rate and sleep from your watch.',
       'icon': Icons.monitor_heart_rounded,
     },
     {

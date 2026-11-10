@@ -86,12 +86,23 @@ class DashboardScreen extends StatelessWidget {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () {
-                  context.read<BookingViewModel>().cancelAppointment(id);
+                onPressed: () async {
+                  final vm = context.read<BookingViewModel>();
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Appointment with $doctorName cancelled.')),
-                  );
+                  try {
+                    await vm.cancelAppointment(id);
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Appointment with $doctorName cancelled.')),
+                    );
+                  } catch (_) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        backgroundColor: PhiaColors.pulseRed,
+                        content: Text('Could not cancel the appointment. Check your connection and try again.'),
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Cancel Visit'),
               ),
@@ -345,6 +356,14 @@ class DashboardScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.pop(context);
                   final specialist = bookingVM.findSpecialistForAppointment(appt);
+                  if (specialist == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$name is not in the current doctor list, so this visit cannot be rescheduled in the app. Please cancel and book a new slot.'),
+                      ),
+                    );
+                    return;
+                  }
                   Navigator.pushNamed(
                     context,
                     '/booking_date_time',

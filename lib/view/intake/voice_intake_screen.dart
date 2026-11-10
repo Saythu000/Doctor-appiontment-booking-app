@@ -19,6 +19,8 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
   final ScrollController _scrollController = ScrollController();
   // Cached so dispose() can stop the call without touching context.
   late final VoiceIntakeViewModel _voiceVm;
+  VoiceCallState? _lastCallState;
+  bool _navigatedToCompletion = false;
 
   @override
   void initState() {
@@ -28,6 +30,11 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
     _voiceVm = Provider.of<VoiceIntakeViewModel>(context, listen: false);
+    _lastCallState = _voiceVm.callState;
+    // The agent can end the call itself (status_end / goodbye). Navigate on
+    // the state change, not only after the End button, or the patient was
+    // left on a finished call screen.
+    _voiceVm.addListener(_onVoiceStateChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
@@ -44,6 +51,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
 
   @override
   void dispose() {
+    _voiceVm.removeListener(_onVoiceStateChanged);
     // Leaving the screen must never leave the microphone streaming.
     if (_voiceVm.isCallActive) {
       _voiceVm.abortCall();
@@ -165,18 +173,29 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
       orgId: authVm.orgId,
     );
 
-    if (mounted && voiceVm.callState == VoiceCallState.completed) {
+    // Navigation to the completion screen happens in _onVoiceStateChanged.
+  }
+
+  void _onVoiceStateChanged() {
+    final state = _voiceVm.callState;
+    final becameCompleted =
+        state == VoiceCallState.completed && _lastCallState != VoiceCallState.completed;
+    _lastCallState = state;
+    if (!becameCompleted || _navigatedToCompletion) return;
+    _navigatedToCompletion = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final doctorArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => IntakeCompletionScreen(
-            intakeId: voiceVm.savedIntakeRecordId,
-            clinicalReport: voiceVm.clinicalReport,
+            intakeId: _voiceVm.savedIntakeRecordId,
+            clinicalReport: _voiceVm.clinicalReport,
             doctorArgs: doctorArgs,
           ),
         ),
       );
-    }
+    });
   }
 
   @override

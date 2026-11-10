@@ -17,10 +17,17 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  bool _navigatedToCompletion = false;
+  bool _staleCompletedOnEntry = false;
 
   @override
   void initState() {
     super.initState();
+    // A "completed" state left over from an earlier intake is reset in the
+    // post-frame callback below; until then the first build must not treat
+    // it as this conversation finishing.
+    _staleCompletedOnEntry = Provider.of<IntakeViewModel>(context, listen: false).state ==
+        IntakeState.completed;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
       final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
@@ -28,10 +35,14 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
       if (profileVm.currentProfile == null) {
         profileVm.fetchOrInitProfile();
       }
-      // If fresh screen, reset
-      if (intakeVm.messages.isEmpty) {
+      // Start a fresh conversation unless one is still in progress. A
+      // completed (or failed) intake from earlier must not carry over, or
+      // the screen jumped straight to the completion page on every visit.
+      if (intakeVm.messages.isEmpty ||
+          intakeVm.state == IntakeState.completed) {
         intakeVm.reset();
       }
+      _staleCompletedOnEntry = false;
     });
   }
 
@@ -182,8 +193,12 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     return Consumer<IntakeViewModel>(
       builder: (context, vm, child) {
         // Auto-navigate to completion screen when completed
-        if (vm.state == IntakeState.completed) {
+        if (vm.state == IntakeState.completed &&
+            !_staleCompletedOnEntry &&
+            !_navigatedToCompletion) {
+          _navigatedToCompletion = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => IntakeCompletionScreen(doctorArgs: doctorArgs),

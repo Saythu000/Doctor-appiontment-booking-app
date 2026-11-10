@@ -1,170 +1,19 @@
-import 'dart:async';
 import 'dart:math' as math;
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import 'health_connect_types.dart';
 import '../../domain/model/vitals_payload.dart';
 
-/// Supported Open-Wearables ecosystem providers
-enum WearableProviderType {
-  garmin,
-  whoop,
-  oura,
-  fitbit,
-  healthConnect,
-  appleHealth,
-}
-
-extension WearableProviderTypeExtension on WearableProviderType {
-  String get id {
-    switch (this) {
-      case WearableProviderType.garmin:
-        return 'garmin';
-      case WearableProviderType.whoop:
-        return 'whoop';
-      case WearableProviderType.oura:
-        return 'oura';
-      case WearableProviderType.fitbit:
-        return 'fitbit';
-      case WearableProviderType.healthConnect:
-        return 'health_connect';
-      case WearableProviderType.appleHealth:
-        return 'apple';
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case WearableProviderType.garmin:
-        return 'Garmin Connect';
-      case WearableProviderType.whoop:
-        return 'WHOOP 4.0';
-      case WearableProviderType.oura:
-        return 'Oura Ring';
-      case WearableProviderType.fitbit:
-        return 'Fitbit';
-      case WearableProviderType.healthConnect:
-        return 'Android Health Connect';
-      case WearableProviderType.appleHealth:
-        return 'Apple Health';
-    }
-  }
-
-  String get category {
-    switch (this) {
-      case WearableProviderType.garmin:
-      case WearableProviderType.whoop:
-      case WearableProviderType.oura:
-      case WearableProviderType.fitbit:
-        return 'Cloud Sync (OAuth 2.0)';
-      case WearableProviderType.healthConnect:
-      case WearableProviderType.appleHealth:
-        return 'On-Device Platform SDK';
-    }
-  }
-}
-
-class ProviderConnectionInfo {
-  final WearableProviderType provider;
-  final bool isConnected;
-  final DateTime? lastSyncTime;
-  final String? accountEmail;
-
-  ProviderConnectionInfo({
-    required this.provider,
-    required this.isConnected,
-    this.lastSyncTime,
-    this.accountEmail,
-  });
-}
-
+/// Reads wearable data that watch companion apps write to Android Health
+/// Connect, and normalises it into a [VitalsRecord].
+///
+/// There is no cloud wearable integration (Garmin/WHOOP/Oura/Fitbit): those
+/// "Link" buttons were simulated and have been removed.
 class OpenWearablesService {
   // Singleton pattern
   static final OpenWearablesService _instance = OpenWearablesService._internal();
   factory OpenWearablesService() => _instance;
   OpenWearablesService._internal();
-
-  // ponytail: consolidated network stack; Health Connect reads directly from local Android OS Provider.
-  // When cloud aggregator sync is activated, requests route through production Dio.
-  Dio? _dio;
-  String _host = 'https://api.openwearables.io'; // Configurable Open-Wearables host
-  String? _accessToken;
-  String? _userId;
-  String? get currentUserId => _userId;
-
-  // Active connected providers cache
-  final Map<WearableProviderType, ProviderConnectionInfo> _connections = {
-    WearableProviderType.garmin: ProviderConnectionInfo(
-      provider: WearableProviderType.garmin,
-      isConnected: false,
-    ),
-    WearableProviderType.whoop: ProviderConnectionInfo(
-      provider: WearableProviderType.whoop,
-      isConnected: false,
-    ),
-    WearableProviderType.oura: ProviderConnectionInfo(
-      provider: WearableProviderType.oura,
-      isConnected: false,
-    ),
-    WearableProviderType.healthConnect: ProviderConnectionInfo(
-      provider: WearableProviderType.healthConnect,
-      isConnected: true, // Native Health Connect enabled via Android Manifest
-      lastSyncTime: DateTime.now(),
-    ),
-  };
-
-  Map<WearableProviderType, ProviderConnectionInfo> get connections => Map.unmodifiable(_connections);
-
-  final _syncStatusController = StreamController<bool>.broadcast();
-  Stream<bool> get syncStatusStream => _syncStatusController.stream;
-
-  /// Configure host and user credentials
-  void configure({required String host, String? userId, String? accessToken}) {
-    _host = host.replaceAll(RegExp(r'/$'), '');
-    _userId = userId;
-    _accessToken = accessToken;
-    _dio ??= Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {'Accept': 'application/json'},
-    ));
-    _dio!.options.baseUrl = _host;
-    if (_accessToken != null) {
-      _dio!.options.headers['Authorization'] = 'Bearer $_accessToken';
-    }
-  }
-
-  /// Toggle connection status for a cloud provider (OAuth simulation / link)
-  Future<bool> connectProvider(WearableProviderType provider) async {
-    _syncStatusController.add(true);
-    try {
-      // In production, opens provider OAuth webview or calls /api/v1/connections/oauth/{provider}
-      await Future.delayed(const Duration(milliseconds: 600));
-      _connections[provider] = ProviderConnectionInfo(
-        provider: provider,
-        isConnected: true,
-        lastSyncTime: DateTime.now(),
-        accountEmail: 'patient.auth@drgodly.com',
-      );
-      return true;
-    } catch (e) {
-      if (kDebugMode) {
-        print('[OpenWearables] Error connecting ${provider.displayName}: $e');
-      }
-      return false;
-    } finally {
-      _syncStatusController.add(false);
-    }
-  }
-
-  /// Disconnect a linked provider
-  Future<void> disconnectProvider(WearableProviderType provider) async {
-    _connections[provider] = ProviderConnectionInfo(
-      provider: provider,
-      isConnected: false,
-    );
-  }
 
   bool isLastSyncReal = false;
   String lastSyncSource = 'Android Health Connect';
@@ -685,9 +534,5 @@ class OpenWearablesService {
     _cachedVitals = null;
     isLastSyncReal = false;
     return null;
-  }
-
-  void dispose() {
-    _syncStatusController.close();
   }
 }

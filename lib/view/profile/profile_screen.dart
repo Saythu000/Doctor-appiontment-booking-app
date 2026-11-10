@@ -9,6 +9,7 @@ import '../../viewmodel/profile_viewmodel.dart';
 import '../../viewmodel/booking_viewmodel.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 import '../../viewmodel/activity_viewmodel.dart';
+import '../../viewmodel/settings_viewmodel.dart';
 import '../../domain/model/patient_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,9 +21,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _notificationsEnabled = true;
-  bool _biometricEnabled = true;
-
   @override
   void initState() {
     super.initState();
@@ -568,6 +566,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profileVM = context.watch<ProfileViewModel>();
     final bookingVM = context.watch<BookingViewModel>();
     final activityVM = context.watch<ActivityViewModel>();
+    final settingsVM = context.watch<SettingsViewModel>();
+    final activeReminders = settingsVM.remindersList
+        .where((r) => r['is_active'] == 1)
+        .length;
     final profile = profileVM.currentProfile;
 
     String patientName = '--';
@@ -741,28 +743,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Column(
                   children: [
-                    _buildToggleRow(
-                      title: 'Notifications',
-                      subtitle: 'Receive appointment updates & alerts',
-                      value: _notificationsEnabled,
-                      onChanged: (val) {
-                        setState(() {
-                          _notificationsEnabled = val;
-                        });
-                      },
-                    ),
-                    const Divider(color: PhiaColors.borderSubtle, height: 1),
-                    _buildToggleRow(
-                      title: 'App Security',
-                      subtitle: 'Biometric Face ID / Fingerprint login',
-                      value: _biometricEnabled,
-                      onChanged: (val) {
-                        setState(() {
-                          _biometricEnabled = val;
-                        });
-                      },
-                    ),
-                    const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Appointment History',
                       value: '${bookingVM.appointmentsList.length} Consultations',
@@ -771,19 +751,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Preferred Language',
-                      value: 'English (US)',
+                      value: settingsVM.appLanguage,
                       onTap: () => Navigator.pushNamed(context, '/general_settings'),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Vitals Reminders & Thresholds',
-                      value: 'Configured',
+                      value: activeReminders == 0
+                          ? 'Off'
+                          : '$activeReminders active',
                       onTap: () => Navigator.pushNamed(context, '/vitals_reminders'),
                     ),
                     const Divider(color: PhiaColors.borderSubtle, height: 1),
                     _buildNavActionRow(
                       title: 'Clinical Unit Registrations',
-                      value: 'Configured',
+                      value: '${settingsVM.weightUnit} · ${settingsVM.heightUnit}',
                       onTap: () => Navigator.pushNamed(context, '/clinical_units'),
                     ),
                   ],
@@ -1013,52 +995,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildToggleRow({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: PhiaColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: PhiaColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: Colors.white,
-            activeTrackColor: PhiaColors.primary,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: PhiaColors.borderSubtle,
-          ),
-        ],
-      ),
     );
   }
 

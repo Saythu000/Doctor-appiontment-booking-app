@@ -183,7 +183,10 @@ class BookingRepository {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data as Map<String, dynamic>;
-        final appointmentId = data['id'] is int ? data['id'] : int.parse(data['id'].toString());
+        // Keep the id as the server sent it. It used to be int.parse()d; a
+        // non-numeric id threw AFTER the booking succeeded, so the user saw
+        // "booking failed", retried, and got a second appointment.
+        final appointmentId = data['id'];
         return {
           'appointment_id': appointmentId,
           'status': data['status'] ?? 'booked',
@@ -332,7 +335,8 @@ class BookingRepository {
       if (kDebugMode) {
         print('[BookingRepository] Failed to get user appointments: $e');
       }
-      return [];
+      // Rethrow: returning [] made the caller wipe the offline cache.
+      rethrow;
     }
   }
 

@@ -60,7 +60,7 @@ class ActivityTrackingScreen extends StatelessWidget {
         backgroundColor: PhiaColors.primary,
         elevation: 0,
         title: Text(
-          'Clinical Vitals & Telemetry',
+          'Your Vitals',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -114,71 +114,9 @@ class ActivityTrackingScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // INTRADAY HOURLY STEPS CARD (boAt Parity)
+            // TODAY'S HEART RATE (real values from Health Connect only)
             _buildNavyCard(
-              title: 'Hourly Step Distribution',
-              actionWidget: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: PhiaColors.primary,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'TODAY · 24H',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Intraday Step Cadence',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: PhiaColors.navyAnchor),
-                        ),
-                        Text(
-                          '$stepsStr steps total',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: PhiaColors.primary),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 100,
-                      child: CustomPaint(
-                        painter: HourlyStepsBarPainter(
-                          hourlySteps: _generateIntradaySteps(steps),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('12 AM', style: GoogleFonts.inter(fontSize: 10, color: PhiaColors.textMuted)),
-                        Text('6 AM', style: GoogleFonts.inter(fontSize: 10, color: PhiaColors.textMuted)),
-                        Text('12 PM', style: GoogleFonts.inter(fontSize: 10, color: PhiaColors.textMuted)),
-                        Text('6 PM', style: GoogleFonts.inter(fontSize: 10, color: PhiaColors.textMuted)),
-                        Text('11 PM', style: GoogleFonts.inter(fontSize: 10, color: PhiaColors.textMuted)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 24-HOUR HEART RATE CURVE & RANGES (boAt Parity)
-            _buildNavyCard(
-              title: 'Heart Rate Curve & Zones',
+              title: "Today's Heart Rate",
               actionWidget: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -186,7 +124,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} BPM RESTING' : 'SPOT READING',
+                  activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} BPM RESTING' : 'NO DATA',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -202,34 +140,12 @@ class ActivityTrackingScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildMiniHeartMetric('Min HR', activityVM.dashboardMinHr != null ? '${activityVM.dashboardMinHr} bpm' : (activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--'), const Color(0xFF15803D)),
+                        _buildMiniHeartMetric('Min HR', activityVM.dashboardMinHr != null ? '${activityVM.dashboardMinHr} bpm' : '--', const Color(0xFF15803D)),
                         Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Avg HR', activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--', PhiaColors.navyAnchor),
+                        _buildMiniHeartMetric('Resting HR', activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--', PhiaColors.navyAnchor),
                         Container(width: 1, height: 28, color: PhiaColors.borderSubtle),
-                        _buildMiniHeartMetric('Max HR', activityVM.dashboardMaxHr != null ? '${activityVM.dashboardMaxHr} bpm' : (activityVM.dashboardHr > 0 ? '${activityVM.dashboardHr.toInt()} bpm' : '--'), PhiaColors.pulseRed),
+                        _buildMiniHeartMetric('Max HR', activityVM.dashboardMaxHr != null ? '${activityVM.dashboardMaxHr} bpm' : '--', PhiaColors.pulseRed),
                       ],
-                    ),
-                    const SizedBox(height: 18),
-                    const Divider(color: PhiaColors.borderSubtle, height: 1),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Live Heart Rate Trend',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: PhiaColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 80,
-                      child: CustomPaint(
-                        painter: IntradayHrCurvePainter(
-                          currentBpm: activityVM.dashboardHr,
-                          minBpm: (activityVM.dashboardMinHr ?? (activityVM.dashboardHr > 0 ? activityVM.dashboardHr : 60)).toDouble(),
-                          maxBpm: (activityVM.dashboardMaxHr ?? (activityVM.dashboardHr > 0 ? activityVM.dashboardHr : 100)).toDouble(),
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -237,7 +153,7 @@ class ActivityTrackingScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // SLEEP STAGES & HYPNOGRAM (boAt Parity)
+            // SLEEP STAGES (real stage minutes only)
             _buildNavyCard(
               title: 'Sleep Architecture Stages',
               actionWidget: Container(
@@ -275,7 +191,7 @@ class ActivityTrackingScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Wear your connected smartwatch to bed to record deep, light, and REM sleep architecture.',
+                              'Wear your watch to bed and let its app sync to Health Connect to see your sleep here.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 11,
@@ -285,78 +201,95 @@ class ActivityTrackingScreen extends StatelessWidget {
                           ],
                         ),
                       )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              _buildSleepStageLegend('Deep', const Color(0xFF1E3A8A)),
-                              const SizedBox(width: 12),
-                              _buildSleepStageLegend('Light', const Color(0xFF60A5FA)),
-                              const SizedBox(width: 12),
-                              _buildSleepStageLegend('REM', const Color(0xFF818CF8)),
-                              const SizedBox(width: 12),
-                              _buildSleepStageLegend('Awake', const Color(0xFFFCA5A5)),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: SizedBox(
-                              height: 14,
-                              child: Builder(
-                                builder: (context) {
-                                  final totalMin = (activityVM.currentSleep * 60).round();
-                                  final deep = activityVM.deepSleepMinutes > 0 ? activityVM.deepSleepMinutes : (totalMin * 0.22).round();
-                                  final light = activityVM.lightSleepMinutes > 0 ? activityVM.lightSleepMinutes : (totalMin * 0.50).round();
-                                  final rem = activityVM.remSleepMinutes > 0 ? activityVM.remSleepMinutes : (totalMin * 0.20).round();
-                                  final awake = activityVM.awakeMinutes > 0 ? activityVM.awakeMinutes : (totalMin * 0.08).round();
-                                  final sum = (deep + light + rem + awake).clamp(1, 99999);
-
-                                  return Row(
-                                    children: [
-                                      Expanded(flex: (deep * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF1E3A8A))),
-                                      Expanded(flex: (light * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF60A5FA))),
-                                      Expanded(flex: (rem * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFF818CF8))),
-                                      Expanded(flex: (awake * 100 ~/ sum).clamp(1, 100), child: Container(color: const Color(0xFFFCA5A5))),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Builder(
-                            builder: (context) {
-                              final totalMin = (activityVM.currentSleep * 60).round();
-                              final deep = activityVM.deepSleepMinutes > 0 ? activityVM.deepSleepMinutes : (totalMin * 0.22).round();
-                              final light = activityVM.lightSleepMinutes > 0 ? activityVM.lightSleepMinutes : (totalMin * 0.50).round();
-                              final rem = activityVM.remSleepMinutes > 0 ? activityVM.remSleepMinutes : (totalMin * 0.20).round();
-
-                              String formatM(int m) {
-                                final h = m ~/ 60;
-                                final min = m % 60;
-                                return h > 0 ? '${h}h ${min}m' : '${min}m';
-                              }
-
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Deep: ${formatM(deep)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                                  Text('Light: ${formatM(light)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                                  Text('REM: ${formatM(rem)}', style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textSecondary, fontWeight: FontWeight.w600)),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                    : _buildSleepStages(activityVM),
               ),
             ),
             const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+
+  /// Sleep stage bar. Only real stage minutes from Health Connect are shown;
+  /// when the watch reports total sleep without stages we say so instead of
+  /// inventing a split.
+  Widget _buildSleepStages(ActivityViewModel activityVM) {
+    String formatM(int m) {
+      final h = m ~/ 60;
+      final min = m % 60;
+      return h > 0 ? '${h}h ${min}m' : '${min}m';
+    }
+
+    final deep = activityVM.deepSleepMinutes;
+    final light = activityVM.lightSleepMinutes;
+    final rem = activityVM.remSleepMinutes;
+    final awake = activityVM.awakeMinutes;
+    final sum = deep + light + rem + awake;
+    final totalMin = (activityVM.currentSleep * 60).round();
+    final labelStyle = GoogleFonts.inter(
+      fontSize: 11,
+      color: PhiaColors.textSecondary,
+      fontWeight: FontWeight.w600,
+    );
+
+    if (sum <= 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Total sleep: ${formatM(totalMin)}', style: labelStyle.copyWith(fontSize: 13, color: PhiaColors.navyAnchor)),
+          const SizedBox(height: 4),
+          Text(
+            'Your watch did not report sleep stages for this night.',
+            style: GoogleFonts.inter(fontSize: 11, color: PhiaColors.textMuted),
+          ),
+        ],
+      );
+    }
+
+    Widget segment(int minutes, Color color) => minutes <= 0
+        ? const SizedBox.shrink()
+        : Expanded(flex: minutes, child: Container(color: color));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            _buildSleepStageLegend('Deep', const Color(0xFF1E3A8A)),
+            const SizedBox(width: 12),
+            _buildSleepStageLegend('Light', const Color(0xFF60A5FA)),
+            const SizedBox(width: 12),
+            _buildSleepStageLegend('REM', const Color(0xFF818CF8)),
+            const SizedBox(width: 12),
+            _buildSleepStageLegend('Awake', const Color(0xFFFCA5A5)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            height: 14,
+            child: Row(
+              children: [
+                segment(deep, const Color(0xFF1E3A8A)),
+                segment(light, const Color(0xFF60A5FA)),
+                segment(rem, const Color(0xFF818CF8)),
+                segment(awake, const Color(0xFFFCA5A5)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Deep: ${formatM(deep)}', style: labelStyle),
+            Text('Light: ${formatM(light)}', style: labelStyle),
+            Text('REM: ${formatM(rem)}', style: labelStyle),
+          ],
+        ),
+      ],
     );
   }
 
@@ -506,28 +439,6 @@ class ActivityTrackingScreen extends StatelessWidget {
     );
   }
 
-  List<int> _generateIntradaySteps(int totalSteps) {
-    if (totalSteps <= 0) return List.filled(24, 0);
-    final list = List.filled(24, 0);
-    final nowHour = DateTime.now().hour.clamp(0, 23);
-    
-    // Distribute total actual steps realistically across the hours up to the current hour
-    if (nowHour == 0) {
-      list[0] = totalSteps;
-    } else {
-      // Allocate the real recorded steps across waking hours up to now
-      final activeHoursCount = (nowHour >= 6 ? (nowHour - 6 + 1) : 1).clamp(1, 24);
-      final avg = totalSteps ~/ activeHoursCount;
-      final remainder = totalSteps % activeHoursCount;
-      
-      int startH = nowHour >= 6 ? 6 : 0;
-      for (int h = startH; h <= nowHour; h++) {
-        list[h] = avg;
-      }
-      list[nowHour] += remainder;
-    }
-    return list;
-  }
 }
 
 class CleanWeightBarPainter extends CustomPainter {
@@ -596,141 +507,3 @@ class CleanEcgLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CleanEcgLinePainter oldDelegate) => false;
 }
-
-class HourlyStepsBarPainter extends CustomPainter {
-  final List<int> hourlySteps;
-  HourlyStepsBarPainter({required this.hourlySteps});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (hourlySteps.isEmpty) return;
-    final maxSteps = hourlySteps.reduce((a, b) => a > b ? a : b).clamp(100, 100000);
-    final count = hourlySteps.length;
-    final totalSpacing = (count - 1) * 2.5;
-    final barWidth = (size.width - totalSpacing) / count;
-
-    final paintNormal = Paint()
-      ..color = PhiaColors.primary.withValues(alpha: 0.35)
-      ..style = PaintingStyle.fill;
-
-    final paintPeak = Paint()
-      ..color = PhiaColors.primary
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < count; i++) {
-      final step = hourlySteps[i];
-      final barHeight = (step / maxSteps) * (size.height - 4);
-      final x = i * (barWidth + 2.5);
-      final y = size.height - barHeight.clamp(4.0, size.height);
-
-      final rrect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, y, barWidth, barHeight.clamp(4.0, size.height)),
-        const Radius.circular(3),
-      );
-
-      final isPeak = step > (maxSteps * 0.7);
-      canvas.drawRRect(rrect, isPeak ? paintPeak : paintNormal);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant HourlyStepsBarPainter oldDelegate) => true;
-}
-
-class IntradayHrCurvePainter extends CustomPainter {
-  final double currentBpm;
-  final double minBpm;
-  final double maxBpm;
-
-  IntradayHrCurvePainter({
-    required this.currentBpm,
-    required this.minBpm,
-    required this.maxBpm,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()
-      ..color = PhiaColors.surfaceSubtle
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, size.width, size.height), const Radius.circular(8)),
-      bgPaint,
-    );
-
-    final dashPaint = Paint()
-      ..color = PhiaColors.borderSubtle
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(0, size.height * 0.25), Offset(size.width, size.height * 0.25), dashPaint);
-    canvas.drawLine(Offset(0, size.height * 0.5), Offset(size.width, size.height * 0.5), dashPaint);
-    canvas.drawLine(Offset(0, size.height * 0.75), Offset(size.width, size.height * 0.75), dashPaint);
-
-    if (currentBpm <= 0) {
-      // Flat idle line
-      final idlePaint = Paint()
-        ..color = PhiaColors.textMuted.withValues(alpha: 0.4)
-        ..strokeWidth = 1.5
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(Offset(0, size.height * 0.5), Offset(size.width, size.height * 0.5), idlePaint);
-      return;
-    }
-
-    // Dynamic spot or continuous baseline
-    final normalizedY = (size.height * 0.55).clamp(size.height * 0.2, size.height * 0.8);
-    final points = [
-      Offset(0, normalizedY),
-      Offset(size.width * 0.25, normalizedY),
-      Offset(size.width * 0.35, normalizedY - 14),
-      Offset(size.width * 0.45, normalizedY + 18),
-      Offset(size.width * 0.55, normalizedY - 24),
-      Offset(size.width * 0.65, normalizedY),
-      Offset(size.width * 0.85, normalizedY),
-      Offset(size.width, normalizedY),
-    ];
-
-    final path = Path();
-    path.moveTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < points.length - 1; i++) {
-      final p0 = points[i];
-      final p1 = points[i + 1];
-      final cx = (p0.dx + p1.dx) / 2;
-      path.cubicTo(cx, p0.dy, cx, p1.dy, p1.dx, p1.dy);
-    }
-
-    final fillPath = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          PhiaColors.pulseRed.withValues(alpha: 0.20),
-          PhiaColors.pulseRed.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(fillPath, fillPaint);
-
-    final linePaint = Paint()
-      ..color = PhiaColors.pulseRed
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, linePaint);
-
-    final lastPoint = points[points.length - 3];
-    final dotPaint = Paint()..color = PhiaColors.pulseRed..style = PaintingStyle.fill;
-    final dotWhite = Paint()..color = Colors.white..style = PaintingStyle.fill;
-    canvas.drawCircle(lastPoint, 5, dotPaint);
-    canvas.drawCircle(lastPoint, 2.5, dotWhite);
-  }
-
-  @override
-  bool shouldRepaint(covariant IntradayHrCurvePainter oldDelegate) => true;
-}
-
