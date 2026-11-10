@@ -51,10 +51,7 @@ class _DrGodlyAppState extends State<DrGodlyApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      // Dark mode is ready in the theme, but most screens still use fixed
-      // light colours (PhiaColors). It switches to ThemeMode.system once the
-      // Phase 9 redesign has moved every screen to the theme tokens.
-      themeMode: ThemeMode.light,
+      // themeMode defaults to ThemeMode.system: follows the phone's setting.
       routerConfig: _router,
     );
   }

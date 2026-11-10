@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
 
 /// Dynamically resolves an image provider for doctors or profiles, supporting assets, network URLs, or local files.
 ImageProvider getImageProvider(String? urlOrPath, {String fallback = 'assets/doctors/doctor_1.png'}) {
@@ -45,8 +46,8 @@ class SafeNetworkImage extends StatelessWidget {
       return Container(
         width: width,
         height: height,
-        color: const Color(0xFFF1F5F9),
-        child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+        color: context.colors.surfaceMuted,
+        child: Icon(fallbackIcon, color: context.colors.textMuted, size: (width != null ? width! * 0.5 : 24)),
       );
     }
 
@@ -60,8 +61,8 @@ class SafeNetworkImage extends StatelessWidget {
           return Container(
             width: width,
             height: height,
-            color: const Color(0xFFF1F5F9),
-            child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+            color: context.colors.surfaceMuted,
+            child: Icon(fallbackIcon, color: context.colors.textMuted, size: (width != null ? width! * 0.5 : 24)),
           );
         },
       );
@@ -77,8 +78,8 @@ class SafeNetworkImage extends StatelessWidget {
           return Container(
             width: width,
             height: height,
-            color: const Color(0xFFF1F5F9),
-            child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+            color: context.colors.surfaceMuted,
+            child: Icon(fallbackIcon, color: context.colors.textMuted, size: (width != null ? width! * 0.5 : 24)),
           );
         },
       );
@@ -93,8 +94,8 @@ class SafeNetworkImage extends StatelessWidget {
         return Container(
           width: width,
           height: height,
-          color: const Color(0xFFF1F5F9),
-          child: Icon(fallbackIcon, color: const Color(0xFF94A3B8), size: (width != null ? width! * 0.5 : 24)),
+          color: context.colors.surfaceMuted,
+          child: Icon(fallbackIcon, color: context.colors.textMuted, size: (width != null ? width! * 0.5 : 24)),
         );
       },
     );
