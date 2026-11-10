@@ -36,8 +36,8 @@ void main() {
     });
 
     test('generateState creates distinct cryptographically secure state tokens', () {
-      final state1 = PkceHelper.generateState(32);
-      final state2 = PkceHelper.generateState(32);
+      final state1 = PkceHelper.generateState();
+      final state2 = PkceHelper.generateState();
 
       expect(state1.length, equals(32));
       expect(state2.length, equals(32));

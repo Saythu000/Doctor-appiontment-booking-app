@@ -1,8 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
-import 'package:phia_flutter/features/profile/data/profile_repository.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/features/profile/data/profile_repository.dart';
+import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   final ProfileRepository profileRepository;
@@ -90,13 +91,13 @@ class ProfileViewModel extends ChangeNotifier {
       final cachedCountry = await healthRepository.getProfileValue('country');
 
       // Enrich profile with cached phone if server returned none
-      List<PlainPatientTelecom> telecoms = List.from(profile.telecom ?? []);
+      final List<PlainPatientTelecom> telecoms = List.from(profile.telecom ?? []);
       if (profile.primaryPhone.isEmpty && cachedPhone != null && cachedPhone.isNotEmpty) {
         telecoms.add(PlainPatientTelecom(system: 'phone', value: cachedPhone));
       }
 
       // Enrich profile with cached address if server returned none
-      List<PlainPatientAddress> addresses = List.from(profile.address ?? []);
+      final List<PlainPatientAddress> addresses = List.from(profile.address ?? []);
       if (addresses.isEmpty && cachedStreet != null && cachedStreet.isNotEmpty) {
         addresses.add(PlainPatientAddress(
           line: [cachedStreet],
@@ -171,7 +172,7 @@ class ProfileViewModel extends ChangeNotifier {
         family = parts.length > 1 ? parts.sublist(1).join(' ') : '';
       }
 
-      List<PlainPatientTelecom> telecoms = [];
+      final List<PlainPatientTelecom> telecoms = [];
       if (savedEmail != null && savedEmail.isNotEmpty) {
         telecoms.add(PlainPatientTelecom(system: 'email', value: savedEmail));
       }
@@ -267,7 +268,7 @@ class ProfileViewModel extends ChangeNotifier {
     await healthRepository.saveProfileValue('zip', zip);
     await healthRepository.saveProfileValue('country', country);
 
-    List<PlainPatientTelecom> initialTelecoms = [];
+    final List<PlainPatientTelecom> initialTelecoms = [];
     if (email.isNotEmpty) {
       initialTelecoms.add(PlainPatientTelecom(system: 'email', value: email));
     }

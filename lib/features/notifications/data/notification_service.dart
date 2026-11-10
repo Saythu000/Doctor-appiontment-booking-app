@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -121,8 +121,6 @@ class NotificationService {
       channelDescription: channelDesc,
       importance: importance,
       priority: priority,
-      playSound: true,
-      enableVibration: true,
       styleInformation: const BigTextStyleInformation(''),
     );
 
@@ -149,8 +147,6 @@ class NotificationService {
       channelId: channelId,
       channelName: channelName,
       channelDesc: channelDesc,
-      importance: Importance.max,
-      priority: Priority.high,
     );
 
     await _localNotifications.show(id, title, body, details);
@@ -341,7 +337,7 @@ class NotificationService {
     } else {
       // Schedule for specific days weekly
       final days = daysStr.split(',');
-      for (var day in days) {
+      for (final day in days) {
         final weekday = _mapDayToWeekday(day);
         final scheduledDate = _nextInstanceOfWeekdayAndTime(weekday, hour, minute);
         

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class DeviceManagerSheet extends StatefulWidget {
   const DeviceManagerSheet({super.key});

@@ -1,15 +1,16 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:health/health.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/features/notifications/data/notification_service.dart';
+import 'package:phia_flutter/features/vitals/data/health_connect_types.dart';
+import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
+import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
 import 'package:phia_flutter/features/vitals/domain/health_metrics.dart';
 import 'package:phia_flutter/features/vitals/domain/vitals_payload.dart';
-import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
-import 'package:phia_flutter/features/notifications/data/notification_service.dart';
-import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
-import 'package:health/health.dart';
-import 'package:phia_flutter/features/vitals/data/health_connect_types.dart';
 
 class ActivityViewModel extends ChangeNotifier {
   final HealthRepository repository;
@@ -165,7 +166,7 @@ class ActivityViewModel extends ChangeNotifier {
 
   double _getTodayMetricValue(List<HealthMetric> metrics) {
     final now = DateTime.now();
-    for (var m in metrics) {
+    for (final m in metrics) {
       if (m.timestamp.year == now.year &&
           m.timestamp.month == now.month &&
           m.timestamp.day == now.day) {
@@ -255,7 +256,7 @@ class ActivityViewModel extends ChangeNotifier {
       if (calMetrics.isNotEmpty) {
         final now = DateTime.now();
         final Map<int, double> dayValues = {};
-        for (var m in calMetrics) {
+        for (final m in calMetrics) {
           if (now.difference(m.timestamp).inDays < 7) {
             final dayIndex = m.timestamp.weekday - 1; // 0-indexed (Mon-Sun)
             if (!dayValues.containsKey(dayIndex)) {

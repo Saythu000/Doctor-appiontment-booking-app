@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
+import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class AppointmentHistoryScreen extends StatelessWidget {
   const AppointmentHistoryScreen({super.key});
@@ -19,7 +19,7 @@ class AppointmentHistoryScreen extends StatelessWidget {
     final upcomingAppts = <Map<String, dynamic>>[];
     final pastAppts = <Map<String, dynamic>>[];
 
-    for (var appt in bookingVM.appointmentsList) {
+    for (final appt in bookingVM.appointmentsList) {
       try {
         final status = (appt['status'] as String? ?? '').toLowerCase();
         final startTime = DateTime.parse(appt['start_time'] as String).toLocal();
@@ -179,7 +179,7 @@ class AppointmentHistoryScreen extends StatelessWidget {
       dateFormatted = startTimeStr;
     }
 
-    final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
+    const String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
     final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
     final status = (appt['status'] as String? ?? 'pending').toLowerCase();
@@ -212,7 +212,7 @@ class AppointmentHistoryScreen extends StatelessWidget {
                   height: 50,
                   color: PhiaColors.surfaceSubtle,
                   child: Image(
-                    image: getImageProvider(imageUrl, fallback: 'assets/doctors/doctor_1.png'),
+                    image: getImageProvider(imageUrl),
                     fit: BoxFit.cover,
                   ),
                 ),

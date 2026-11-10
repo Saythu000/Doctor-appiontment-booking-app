@@ -1,47 +1,47 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:phia_flutter/core/config/api_constants.dart';
+import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/core/network/fhir_api_client.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/theme/typography.dart';
-import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/profile/data/profile_repository.dart';
-import 'package:phia_flutter/features/booking/data/booking_repository.dart';
-import 'package:phia_flutter/features/auth/presentation/login_screen.dart';
-import 'package:phia_flutter/features/onboarding/welcome_screen.dart';
-import 'package:phia_flutter/features/onboarding/profile_setup_screen.dart';
-import 'package:phia_flutter/features/onboarding/goals_screen.dart';
-import 'package:phia_flutter/features/onboarding/complete_screen.dart';
-import 'package:phia_flutter/features/home/presentation/main_navigation_shell.dart';
-import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_screen.dart';
-import 'package:phia_flutter/features/settings/presentation/clinical_units_screen.dart';
-import 'package:phia_flutter/features/settings/presentation/reminders_screen.dart';
-import 'package:phia_flutter/features/settings/presentation/alert_limits_screen.dart';
-import 'package:phia_flutter/features/settings/presentation/general_settings_screen.dart';
-import 'package:phia_flutter/features/booking/presentation/appointment_history_screen.dart';
-import 'package:phia_flutter/features/booking/presentation/select_specialist_screen.dart';
-import 'package:phia_flutter/features/booking/presentation/select_date_time_screen.dart';
-import 'package:phia_flutter/features/booking/presentation/review_booking_screen.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_confirmed_screen.dart';
-import 'package:phia_flutter/features/splash/splash_screen.dart';
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
-import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/core/utils/app_logging.dart';
+import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
+import 'package:phia_flutter/features/auth/presentation/login_screen.dart';
+import 'package:phia_flutter/features/booking/data/booking_repository.dart';
+import 'package:phia_flutter/features/booking/presentation/appointment_history_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_confirmed_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/booking/presentation/review_booking_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/select_date_time_screen.dart';
+import 'package:phia_flutter/features/booking/presentation/select_specialist_screen.dart';
+import 'package:phia_flutter/features/home/presentation/main_navigation_shell.dart';
 import 'package:phia_flutter/features/intake/data/intake_service.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_chat_screen.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
 import 'package:phia_flutter/features/intake/presentation/voice_intake_screen.dart';
 import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
-import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/features/notifications/data/notification_service.dart';
-
+import 'package:phia_flutter/features/onboarding/complete_screen.dart';
+import 'package:phia_flutter/features/onboarding/goals_screen.dart';
+import 'package:phia_flutter/features/onboarding/profile_setup_screen.dart';
+import 'package:phia_flutter/features/onboarding/welcome_screen.dart';
+import 'package:phia_flutter/features/profile/data/profile_repository.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_screen.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
+import 'package:phia_flutter/features/settings/presentation/alert_limits_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/clinical_units_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/general_settings_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/reminders_screen.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/splash/splash_screen.dart';
 import 'package:phia_flutter/features/vitals/data/background_sync_service.dart';
-import 'package:phia_flutter/core/network/fhir_api_client.dart';
-import 'package:phia_flutter/core/utils/app_logging.dart';
-import 'package:phia_flutter/core/config/api_constants.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   silenceDebugPrintInRelease();
@@ -63,7 +63,6 @@ void main() async {
     FhirApiClient().configure(
       baseUrl: ApiConstants.fhirGqlUrl,
       token: savedToken,
-      isLiveMode: true,
     );
     // Background vitals upload only makes sense for a signed-in user.
     // (Sign-out cancels it; login schedules it again.)
@@ -161,9 +160,7 @@ class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
         colorScheme: const ColorScheme.light(
           primary: PhiaColors.primary,
           secondary: PhiaColors.primaryCard,
-          surface: PhiaColors.surface,
           error: PhiaColors.pulseRed,
-          onPrimary: Colors.white,
           onSurface: PhiaColors.textPrimary,
         ),
         cardTheme: CardThemeData(
@@ -172,7 +169,7 @@ class _PhiaAppState extends State<PhiaApp> with WidgetsBindingObserver {
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: PhiaColors.borderSubtle, width: 1),
+            side: const BorderSide(color: PhiaColors.borderSubtle),
           ),
         ),
         appBarTheme: const AppBarTheme(

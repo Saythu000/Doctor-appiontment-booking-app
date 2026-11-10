@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
+import 'package:provider/provider.dart';
 
 class IntakeChatScreen extends StatefulWidget {
   const IntakeChatScreen({super.key});
@@ -416,8 +416,8 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
               alignment: WrapAlignment.center,
               children: [
                 _buildPromptChip("I've had a headache for 3 days"),
-                _buildPromptChip("Experiencing fever and body aches"),
-                _buildPromptChip("Lower back pain since yesterday"),
+                _buildPromptChip('Experiencing fever and body aches'),
+                _buildPromptChip('Lower back pain since yesterday'),
               ],
             ),
           ],
@@ -461,7 +461,7 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
           ),
           border: isUser
               ? null
-              : Border.all(color: PhiaColors.borderSubtle, width: 1),
+              : Border.all(color: PhiaColors.borderSubtle),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -510,10 +510,10 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
         top: 8,
         bottom: MediaQuery.of(context).padding.bottom + 8,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(color: PhiaColors.borderSubtle, width: 1),
+          top: BorderSide(color: PhiaColors.borderSubtle),
         ),
       ),
       child: Row(

@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:phia_flutter/features/booking/data/booking_repository.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/profile/data/profile_repository.dart';
+import 'package:phia_flutter/features/booking/data/booking_repository.dart';
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/profile/data/profile_repository.dart';
 
 /// In-memory stand-in for the sqflite-backed repository.
 class FakeHealthRepository implements HealthRepository {
@@ -126,7 +126,7 @@ void main() {
   });
 
   test('slot load failure is an error with retry, not "no slots"', () async {
-    await vm.fetchBookedSlots(1, DateTime(2030, 1, 1));
+    await vm.fetchBookedSlots(1, DateTime(2030));
     expect(vm.availableSlots, isEmpty);
     expect(vm.slotsError, isNotNull);
     expect(vm.isSlotsLoading, isFalse);

@@ -104,7 +104,7 @@ class IntakeRecord {
     if (json['conversation'] is List) {
       conversationList = (json['conversation'] as List)
           .whereType<Map<String, dynamic>>()
-          .map((m) => IntakeChatMessage.fromJson(m))
+          .map(IntakeChatMessage.fromJson)
           .toList();
     }
 

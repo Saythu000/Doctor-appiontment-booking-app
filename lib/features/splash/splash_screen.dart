@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -121,11 +122,11 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark ? const Color(0xFF0F1715) : const Color(0xFFF7F9F8);
-    final tileBorder = isDark ? Border.all(color: const Color(0xFF2A4A43), width: 1) : null;
+    final tileBorder = isDark ? Border.all(color: const Color(0xFF2A4A43)) : null;
     final trackColor = isDark ? const Color(0xFF2A4A43) : const Color(0xFFDDE4E2);
     final sliderColor = isDark ? const Color(0xFF5FB3A1) : const Color(0xFF1F6F5F);
     final titleColor = isDark ? const Color(0xFFF7F9F8) : const Color(0xFF1A1F1E);
-    final subtitleColor = const Color(0xFF5F6B68);
+    const subtitleColor = Color(0xFF5F6B68);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -201,7 +202,7 @@ class _SplashScreenState extends State<SplashScreen>
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: sliderColor,
-                    side: BorderSide(color: sliderColor, width: 1),
+                    side: BorderSide(color: sliderColor),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),

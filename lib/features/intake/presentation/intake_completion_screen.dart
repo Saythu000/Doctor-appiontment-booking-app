@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/intake/domain/intake_models.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
 import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class IntakeCompletionScreen extends StatelessWidget {
   final Map<String, dynamic>? doctorArgs;
@@ -39,7 +39,6 @@ class IntakeCompletionScreen extends StatelessWidget {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 12),
               // Success Badge

@@ -1,13 +1,12 @@
 import 'package:flutter/widgets.dart';
-import 'package:provider/provider.dart';
-
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
+import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 /// Signs the user out and clears every app-wide view model.
 ///

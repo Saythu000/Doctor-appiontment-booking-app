@@ -17,7 +17,7 @@ class AppDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(
+    return openDatabase(
       path,
       version: 5,
       onCreate: _createDB,

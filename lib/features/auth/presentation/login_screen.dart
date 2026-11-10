@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     color: PhiaColors.surface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+                    border: Border.all(color: PhiaColors.borderSubtle),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),

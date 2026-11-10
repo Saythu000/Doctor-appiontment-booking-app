@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/features/home/presentation/dashboard_screen.dart';
-import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
 import 'package:phia_flutter/features/booking/presentation/select_specialist_screen.dart';
+import 'package:phia_flutter/features/home/presentation/dashboard_screen.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_screen.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
+import 'package:provider/provider.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -55,7 +55,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         index: _currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           color: PhiaColors.surface,
           boxShadow: [
@@ -68,7 +68,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           border: const Border(
             top: BorderSide(
               color: PhiaColors.borderSubtle,
-              width: 1.0,
             ),
           ),
         ),
@@ -117,7 +116,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     required IconData activeIcon,
     required String label,
   }) {
-    bool isActive = _currentIndex == index;
+    final bool isActive = _currentIndex == index;
 
     return InkWell(
       onTap: () {

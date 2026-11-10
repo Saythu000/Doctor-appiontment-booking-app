@@ -1,7 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 /// Dynamically resolves an image provider for doctors or profiles, supporting assets, network URLs, or local files.
 ImageProvider getImageProvider(String? urlOrPath, {String fallback = 'assets/doctors/doctor_1.png'}) {
@@ -35,7 +36,7 @@ class UserHeaderAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         image: DecorationImage(
           image: getImageProvider(
             profileVM.profileImagePath,

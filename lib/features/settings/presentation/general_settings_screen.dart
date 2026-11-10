@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/utils/language_helper.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/core/utils/language_helper.dart';
+import 'package:provider/provider.dart';
 
 class GeneralSettingsScreen extends StatelessWidget {
   const GeneralSettingsScreen({super.key});
@@ -268,7 +268,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           child: TextField(
                             controller: heightController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                            keyboardType: const TextInputType.numberWithOptions(),
                             style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
                             decoration: InputDecoration(
                               hintText: 'e.g. 175',
@@ -399,7 +399,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 color: PhiaColors.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -440,7 +440,7 @@ class GeneralSettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 color: PhiaColors.surface,
                 borderRadius: BorderRadius.circular(16),

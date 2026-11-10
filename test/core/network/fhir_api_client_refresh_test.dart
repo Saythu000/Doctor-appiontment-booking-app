@@ -41,7 +41,7 @@ void main() {
     api = FhirApiClient();
     server = AuthCheckingAdapter('fresh');
     api.client.httpClientAdapter = server;
-    api.configure(baseUrl: 'https://fhir.test', token: 'expired', isLiveMode: true);
+    api.configure(baseUrl: 'https://fhir.test', token: 'expired');
   });
 
   test('concurrent 401s share a single token refresh, then all succeed', () async {
@@ -49,7 +49,7 @@ void main() {
     api.setTokenRefresher(() async {
       refreshCalls++;
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      api.configure(baseUrl: 'https://fhir.test', token: 'fresh', isLiveMode: true);
+      api.configure(baseUrl: 'https://fhir.test', token: 'fresh');
       return 'fresh';
     });
 

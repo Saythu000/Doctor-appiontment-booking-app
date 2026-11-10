@@ -1,7 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:phia_flutter/features/intake/data/intake_service.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/features/intake/data/intake_service.dart';
 import 'package:phia_flutter/features/intake/domain/intake_models.dart';
 
 enum IntakeState {

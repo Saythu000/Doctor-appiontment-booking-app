@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class SelectDateTimeScreen extends StatefulWidget {
   const SelectDateTimeScreen({super.key});
@@ -160,8 +160,6 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                               imageUrl: specialistImageUrl,
                               width: 56,
                               height: 56,
-                              fit: BoxFit.cover,
-                              fallbackIcon: Icons.person,
                             ),
                           ),
                         ),

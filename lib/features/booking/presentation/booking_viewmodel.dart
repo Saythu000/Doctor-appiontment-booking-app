@@ -1,13 +1,14 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:phia_flutter/features/booking/domain/booking_models.dart';
-import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
-import 'package:phia_flutter/features/booking/data/booking_repository.dart';
-import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/profile/data/profile_repository.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
+import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/features/booking/data/booking_repository.dart';
+import 'package:phia_flutter/features/booking/domain/booking_models.dart';
 import 'package:phia_flutter/features/notifications/data/notification_service.dart';
+import 'package:phia_flutter/features/profile/data/profile_repository.dart';
+import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 
 class BookingViewModel extends ChangeNotifier {
   final BookingRepository bookingRepository;
@@ -57,7 +58,7 @@ class BookingViewModel extends ChangeNotifier {
         final decoded = jsonDecode(cachedJson) as List?;
         if (decoded != null && decoded.isNotEmpty) {
           final List<PractitionerRoleBooking> cachedList = [];
-          for (var item in decoded) {
+          for (final item in decoded) {
             if (item is Map<String, dynamic>) {
               cachedList.add(PractitionerRoleBooking.fromJson(item));
             }
@@ -436,7 +437,7 @@ class BookingViewModel extends ChangeNotifier {
         // Clear local cache to purge any cancelled/mock records
         await healthRepository.clearLocalAppointments();
 
-        for (var appt in serverAppts) {
+        for (final appt in serverAppts) {
           final id = appt['id']?.toString() ?? '';
           if (id.isEmpty) continue;
 
@@ -448,7 +449,7 @@ class BookingViewModel extends ChangeNotifier {
           String practitionerName = 'Attending Specialist';
           final participants = appt['participant'] as List?;
           if (participants != null) {
-            for (var p in participants) {
+            for (final p in participants) {
               if (p is Map<String, dynamic>) {
                 final refType = p['reference_type']?.toString() ?? '';
                 final actor = p['actor']?.toString() ?? '';
@@ -527,7 +528,7 @@ class BookingViewModel extends ChangeNotifier {
     appointmentsList = list;
 
     final now = DateTime.now();
-    for (var appt in appointmentsList) {
+    for (final appt in appointmentsList) {
       try {
         final status = (appt['status'] as String? ?? '').toLowerCase();
         if (status == 'cancelled' ||

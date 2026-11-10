@@ -99,7 +99,7 @@ void main() {
 
   test('no patient id: saved with patient_fhir_id omitted (text guide §5.1)', () async {
     await chatOnce();
-    await vm.finishIntake(authToken: 'jwt', patientFhirId: null, orgId: 'org');
+    await vm.finishIntake(authToken: 'jwt', orgId: 'org');
     expect(vm.state, IntakeState.completed);
     expect(service.createdForPatients, [null]);
   });

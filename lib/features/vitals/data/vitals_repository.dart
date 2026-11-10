@@ -1,5 +1,5 @@
-import 'package:phia_flutter/features/vitals/domain/vitals_payload.dart';
 import 'package:phia_flutter/core/network/fhir_api_client.dart';
+import 'package:phia_flutter/features/vitals/domain/vitals_payload.dart';
 
 class VitalsRepository {
   final FhirApiClient _apiClient = FhirApiClient();

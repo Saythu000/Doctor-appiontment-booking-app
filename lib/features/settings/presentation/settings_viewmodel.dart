@@ -49,7 +49,7 @@ class SettingsViewModel extends ChangeNotifier {
 
     // Synchronize scheduled notifications with loaded reminders. One bad
     // reminder must not stop the others from being scheduled.
-    for (var r in remindersList) {
+    for (final r in remindersList) {
       try {
         await _applyReminderSchedule(r);
       } catch (e) {

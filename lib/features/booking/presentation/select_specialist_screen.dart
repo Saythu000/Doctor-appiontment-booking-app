@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class SelectSpecialistScreen extends StatefulWidget {
   final bool isTab;
@@ -323,8 +323,6 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                     imageUrl: imageUrl,
                     width: 64,
                     height: 64,
-                    fit: BoxFit.cover,
-                    fallbackIcon: Icons.person,
                   ),
                 ),
               ),
@@ -469,8 +467,6 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                     imageUrl: imageUrl,
                     width: 44,
                     height: 44,
-                    fit: BoxFit.cover,
-                    fallbackIcon: Icons.person,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -875,7 +871,7 @@ class _SelectSpecialistScreenState extends State<SelectSpecialistScreen> {
                     Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: PhiaColors.primaryLight,
                         shape: BoxShape.circle,
                       ),

@@ -1,10 +1,11 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:workmanager/workmanager.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
-import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
 import 'package:phia_flutter/core/utils/app_logging.dart';
+import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
+import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
+import 'package:workmanager/workmanager.dart';
 
 const String kPeriodicHealthSyncTask = 'drgodly_periodic_health_sync';
 const String kPeriodicHealthSyncUniqueName = 'drgodly_health_sync_periodic_worker';

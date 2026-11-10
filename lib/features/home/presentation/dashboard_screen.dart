@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
-import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:intl/intl.dart';
-import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
+import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
+import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
+import 'package:phia_flutter/features/booking/domain/appointment_status.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/notifications/presentation/notification_center_sheet.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/device_manager_sheet.dart';
+import 'package:provider/provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   final Function(int)? onTabSelected;
@@ -27,7 +27,7 @@ class DashboardScreen extends StatelessWidget {
     // Get nearest upcoming appointment
     Map<String, dynamic>? nearestUpcoming;
     final now = DateTime.now();
-    for (var appt in bookingVM.appointmentsList) {
+    for (final appt in bookingVM.appointmentsList) {
       try {
         final status = (appt['status'] as String? ?? '').toLowerCase();
         if (status == 'fulfilled' || status == 'noshow' || status == 'cancelled' || status == 'canceled') {
@@ -146,7 +146,7 @@ class DashboardScreen extends StatelessWidget {
         dateFormatted = startStr;
       }
 
-      final String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
+      const String fallbackImageUrl = 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=100';
       final imageUrl = image.isNotEmpty ? image : fallbackImageUrl;
 
       // Status badge styling (shared mapping, see appointment_status.dart)
@@ -205,8 +205,6 @@ class DashboardScreen extends StatelessWidget {
                           imageUrl: imageUrl,
                           width: 52,
                           height: 52,
-                          fit: BoxFit.cover,
-                          fallbackIcon: Icons.person,
                         ),
                       ),
                     ),
@@ -368,15 +366,15 @@ class DashboardScreen extends StatelessWidget {
     }
 
     // Dynamic metrics calculation
-    int steps = activityVM.currentSteps;
-    int calories = activityVM.currentCalories;
-    int activeMins = activityVM.currentActiveMins;
+    final int steps = activityVM.currentSteps;
+    final int calories = activityVM.currentCalories;
+    final int activeMins = activityVM.currentActiveMins;
 
-    double progressSteps = (steps / 10000.0).clamp(0.0, 1.0);
-    double progressCalories = (calories / 500.0).clamp(0.0, 1.0);
-    double progressActiveMins = (activeMins / 60.0).clamp(0.0, 1.0);
+    final double progressSteps = (steps / 10000.0).clamp(0.0, 1.0);
+    final double progressCalories = (calories / 500.0).clamp(0.0, 1.0);
+    final double progressActiveMins = (activeMins / 60.0).clamp(0.0, 1.0);
 
-    String stepsStr = steps.toString().replaceAllMapped(
+    final String stepsStr = steps.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
@@ -388,7 +386,7 @@ class DashboardScreen extends StatelessWidget {
     Color bmiColor = PhiaColors.textSecondary;
     Color bmiBg = PhiaColors.surfaceSubtle;
     if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
-      double heightM = activityVM.userHeight / 100.0;
+      final double heightM = activityVM.userHeight / 100.0;
       bmi = activityVM.userWeight / (heightM * heightM);
       if (bmi < 18.5) {
         bmiClassification = 'Underweight';
@@ -436,10 +434,10 @@ class DashboardScreen extends StatelessWidget {
         titleSpacing: 16,
         title: Row(
           children: [
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(7),
@@ -512,7 +510,6 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Column(
@@ -621,8 +618,6 @@ class DashboardScreen extends StatelessWidget {
                                       imageUrl: nearestUpcoming['practitioner_image']?.toString() ?? '',
                                       width: 50,
                                       height: 50,
-                                      fit: BoxFit.cover,
-                                      fallbackIcon: Icons.person,
                                     ),
                                   ),
                                 ),
@@ -894,7 +889,7 @@ class DashboardScreen extends StatelessWidget {
                                         Container(
                                           width: 48,
                                           height: 48,
-                                          decoration: BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             color: PhiaColors.primaryLight,
                                             shape: BoxShape.circle,
                                           ),
@@ -1396,7 +1391,7 @@ class DashboardScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             child: TextField(
                               controller: heightController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                              keyboardType: const TextInputType.numberWithOptions(),
                               style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
                               decoration: InputDecoration(
                                 hintText: 'e.g. 175',
@@ -1463,7 +1458,7 @@ class DashboardScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: TextField(
                         controller: ageController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                        keyboardType: const TextInputType.numberWithOptions(),
                         style: GoogleFonts.inter(fontSize: 14, color: PhiaColors.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'e.g. 28',
@@ -1532,7 +1527,7 @@ class DashboardScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: PhiaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+        border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1736,20 +1731,20 @@ class ConcentricActivityPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double strokeW = 6.0;
-    final double spacing = 4.0;
+    const double strokeW = 6.0;
+    const double spacing = 4.0;
     final Offset center = Offset(size.width / 2, size.height / 2);
 
     // Ring 1 (outermost): Steps (Primary Sky Blue)
-    double r1 = size.width / 2 - strokeW / 2;
+    final double r1 = size.width / 2 - strokeW / 2;
     _drawRing(canvas, center, r1, strokeW, stepsPct, PhiaColors.primary, PhiaColors.primary.withValues(alpha: 0.12));
 
     // Ring 2 (middle): Calories (Clinical Cyan)
-    double r2 = r1 - strokeW - spacing;
+    final double r2 = r1 - strokeW - spacing;
     _drawRing(canvas, center, r2, strokeW, caloriesPct, const Color(0xFF4BAAE5), const Color(0xFF4BAAE5).withValues(alpha: 0.12));
 
     // Ring 3 (innermost): Active Mins (Active Green)
-    double r3 = r2 - strokeW - spacing;
+    final double r3 = r2 - strokeW - spacing;
     _drawRing(canvas, center, r3, strokeW, activeMinsPct, PhiaColors.activeGreen, PhiaColors.activeGreen.withValues(alpha: 0.12));
   }
 

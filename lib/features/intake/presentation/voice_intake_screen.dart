@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
 import 'package:phia_flutter/features/auth/presentation/session_reset.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_completion_screen.dart';
+import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class VoiceIntakeScreen extends StatefulWidget {
   const VoiceIntakeScreen({super.key});
@@ -598,7 +598,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                             voiceVm.isMuted ? Icons.mic_off : Icons.mic,
                             color: voiceVm.isMuted ? Colors.red : const Color(0xFF0A3641),
                           ),
-                          onPressed: voiceVm.isBusy ? null : () => voiceVm.toggleMute(),
+                          onPressed: voiceVm.isBusy ? null : voiceVm.toggleMute,
                           tooltip: voiceVm.isMuted ? 'Unmute' : 'Mute',
                         ),
 

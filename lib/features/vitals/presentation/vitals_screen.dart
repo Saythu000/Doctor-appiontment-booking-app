@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class VitalsScreen extends StatelessWidget {
   const VitalsScreen({super.key});
@@ -13,9 +13,9 @@ class VitalsScreen extends StatelessWidget {
     final activityVM = context.watch<ActivityViewModel>();
     final settingsVM = context.watch<SettingsViewModel>();
 
-    int steps = activityVM.currentSteps;
+    final int steps = activityVM.currentSteps;
 
-    String stepsStr = steps.toString().replaceAllMapped(
+    final String stepsStr = steps.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
@@ -33,7 +33,7 @@ class VitalsScreen extends StatelessWidget {
     Color bmiColor = const Color(0xFF64748B);
     Color bmiBg = const Color(0xFFF1F5F9);
     if (activityVM.userHeight > 0 && activityVM.userWeight > 0) {
-      double heightM = activityVM.userHeight / 100.0;
+      final double heightM = activityVM.userHeight / 100.0;
       bmi = activityVM.userWeight / (heightM * heightM);
       if (bmi < 18.5) {
         bmiClassification = 'Underweight';
@@ -302,7 +302,7 @@ class VitalsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: PhiaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+        border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -448,19 +448,19 @@ class CleanWeightBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (weights.isEmpty) return;
-    double minW = weights.reduce((a, b) => a < b ? a : b) - 1.0;
-    double maxW = weights.reduce((a, b) => a > b ? a : b) + 1.0;
-    double range = (maxW - minW).clamp(0.1, 1000.0);
+    final double minW = weights.reduce((a, b) => a < b ? a : b) - 1.0;
+    final double maxW = weights.reduce((a, b) => a > b ? a : b) + 1.0;
+    final double range = (maxW - minW).clamp(0.1, 1000.0);
 
-    double barW = (size.width / weights.length) - 10.0;
+    final double barW = (size.width / weights.length) - 10.0;
     final barPaint = Paint()..color = PhiaColors.primaryLight;
     final activePaint = Paint()..color = PhiaColors.primary;
 
     for (int i = 0; i < weights.length; i++) {
-      double norm = (weights[i] - minW) / range;
-      double h = norm * (size.height - 20) + 10;
-      double x = i * (barW + 10.0) + 5.0;
-      double y = size.height - h;
+      final double norm = (weights[i] - minW) / range;
+      final double h = norm * (size.height - 20) + 10;
+      final double x = i * (barW + 10.0) + 5.0;
+      final double y = size.height - h;
 
       final isLast = i == weights.length - 1;
       final rect = RRect.fromRectAndRadius(

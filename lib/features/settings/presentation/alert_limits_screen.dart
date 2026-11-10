@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 /// Limits that trigger a vitals alert (heart rate, blood pressure) and the
 /// daily steps goal.

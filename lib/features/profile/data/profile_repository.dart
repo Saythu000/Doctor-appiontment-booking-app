@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 import 'package:phia_flutter/core/network/fhir_api_client.dart';
+import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 
 class ProfileRepository {
   final FhirApiClient _apiClient = FhirApiClient();

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -107,8 +107,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
               primary: PhiaColors.primary,
-              onPrimary: Colors.white,
-              surface: PhiaColors.surface,
               onSurface: PhiaColors.textPrimary,
             ),
           ),

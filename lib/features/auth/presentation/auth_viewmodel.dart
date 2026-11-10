@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
-import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
-import 'package:phia_flutter/features/vitals/data/background_sync_service.dart';
-import 'package:phia_flutter/core/network/fhir_api_client.dart';
-import 'package:phia_flutter/features/notifications/data/notification_service.dart';
 import 'package:phia_flutter/core/data/local/secure_storage_service.dart';
+import 'package:phia_flutter/core/network/fhir_api_client.dart';
+import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/features/auth/domain/auth_models.dart';
+import 'package:phia_flutter/features/notifications/data/notification_service.dart';
+import 'package:phia_flutter/features/vitals/data/background_sync_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository authRepository;
@@ -135,7 +136,6 @@ class AuthViewModel extends ChangeNotifier {
         FhirApiClient().configure(
           baseUrl: ApiConstants.fhirGqlUrl,
           token: _jwtToken,
-          isLiveMode: true,
         );
         return _jwtToken;
       } catch (e) {
@@ -212,7 +212,6 @@ class AuthViewModel extends ChangeNotifier {
       FhirApiClient().configure(
         baseUrl: ApiConstants.fhirGqlUrl,
         token: _jwtToken,
-        isLiveMode: true,
       );
 
       // Step 7: Start the hourly background vitals upload for this user
@@ -328,7 +327,6 @@ class AuthViewModel extends ChangeNotifier {
           FhirApiClient().configure(
             baseUrl: ApiConstants.fhirGqlUrl,
             token: _jwtToken,
-            isLiveMode: true,
           );
 
           notifyListeners();
@@ -358,7 +356,6 @@ class AuthViewModel extends ChangeNotifier {
               FhirApiClient().configure(
                 baseUrl: ApiConstants.fhirGqlUrl,
                 token: _jwtToken,
-                isLiveMode: true,
               );
               notifyListeners();
               return true;
@@ -389,7 +386,6 @@ class AuthViewModel extends ChangeNotifier {
           FhirApiClient().configure(
             baseUrl: ApiConstants.fhirGqlUrl,
             token: _jwtToken,
-            isLiveMode: true,
           );
           notifyListeners();
           return true;
@@ -434,8 +430,6 @@ class AuthViewModel extends ChangeNotifier {
       // (Never switch to the mock backend: it would fake successful syncs.)
       FhirApiClient().configure(
         baseUrl: ApiConstants.fhirGqlUrl,
-        token: null,
-        isLiveMode: true,
       );
 
       // 3. Stop the hourly background vitals upload for this user
@@ -452,7 +446,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       if (refreshTokenToRevoke != null && refreshTokenToRevoke.isNotEmpty) {
         await authRepository
-            .revokeToken(token: refreshTokenToRevoke, tokenTypeHint: 'refresh_token')
+            .revokeToken(token: refreshTokenToRevoke)
             .timeout(const Duration(seconds: 5));
       }
     } catch (_) {
@@ -505,7 +499,7 @@ class AuthViewModel extends ChangeNotifier {
 
     // Scheduled OS notifications (medication reminders, appointment
     // reminders) belong to this user and must stop firing after sign-out.
-    await attempt(() => NotificationService.instance.cancelAll());
+    await attempt(NotificationService.instance.cancelAll);
   }
 
   Future<void> _saveCredentials() async {

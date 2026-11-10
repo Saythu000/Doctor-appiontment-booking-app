@@ -90,7 +90,7 @@ class PlainPatientAddress {
   });
 
   factory PlainPatientAddress.fromJson(Map<String, dynamic> json) {
-    var lineFromJson = json['line'];
+    final lineFromJson = json['line'];
     List<String> linesList = [];
     if (lineFromJson != null) {
       if (lineFromJson is List) {
@@ -144,9 +144,9 @@ class PlainPatient {
   });
 
   factory PlainPatient.fromJson(Map<String, dynamic> json) {
-    var nameList = json['name'] as List?;
-    var telecomList = json['telecom'] as List?;
-    var addressList = json['address'] as List?;
+    final nameList = json['name'] as List?;
+    final telecomList = json['telecom'] as List?;
+    final addressList = json['address'] as List?;
 
     return PlainPatient(
       id: json['id'] is String ? int.parse(json['id']) : (json['id'] ?? 0),

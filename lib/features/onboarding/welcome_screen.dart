@@ -122,7 +122,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                   decoration: BoxDecoration(
                     color: PhiaColors.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+                    border: Border.all(color: PhiaColors.borderSubtle),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.03),

@@ -109,7 +109,7 @@ class OpenWearablesService {
 
       if (dataPoints.isNotEmpty) {
         final breakdown = <String, int>{};
-        for (var dp in dataPoints) {
+        for (final dp in dataPoints) {
           breakdown[dp.type.name] = (breakdown[dp.type.name] ?? 0) + 1;
         }
         if (kDebugMode) {
@@ -201,7 +201,7 @@ class OpenWearablesService {
             }
           } else if (dp.type == HealthDataType.WEIGHT && realWeight == null) {
             if (dp.value is NumericHealthValue) {
-              double val = (dp.value as NumericHealthValue).numericValue.toDouble();
+              final double val = (dp.value as NumericHealthValue).numericValue.toDouble();
               if (val > 0) realWeight = val;
             }
           } else if (dp.type == HealthDataType.TOTAL_CALORIES_BURNED) {
@@ -461,7 +461,7 @@ class OpenWearablesService {
 
         // Multi-source reconciliation: ensure low-step workouts (e.g. cycling, swimming, yoga)
         // are never overshadowed by a small bucket count from brief walks.
-        int candidateFromBuckets = activeMinutesSet.length;
+        final int candidateFromBuckets = activeMinutesSet.length;
         int candidateFromRecorded = recordedActiveMinutes;
         if (googleFitActiveMinutes > candidateFromRecorded) {
           candidateFromRecorded = googleFitActiveMinutes;

@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:record/record.dart';
+
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
+import 'package:record/record.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Event emitted from the Voice Intake Agent WebSocket
 class VoiceAgentEvent {
@@ -231,7 +232,6 @@ class VoiceIntakeService {
           audioSource: AndroidAudioSource.voiceCommunication,
           audioManagerMode: AudioManagerMode.modeInCommunication,
           speakerphone: true,
-          muteAudio: false,
         ),
       );
 
@@ -336,9 +336,7 @@ class VoiceIntakeService {
 
       // Schedule debounced playback if status: ready is delayed
       _turnPlaybackTimer?.cancel();
-      _turnPlaybackTimer = Timer(const Duration(milliseconds: 350), () {
-        _flushAndPlayTurnAudio();
-      });
+      _turnPlaybackTimer = Timer(const Duration(milliseconds: 350), _flushAndPlayTurnAudio);
     } catch (e) {
       debugPrint('[VoiceIntakeService] Audio chunk buffering error: $e');
     }

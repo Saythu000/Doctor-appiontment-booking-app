@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:phia_flutter/features/vitals/domain/health_metrics.dart';
 import 'package:phia_flutter/core/data/local/app_database.dart';
 import 'package:phia_flutter/core/data/local/secure_storage_service.dart';
 import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
+import 'package:phia_flutter/features/vitals/domain/health_metrics.dart';
 import 'package:phia_flutter/features/vitals/domain/vitals_payload.dart';
+import 'package:sqflite/sqflite.dart';
 
 // ponytail: concrete production repository; eliminated redundant single-implementation IHealthRepository interface
 /// Default alert ranges, used until the user saves their own.
@@ -86,13 +87,13 @@ class HealthRepository {
 
     // Group unsynced metrics by date (YYYY-MM-DD)
     final Map<String, List<Map<String, dynamic>>> groupedByDate = {};
-    for (var row in unsynced) {
+    for (final row in unsynced) {
       final timestampStr = row['timestamp'] as String;
       final dateStr = timestampStr.substring(0, 10);
       groupedByDate.putIfAbsent(dateStr, () => []).add(row);
     }
 
-    for (var dateStr in groupedByDate.keys) {
+    for (final dateStr in groupedByDate.keys) {
       // Query all metrics (synced & unsynced) for this date to get a complete daily summary
       final List<Map<String, dynamic>> dailyMetrics = await db.query(
         'health_metrics',
@@ -115,7 +116,7 @@ class HealthRepository {
       double? height;
       double? age;
 
-      for (var m in dailyMetrics) {
+      for (final m in dailyMetrics) {
         final type = m['type'] as String;
         final value = (m['value'] as num).toDouble();
         if (type == 'steps') {
@@ -364,7 +365,7 @@ class HealthRepository {
   // --- Reminders CRUD Helpers ---
   Future<List<Map<String, dynamic>>> getReminders() async {
     final db = await _dbHelper.database;
-    return await db.query('reminders', orderBy: 'time ASC');
+    return db.query('reminders', orderBy: 'time ASC');
   }
 
   Future<void> saveReminder(Map<String, dynamic> reminder) async {
@@ -406,7 +407,7 @@ class HealthRepository {
     final Map<String, Map<String, double>> thresholds = {
       for (final e in kDefaultVitalsThresholds.entries) e.key: Map<String, double>.from(e.value),
     };
-    for (var row in maps) {
+    for (final row in maps) {
       final metric = row['metric'] as String;
       thresholds[metric] = {
         'min': (row['min_value'] as num?)?.toDouble() ?? 0.0,
@@ -432,7 +433,7 @@ class HealthRepository {
   // --- Appointments Helpers ---
   Future<List<Map<String, dynamic>>> getAppointments() async {
     final db = await _dbHelper.database;
-    return await db.query('appointments', orderBy: 'start_time ASC');
+    return db.query('appointments', orderBy: 'start_time ASC');
   }
 
   Future<void> saveAppointment(Map<String, dynamic> appt) async {
@@ -461,7 +462,7 @@ class HealthRepository {
   // --- In-App Notifications Helpers ---
   Future<List<Map<String, dynamic>>> getInAppNotifications() async {
     final db = await _dbHelper.database;
-    return await db.query('in_app_notifications', orderBy: 'timestamp DESC');
+    return db.query('in_app_notifications', orderBy: 'timestamp DESC');
   }
 
   Future<void> saveInAppNotification(Map<String, dynamic> notification) async {

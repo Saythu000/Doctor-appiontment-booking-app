@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
-import 'package:phia_flutter/features/auth/presentation/session_reset.dart';
-import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
-import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
-import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/auth/presentation/session_reset.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
+import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isTab;
@@ -296,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 6),
                           InkWell(
                             onTap: () async {
-                              DateTime initial = DateTime.tryParse(dobController.text) ?? DateTime(2000, 1, 1);
+                              final DateTime initial = DateTime.tryParse(dobController.text) ?? DateTime(2000);
                               final picked = await showDatePicker(
                                 context: context,
                                 initialDate: initial,
@@ -345,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               'HEIGHT (CM)',
                               heightController,
                               'e.g. 175',
-                              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                              keyboardType: const TextInputType.numberWithOptions(),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -642,8 +642,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             imageUrl: profileVM.profileImagePath ?? 'assets/avatars/avatar_1.png',
                             width: 96,
                             height: 96,
-                            fit: BoxFit.cover,
-                            fallbackIcon: Icons.person,
                           ),
                         ),
                       ),
@@ -824,7 +822,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: PhiaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+        border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),

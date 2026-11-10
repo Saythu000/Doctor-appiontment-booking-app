@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/core/widgets/image_helper.dart';
-import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
-import 'package:phia_flutter/features/booking/data/booking_repository.dart' show SlotTakenException;
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
+import 'package:phia_flutter/features/booking/data/booking_repository.dart' show SlotTakenException;
 import 'package:phia_flutter/features/booking/domain/booking_models.dart';
+import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
+import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class ReviewBookingScreen extends StatefulWidget {
   const ReviewBookingScreen({super.key});
@@ -91,8 +91,6 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
                               imageUrl: imageUrl,
                               width: 64,
                               height: 64,
-                              fit: BoxFit.cover,
-                              fallbackIcon: Icons.person,
                             ),
                           ),
                         ),
@@ -200,7 +198,7 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
                           final cleanTime = time.split(' ')[0];
                           final parts = cleanTime.split(':');
                           int hour = int.tryParse(parts[0]) ?? 10;
-                          int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+                          final int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
                           if (time.toUpperCase().contains('PM') && hour < 12) hour += 12;
                           if (time.toUpperCase().contains('AM') && hour == 12) hour = 0;
 
@@ -328,7 +326,7 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
       decoration: BoxDecoration(
         color: PhiaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PhiaColors.borderSubtle, width: 1),
+        border: Border.all(color: PhiaColors.borderSubtle),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),

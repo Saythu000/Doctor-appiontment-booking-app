@@ -28,7 +28,7 @@ class PractitionerRoleBooking {
     final specList = json['specialty'] as List?;
     final specs = <String>[];
     if (specList != null) {
-      for (var s in specList) {
+      for (final s in specList) {
         if (s is Map<String, dynamic>) {
           final text = s['text'] as String?;
           final display = s['coding_display'] as String?;
@@ -45,7 +45,7 @@ class PractitionerRoleBooking {
     final availList = json['availability'] as List?;
     final avails = <PractitionerAvailability>[];
     if (availList != null) {
-      for (var a in availList) {
+      for (final a in availList) {
         if (a is Map<String, dynamic>) {
           avails.add(PractitionerAvailability.fromJson(a));
         }
@@ -108,7 +108,7 @@ class PractitionerDetail {
   factory PractitionerDetail.fromJson(Map<String, dynamic> json) {
     // Parse name text (handle both List and Map formats from FHIR Middleware)
     String nameText = 'Attending Specialist';
-    dynamic rawName = json['name'];
+    final dynamic rawName = json['name'];
     Map<String, dynamic>? nameMap;
     if (rawName is List && rawName.isNotEmpty && rawName.first is Map) {
       nameMap = Map<String, dynamic>.from(rawName.first as Map);
@@ -131,7 +131,7 @@ class PractitionerDetail {
     final qualList = (json['qualifications'] ?? json['qualification']) as List?;
     final quals = <PractitionerQualification>[];
     if (qualList != null) {
-      for (var q in qualList) {
+      for (final q in qualList) {
         if (q is Map<String, dynamic>) {
           quals.add(PractitionerQualification.fromJson(q));
         }
@@ -192,7 +192,7 @@ class PractitionerAvailability {
     final timesList = json['available_times'] as List?;
     final times = <AvailableTimeSlot>[];
     if (timesList != null) {
-      for (var t in timesList) {
+      for (final t in timesList) {
         if (t is Map<String, dynamic>) {
           times.add(AvailableTimeSlot.fromJson(t));
         }

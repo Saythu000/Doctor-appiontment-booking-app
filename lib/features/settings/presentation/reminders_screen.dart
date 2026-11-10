@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
-import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/core/utils/language_helper.dart';
+import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -24,7 +24,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
       selectedTime = TimeOfDay(hour: int.parse(timeParts[0]), minute: int.parse(timeParts[1]));
     }
 
-    List<String> repeatDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final List<String> repeatDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final selectedDays = <String>{};
     if (isEdit) {
       final daysStr = reminder['days'] as String;
@@ -233,7 +233,6 @@ class _RemindersScreenState extends State<RemindersScreen> {
                                 data: ThemeData.light().copyWith(
                                   colorScheme: const ColorScheme.light(
                                     primary: PhiaColors.primary,
-                                    surface: PhiaColors.surface,
                                     onSurface: PhiaColors.navyAnchor,
                                   ),
                                 ),
@@ -349,7 +348,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           final minStr = selectedTime.minute.toString().padLeft(2, '0');
                           final timeStr = '$hourStr:$minStr';
 
-                          final daysStr = repeatDays.where((d) => selectedDays.contains(d)).join(',');
+                          final daysStr = repeatDays.where(selectedDays.contains).join(',');
 
                           final updatedReminder = {
                             'id': isEdit ? reminder['id'] : DateTime.now().millisecondsSinceEpoch.toString(),
@@ -463,7 +462,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: PhiaColors.surfaceSubtle,
                           shape: BoxShape.circle,
                         ),

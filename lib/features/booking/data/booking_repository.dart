@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
-import 'package:phia_flutter/features/booking/domain/booking_models.dart';
 import 'package:phia_flutter/core/network/fhir_api_client.dart';
+import 'package:phia_flutter/features/booking/domain/booking_models.dart';
 
 /// The chosen slot was booked by someone else between loading slots and
 /// confirming (HTTP 409, patient guide §4.3). Re-fetch slots and let the
@@ -38,7 +38,7 @@ class BookingRepository {
           final list = data['data'] as List?;
           if (list != null && list.isNotEmpty) {
             final List<PractitionerRoleBooking> roles = [];
-            for (var item in list) {
+            for (final item in list) {
               if (item is Map<String, dynamic>) {
                 roles.add(PractitionerRoleBooking.fromJson(item));
               }
@@ -91,7 +91,7 @@ class BookingRepository {
           if (list != null && list.isNotEmpty) {
             return list
                 .whereType<Map<String, dynamic>>()
-                .map((s) => BookingSlot.fromJson(s))
+                .map(BookingSlot.fromJson)
                 .toList();
           }
         }

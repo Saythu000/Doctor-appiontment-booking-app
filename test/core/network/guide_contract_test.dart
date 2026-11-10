@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:phia_flutter/core/network/fhir_api_client.dart';
 import 'package:phia_flutter/features/booking/data/booking_repository.dart';
 import 'package:phia_flutter/features/profile/data/profile_repository.dart';
-import 'package:phia_flutter/core/network/fhir_api_client.dart';
 
 /// Fake FHIR backend: answers every request with [status] and [body], and
 /// records each request so tests can check paths and query params.
@@ -43,7 +43,7 @@ void main() {
     final api = FhirApiClient();
     server = ScriptedAdapter();
     api.client.httpClientAdapter = server;
-    api.configure(baseUrl: 'https://fhir.test', token: 'jwt', isLiveMode: true);
+    api.configure(baseUrl: 'https://fhir.test', token: 'jwt');
     api.setTokenRefresher(() async => null);
   });
 

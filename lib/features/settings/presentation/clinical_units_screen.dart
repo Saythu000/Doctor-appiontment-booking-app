@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:phia_flutter/core/theme/colors.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class ClinicalUnitsScreen extends StatelessWidget {
   const ClinicalUnitsScreen({super.key});
@@ -134,7 +134,7 @@ class ClinicalUnitsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 color: PhiaColors.surface,
                 borderRadius: BorderRadius.circular(16),
