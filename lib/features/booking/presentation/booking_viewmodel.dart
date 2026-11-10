@@ -43,6 +43,7 @@ class BookingViewModel extends ChangeNotifier {
     slotsError = null;
     _slotsRequestId++;
     appointmentsList = [];
+    appointmentsError = null;
     lastBookingConfirmed = null;
     isSpecialistsLoading = false;
     isSlotsLoading = false;
@@ -421,7 +422,12 @@ class BookingViewModel extends ChangeNotifier {
     }
   }
 
+  /// Set when the last appointment refresh from the server failed. The list
+  /// then shows the cached copy, and screens should say it may be out of date.
+  String? appointmentsError;
+
   Future<void> fetchAppointments() async {
+    appointmentsError = null;
     try {
       final userId = await healthRepository.getSetting('iam_user_id') ?? '';
       var orgId = await healthRepository.getSetting('iam_org_id') ?? '';
@@ -522,6 +528,7 @@ class BookingViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('[BookingViewModel] Error syncing appointments from server: $e');
       }
+      appointmentsError = "Couldn't refresh your appointments. Showing the last saved list.";
     }
 
     final list = await healthRepository.getAppointments();

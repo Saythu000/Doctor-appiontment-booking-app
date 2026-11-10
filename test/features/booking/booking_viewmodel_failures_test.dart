@@ -105,6 +105,7 @@ void main() {
     await vm.fetchAppointments();
     expect(health.clearCalls, 0);
     expect(vm.appointmentsList.map((a) => a['id']), contains('appt-1'));
+    expect(vm.appointmentsError, isNotNull, reason: 'the screen must say the list may be outdated');
   });
 
   test('cancel fails loudly and keeps the appointment when the server rejects it', () async {
