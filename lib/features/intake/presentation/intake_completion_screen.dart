@@ -1,268 +1,248 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phia_flutter/app/app_routes.dart';
-import 'package:phia_flutter/core/theme/colors.dart';
+import 'package:phia_flutter/core/theme/app_colors.dart';
+import 'package:phia_flutter/core/theme/app_tokens.dart';
+import 'package:phia_flutter/core/theme/theme_extensions.dart';
+import 'package:phia_flutter/core/widgets/app_button.dart';
+import 'package:phia_flutter/core/widgets/app_card.dart';
+import 'package:phia_flutter/core/widgets/motion.dart';
+import 'package:phia_flutter/core/widgets/status_badge.dart';
 import 'package:phia_flutter/features/intake/domain/intake_models.dart';
-import 'package:phia_flutter/features/intake/presentation/intake_viewmodel.dart';
-import 'package:phia_flutter/features/intake/presentation/voice_intake_viewmodel.dart';
-import 'package:provider/provider.dart';
+import 'package:phia_flutter/features/intake/presentation/widgets/success_check.dart';
+
+/// How the intake was taken.
+enum IntakeMode { chat, voice }
 
 /// What the completion screen needs; passed as the route's `extra`.
+///
+/// The screen shows only what is in here. It never reads the chat or voice
+/// view models, so a finished voice call can't show a leftover chat report
+/// (or the other way round).
 class IntakeCompletionArgs {
+  final IntakeMode mode;
   final Map<String, dynamic>? doctorArgs;
   final int? intakeId;
   final IntakeClinicalReport? clinicalReport;
   final int? appointmentId;
 
-  const IntakeCompletionArgs({this.doctorArgs, this.intakeId, this.clinicalReport, this.appointmentId});
-}
+  /// Number of messages saved with the intake, when known.
+  final int? turnCount;
 
-class IntakeCompletionScreen extends StatelessWidget {
-  final Map<String, dynamic>? doctorArgs;
-  final int? intakeId;
-  final IntakeClinicalReport? clinicalReport;
-  final int? appointmentId;
-
-  const IntakeCompletionScreen({
-    super.key,
+  const IntakeCompletionArgs({
+    required this.mode,
     this.doctorArgs,
     this.intakeId,
     this.clinicalReport,
     this.appointmentId,
+    this.turnCount,
   });
+}
+
+/// Risk level from the report mapped to a colour family and words.
+/// Unknown values stay neutral and show the raw value, never a guess.
+({StatusTone tone, String label, IconData icon}) intakeRiskStyle(String risk) {
+  switch (risk.trim().toLowerCase()) {
+    case 'low':
+      return (tone: StatusTone.success, label: 'Low priority', icon: Icons.check_circle_outline_rounded);
+    case 'moderate':
+    case 'medium':
+      return (tone: StatusTone.warning, label: 'Moderate priority', icon: Icons.info_outline_rounded);
+    case 'high':
+      return (tone: StatusTone.danger, label: 'High priority', icon: Icons.warning_amber_rounded);
+    case 'critical':
+    case 'urgent':
+    case 'emergency':
+      return (tone: StatusTone.danger, label: 'Urgent', icon: Icons.warning_amber_rounded);
+    default:
+      final raw = risk.trim();
+      return (
+        tone: StatusTone.neutral,
+        label: raw.isEmpty ? 'Priority not set' : 'Priority: $raw',
+        icon: Icons.help_outline_rounded,
+      );
+  }
+}
+
+class IntakeCompletionScreen extends StatelessWidget {
+  final IntakeCompletionArgs args;
+
+  const IntakeCompletionScreen({super.key, required this.args});
+
+  void _book(BuildContext context) {
+    final intakeExtra = {
+      'intakeCompleted': true,
+      'intakeId': args.intakeId,
+      'clinicalReport': args.clinicalReport,
+    };
+    if (args.doctorArgs != null) {
+      context.push(AppRoutes.bookingTime, extra: {...args.doctorArgs!, ...intakeExtra});
+    } else {
+      context.push(AppRoutes.doctors, extra: intakeExtra);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
-    final voiceVm = Provider.of<VoiceIntakeViewModel>(context, listen: false);
-
-    final effectiveReport = clinicalReport ?? intakeVm.clinicalReport ?? voiceVm.clinicalReport;
-    final effectiveIntakeId = intakeId ?? intakeVm.savedIntakeRecordId ?? voiceVm.savedIntakeRecordId;
-    final messagesCount = intakeVm.messages.isNotEmpty 
-        ? intakeVm.messages.length 
-        : voiceVm.committedMessages.length;
+    final colors = context.colors;
+    final report = args.clinicalReport;
+    final overview = report?.clinicalOverview?.trim();
+    final risk = report?.riskLevel;
+    final doctorName = args.doctorArgs?['name']?.toString();
+    final hasDoctor = args.doctorArgs != null;
+    final riskStyle = risk == null ? null : intakeRiskStyle(risk);
+    final urgent = riskStyle?.tone == StatusTone.danger;
+    final redFlags = _redFlagList(report?.redFlags);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Intake Completed'),
+        title: const Text('Intake saved'),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xl),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
-              // Success Badge
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.green.shade300, width: 2),
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.green,
-                  size: 44,
+              const Center(child: SuccessCheck()),
+              const SizedBox(height: AppSpacing.lg),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 200),
+                child: Semantics(
+                  header: true,
+                  liveRegion: true,
+                  child: Text('Your answers are saved', style: context.text.headlineSmall, textAlign: TextAlign.center),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Clinical Intake Recorded',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: PhiaColors.textPrimary,
+              const SizedBox(height: AppSpacing.sm),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 250),
+                child: Text(
+                  args.mode == IntakeMode.voice
+                      ? 'Your voice conversation is saved to your profile. Your doctor will see a summary before your visit.'
+                      : 'Your chat is saved to your profile. Your doctor will see a summary before your visit.',
+                  style: context.text.bodyMedium,
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Intake #${effectiveIntakeId ?? 'Saved'} is saved and attached to your profile.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: PhiaColors.textSecondary,
+              if (args.intakeId != null || args.turnCount != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  [
+                    if (args.intakeId != null) 'Reference number: ${args.intakeId}',
+                    if (args.turnCount != null) '${args.turnCount} messages saved',
+                  ].join(' · '),
+                  style: context.text.bodySmall,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Clinical Summary Card
-              if (effectiveReport != null && effectiveReport.clinicalOverview != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: PhiaColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.summarize_outlined,
-                              size: 18, color: PhiaColors.primary),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Doctor Clinical Note',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: PhiaColors.primary,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (effectiveReport.riskLevel != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (effectiveReport.riskLevel!.toLowerCase() == 'high')
-                                    ? PhiaColors.pulseRed.withValues(alpha: 0.12)
-                                    : Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Risk: ${effectiveReport.riskLevel!.toUpperCase()}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: (effectiveReport.riskLevel!.toLowerCase() == 'high')
-                                      ? PhiaColors.pulseRed
-                                      : Colors.green.shade700,
-                                ),
+              ],
+              const SizedBox(height: AppSpacing.xl),
+              if (overview != null && overview.isNotEmpty)
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 320),
+                  child: AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          header: true,
+                          child: Text('Summary for your doctor', style: context.text.titleMedium),
+                        ),
+                        if (riskStyle != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          StatusBadge(label: riskStyle.label, tone: riskStyle.tone, icon: riskStyle.icon),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        Text(overview, style: context.text.bodyMedium!.copyWith(color: colors.textPrimary)),
+                        if (redFlags.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Text('Things your doctor will check', style: context.text.labelLarge),
+                          const SizedBox(height: AppSpacing.xs),
+                          for (final flag in redFlags)
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.xs),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.flag_outlined, size: 16, color: colors.tone(StatusTone.warning).foreground),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(child: Text(flag, style: context.text.bodySmall)),
+                                ],
                               ),
                             ),
                         ],
-                      ),
-                      const Divider(height: 20),
-                      Text(
-                        effectiveReport.clinicalOverview!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: PhiaColors.textPrimary,
-                          height: 1.4,
+                      ],
+                    ),
+                  ),
+                )
+              else
+                AppCard(
+                  child: Row(
+                    children: [
+                      Icon(Icons.description_outlined, color: colors.textSecondary),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          'The summary is not ready to show here yet. Your answers are saved and your doctor can see them.',
+                          style: context.text.bodyMedium,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-
-              // Conversation Turns Saved Confirmation
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: PhiaColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: PhiaColors.borderSubtle),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.chat_bubble_outline_rounded,
-                        size: 20, color: PhiaColors.primary),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '$messagesCount conversation turns saved to medical record.',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: PhiaColors.textPrimary,
+              if (urgent) ...[
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: colors.tone(StatusTone.danger).background,
+                    borderRadius: AppRadius.mdAll,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.local_hospital_outlined, size: 20, color: colors.tone(StatusTone.danger).foreground),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'If you feel very unwell, call your local emergency number now. Do not wait for your appointment.',
+                          style: context.text.bodyMedium!.copyWith(color: colors.tone(StatusTone.danger).foreground),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+              const SizedBox(height: AppSpacing.xxl),
+              AppButton(
+                label: hasDoctor
+                    ? (doctorName != null && doctorName.isNotEmpty
+                        ? 'Continue booking with $doctorName'
+                        : 'Continue booking')
+                    : 'Book a doctor',
+                icon: Icons.calendar_month_rounded,
+                onPressed: () => _book(context),
               ),
-
-              const SizedBox(height: 32),
-
-              // Action 1: Book Appointment
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: PhiaColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.calendar_month_outlined, size: 20),
-                  label: Text(
-                    doctorArgs != null && doctorArgs!['name'] != null
-                        ? 'Continue Booking with ${doctorArgs!['name']}'
-                        : 'Book Doctor Appointment',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: () {
-                    if (doctorArgs != null) {
-                      context.push(AppRoutes.bookingTime,
- extra: {
-                          ...doctorArgs!,
-                          'intakeCompleted': true,
-                          'intakeId': effectiveIntakeId,
-                          'clinicalReport': effectiveReport,
-                        },
-                      );
-                    } else {
-                      // Navigate to specialist selection for booking with intake state
-                      context.push(AppRoutes.doctors,
- extra: {
-                          'intakeCompleted': true,
-                          'intakeId': effectiveIntakeId,
-                          'clinicalReport': effectiveReport,
-                        },
-                      );
-                    }
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Action 2: Return to Dashboard
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: PhiaColors.borderSubtle),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Return to Dashboard',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: PhiaColors.textPrimary,
-                    ),
-                  ),
-                  onPressed: () {
-                    context.go(AppRoutes.home);
-                  },
-                ),
+              const SizedBox(height: AppSpacing.md),
+              AppButton.secondary(
+                label: 'Go to Home',
+                icon: Icons.home_outlined,
+                onPressed: () => context.go(AppRoutes.home),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Red flags arrive as a list, a single string, or nothing.
+  static List<String> _redFlagList(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).toList();
+    }
+    if (value is String && value.trim().isNotEmpty) return [value.trim()];
+    return const [];
   }
 }

@@ -53,13 +53,8 @@ GoRouter buildRouter() {
       page(AppRoutes.intakeComplete, (state) {
         final args = state.extra is IntakeCompletionArgs
             ? state.extra! as IntakeCompletionArgs
-            : const IntakeCompletionArgs();
-        return IntakeCompletionScreen(
-          doctorArgs: args.doctorArgs,
-          intakeId: args.intakeId,
-          clinicalReport: args.clinicalReport,
-          appointmentId: args.appointmentId,
-        );
+            : const IntakeCompletionArgs(mode: IntakeMode.chat);
+        return IntakeCompletionScreen(args: args);
       }),
       page(AppRoutes.generalSettings, (_) => const GeneralSettingsScreen()),
       page(AppRoutes.units, (_) => const ClinicalUnitsScreen()),
