@@ -7,22 +7,14 @@ import '../../domain/model/vitals_payload.dart';
 import '../../data/repository/health_repository.dart';
 import '../../data/repository/vitals_repository.dart';
 import '../../data/service/notification_service.dart';
-import '../../data/service/ble_heart_rate_service.dart';
 import '../../data/service/open_wearables_service.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:health/health.dart';
 import '../data/service/health_connect_types.dart';
 
 class ActivityViewModel extends ChangeNotifier {
   final HealthRepository repository;
   final VitalsRepository vitalsRepository = VitalsRepository();
-  final BleHeartRateService bleService = BleHeartRateService();
   final OpenWearablesService openWearablesService = OpenWearablesService();
-
-  // --- BLE & Smartwatch Telemetry State ---
-  StreamSubscription<int>? _bleHrSub;
-  StreamSubscription<double>? _bleHrvSub;
-  String? connectedBleDeviceName;
 
   // --- Live Steps State ---
   int liveSteps = 0;
@@ -97,94 +89,13 @@ class ActivityViewModel extends ChangeNotifier {
     return score.clamp(10, 100).round();
   }
 
-  DateTime? _lastBleFhirSyncTime;
-  DateTime? _lastAbnormalHrAlertTime;
-  DateTime? _lastBleHrStoredAt;
   Future<bool>? _syncInFlight;
   String? _lastSubmittedVitalsSignature;
-  StreamSubscription<BleDeviceState>? _bleStatusSub;
 
   ActivityViewModel({
     required this.repository,
   }) {
-    // Listen to real-time BLE Heart Rate packets (GATT 0x180D / 0x2A37)
-    _bleHrSub = bleService.heartRateStream.listen((bpm) {
-      if (bpm > 0) {
-        dashboardHr = bpm.toDouble();
-        _recordLiveBleHeartRate(bpm);
-        notifyListeners();
-      }
-    });
-
-    // Listen to real-time BLE HRV packets (RR-interval)
-    _bleHrvSub = bleService.hrvStream.listen((hrv) {
-      if (hrv > 0) {
-        dashboardHrv = hrv;
-        notifyListeners();
-      }
-    });
-
-    // Keep the "connected watch" badge honest when the link drops.
-    _bleStatusSub = bleService.statusStream.listen((state) {
-      if ((state == BleDeviceState.disconnected || state == BleDeviceState.error) &&
-          connectedBleDeviceName != null) {
-        connectedBleDeviceName = null;
-        notifyListeners();
-      }
-    });
-
     initDashboard();
-  }
-
-  /// Store live BLE HR into local repository and throttle sync to FHIR server
-  void _recordLiveBleHeartRate(int bpm) async {
-    try {
-      final now = DateTime.now();
-      // Store at most one live reading per minute (was one row per heartbeat,
-      // ~86k rows/day while a strap is connected).
-      if (_lastBleHrStoredAt == null || now.difference(_lastBleHrStoredAt!).inSeconds >= 60) {
-        _lastBleHrStoredAt = now;
-        await repository.saveMetric(HealthMetric(
-          id: 'ble_hr_${now.millisecondsSinceEpoch}',
-          type: 'heart_rate',
-          value: bpm.toDouble(),
-          timestamp: now,
-        ));
-      }
-
-      // Trigger phone system notification if live HR is critically abnormal (>130 or <45)
-      if (bpm > 130 || bpm < 45) {
-        if (_lastAbnormalHrAlertTime == null || now.difference(_lastAbnormalHrAlertTime!).inMinutes >= 10) {
-          _lastAbnormalHrAlertTime = now;
-          await NotificationService.instance.showVitalsAlert(
-            title: 'Vitals Warning: Abnormal Heart Rate ⚠️',
-            body: 'Detected ${bpm > 130 ? "elevated" : "low"} heart rate of $bpm BPM. Please take a moment to rest.',
-          );
-        }
-      }
-
-      // Throttle FHIR server POSTs to once every 15 seconds to avoid network spam
-      if (_lastBleFhirSyncTime == null || now.difference(_lastBleFhirSyncTime!).inSeconds >= 15) {
-        _lastBleFhirSyncTime = now;
-        final userId = await repository.getSetting('iam_user_id') ?? '';
-        final orgId = await repository.getSetting('iam_org_id') ?? '';
-        // Only upload for a signed-in user; never under a demo/fallback account.
-        if (userId.isEmpty || orgId.isEmpty) return;
-
-        await vitalsRepository.submitVitals(
-          VitalsRecord(
-            heartRate: bpm,
-            heartRateVariability: dashboardHrv > 0 ? dashboardHrv : null,
-          ),
-          userId: userId,
-          orgId: orgId,
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ActivityViewModel] Error recording live BLE HR: $e');
-      }
-    }
   }
 
   Future<void> requestHardwarePermissions() async {
@@ -710,24 +621,7 @@ class ActivityViewModel extends ChangeNotifier {
 
 
 
-  // --- Bluetooth LE & Open-Wearables Integration Methods ---
-
-  /// Connect to a nearby Bluetooth smartwatch (boAt, Fire-Boltt, Noise, etc.)
-  Future<bool> connectBleDevice(BluetoothDevice device) async {
-    final success = await bleService.connect(device);
-    if (success) {
-      connectedBleDeviceName = device.platformName.isNotEmpty ? device.platformName : 'Smartwatch';
-      notifyListeners();
-    }
-    return success;
-  }
-
-  /// Disconnect current active Bluetooth smartwatch
-  Future<void> disconnectBleDevice() async {
-    await bleService.disconnect();
-    connectedBleDeviceName = null;
-    notifyListeners();
-  }
+  // --- Open-Wearables / Health Connect Integration Methods ---
 
   /// Synchronize rich biometrics and sleep stages from Open-Wearables / Health Connect providers
   /// and stream the normalized payload to the live FHIR server
@@ -765,7 +659,7 @@ class ActivityViewModel extends ChangeNotifier {
 
         if (cloudVitals.heartRateVariability != null && cloudVitals.heartRateVariability! > 0.0 && cloudVitals.heartRateVariability != 45.5) {
           dashboardHrv = cloudVitals.heartRateVariability!;
-        } else if (bleService.currentState != BleDeviceState.connected) {
+        } else {
           if (dashboardHrv == 45.5) {
             dashboardHrv = 0.0;
           }
@@ -943,9 +837,6 @@ class ActivityViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _bleHrSub?.cancel();
-    _bleHrvSub?.cancel();
-    _bleStatusSub?.cancel();
     _stepsSub?.cancel();
     _autoSyncTimer?.cancel();
     super.dispose();

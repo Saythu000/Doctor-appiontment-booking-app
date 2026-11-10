@@ -9,7 +9,6 @@ import '../../viewmodel/auth_viewmodel.dart';
 import 'package:intl/intl.dart';
 import '../../core/widgets/image_helper.dart';
 import '../devices/device_manager_sheet.dart';
-import '../../data/service/ble_heart_rate_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   final Function(int)? onTabSelected;
@@ -1149,7 +1148,7 @@ class DashboardScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: activityVM.bleService.currentState == BleDeviceState.connected
+                          color: activityVM.isOpenWearablesSynced
                               ? PhiaColors.activeGreen
                               : Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
@@ -1158,17 +1157,17 @@ class DashboardScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              activityVM.bleService.currentState == BleDeviceState.connected
-                                  ? Icons.bluetooth_connected_rounded
+                              activityVM.isOpenWearablesSynced
+                                  ? Icons.check_circle_outline_rounded
                                   : Icons.watch_outlined,
                               color: Colors.white,
                               size: 12,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              activityVM.bleService.currentState == BleDeviceState.connected
-                                  ? (activityVM.connectedBleDeviceName ?? 'Watch')
-                                  : 'Pair Watch',
+                              activityVM.isOpenWearablesSynced
+                                  ? 'Watch Synced'
+                                  : 'Sync Watch',
                               style: GoogleFonts.inter(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
