@@ -18,7 +18,9 @@ import 'package:phia_flutter/features/vitals/domain/health_metrics.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/device_manager_sheet.dart';
 import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
+import 'package:phia_flutter/features/vitals/presentation/widgets/sync_status_strip.dart';
 import 'package:provider/provider.dart';
+import '../../helpers/accessibility.dart';
 
 /// In-memory repository: signed out, so nothing reaches the network.
 class _FakeHealthRepository implements HealthRepository {
@@ -148,6 +150,7 @@ Future<void> _scrollThrough(WidgetTester tester) async {
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
     await tester.pump(const Duration(milliseconds: 300));
     _expectNoError(tester);
+    await expectAccessible(tester);
   }
 }
 
@@ -167,14 +170,20 @@ void main() {
       testWidgets('home with nothing synced fits a small phone ($mode)', (tester) async {
         await _pump(tester, (_) => const DashboardScreen(), dark: dark, textScale: scale);
         _expectNoError(tester);
+        await expectAccessible(tester);
         expect(find.text('No upcoming visits'), findsOneWidget);
         await tester.scrollUntilVisible(find.text('Not synced yet'), 200);
+        // Bring the whole strip into view (not half under the top edge).
+        await tester.ensureVisible(find.byType(SyncStatusStrip));
+        await tester.pump(const Duration(milliseconds: 300));
         _expectNoError(tester);
+        await expectAccessible(tester);
         // The old fake copy and pill must be gone.
         expect(find.text('Your clinical telemetry is synchronized.'), findsNothing);
         expect(find.text('Active'), findsNothing);
         await tester.scrollUntilVisible(find.text('Not set'), 200); // BMI unknown
         _expectNoError(tester);
+        await expectAccessible(tester);
         await tester.pump(const Duration(seconds: 2));
       });
 
@@ -202,11 +211,13 @@ void main() {
         env.activity.fill();
         await tester.pump(const Duration(seconds: 1));
         _expectNoError(tester);
+        await expectAccessible(tester);
         await tester.scrollUntilVisible(find.text('Dr. Asha Rao'), 200);
         expect(find.text('AR'), findsOneWidget); // initials, no stock photo
         expect(find.textContaining('may be out of date'), findsOneWidget);
         await tester.scrollUntilVisible(find.textContaining('Synced from Health Connect'), 200);
         _expectNoError(tester);
+        await expectAccessible(tester);
         await _scrollThrough(tester);
         await tester.pump(const Duration(seconds: 2));
       });
@@ -214,12 +225,15 @@ void main() {
       testWidgets('vitals tab fits, empty and synced ($mode)', (tester) async {
         final env = await _pump(tester, (_) => const VitalsScreen(isTab: true), dark: dark, textScale: scale);
         _expectNoError(tester);
+        await expectAccessible(tester);
         expect(find.text('--'), findsWidgets);
         env.activity.fill();
         await tester.pump(const Duration(seconds: 1));
         _expectNoError(tester);
+        await expectAccessible(tester);
         await tester.scrollUntilVisible(find.textContaining('Awake'), 200);
         _expectNoError(tester);
+        await expectAccessible(tester);
         await _scrollThrough(tester);
         await tester.pump(const Duration(seconds: 2));
       });
@@ -262,6 +276,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         _expectNoError(tester);
+        await expectAccessible(tester);
         expect(find.text('Health Connect'), findsOneWidget);
         Navigator.of(tester.element(find.text('Health Connect'))).pop();
         await tester.pump();
@@ -271,6 +286,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         _expectNoError(tester);
+        await expectAccessible(tester);
         expect(find.text('Vitals'), findsOneWidget);
         expect(find.text('Update'), findsOneWidget);
         await tester.pump(const Duration(seconds: 2));

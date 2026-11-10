@@ -141,18 +141,22 @@ class _ReminderTile extends StatelessWidget {
                 ],
               ),
             ),
-            Switch(
-              value: isActive,
-              onChanged: (val) async {
-                try {
-                  await context.read<SettingsViewModel>().toggleReminder(id, val);
-                } catch (_) {
-                  if (context.mounted) {
-                    showAppMessage(context, "Couldn't change the reminder. Please try again.",
-                        type: FeedbackType.error);
+            // Spoken by TalkBack, so the switch says what it controls.
+            Semantics(
+              label: title.isEmpty ? 'Reminder at $timeLabel' : '$title reminder',
+              child: Switch(
+                value: isActive,
+                onChanged: (val) async {
+                  try {
+                    await context.read<SettingsViewModel>().toggleReminder(id, val);
+                  } catch (_) {
+                    if (context.mounted) {
+                      showAppMessage(context, "Couldn't change the reminder. Please try again.",
+                          type: FeedbackType.error);
+                    }
                   }
-                }
-              },
+                },
+              ),
             ),
           ],
         ),

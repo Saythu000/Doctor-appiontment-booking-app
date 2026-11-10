@@ -73,7 +73,14 @@ not a fitness or game app.
 - **Charts and rings carry a `Semantics` label** that reads the value out.
 - **Headings are marked as headers.** Changing messages use `liveRegion`.
 - **Tested on a 320dp-wide phone with large text, in light and dark mode**
-  (see `test/features/screens/`).
+  (see `test/features/screens/`). Every screen test also calls
+  `expectAccessible` (`test/helpers/accessibility.dart`), which checks
+  Android's 48dp tap targets, labels on every tappable item, and text
+  contrast measured on the rendered screen.
+- **Forms use `validateForm`** (`core/widgets/form_feedback.dart`): it scrolls
+  to the top wrong field, and Flutter reads that error aloud. Every text
+  field sets `textInputAction` (Next, then Done on the last field).
+- **Switches and toggles carry a label** that says what they control.
 
 ## 7. Performance
 
@@ -89,4 +96,5 @@ not a fitness or game app.
 - [ ] 48dp targets, tooltips on icon buttons, back works
 - [ ] Theme tokens only; works in dark mode
 - [ ] Fits a 320dp phone at 130% and 200% text (test)
+- [ ] Passes `expectAccessible` in light and dark (test)
 - [ ] Animations short and purposeful; respect "Remove animations"

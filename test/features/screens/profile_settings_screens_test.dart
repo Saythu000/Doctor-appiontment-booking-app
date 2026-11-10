@@ -19,6 +19,7 @@ import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.d
 import 'package:phia_flutter/features/settings/presentation/widgets/reminder_editor_sheet.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:provider/provider.dart';
+import '../../helpers/accessibility.dart';
 
 // In-memory stand-ins: no database, network or timers.
 class FakeProfileVM extends ChangeNotifier implements ProfileViewModel {
@@ -180,6 +181,7 @@ Future<void> scrollToEnd(WidgetTester tester) async {
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
     await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
   }
 }
 
@@ -224,6 +226,7 @@ void main() {
         await pumpSmall(tester, const ProfileScreen(isTab: true),
             textScale: scale, dark: dark, profile: _patient, reminders: _reminders);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Personal details'), findsOneWidget);
         await scrollToEnd(tester);
         expect(find.text('Sign out'), findsOneWidget);
@@ -232,6 +235,7 @@ void main() {
       testWidgets('profile tab without a profile asks to complete it ($mode)', (tester) async {
         await pumpSmall(tester, const ProfileScreen(isTab: true), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
         await tester.pump(const Duration(milliseconds: 300));
         expect(find.text('Complete your profile'), findsOneWidget);
@@ -241,6 +245,7 @@ void main() {
       testWidgets('edit profile form fits ($mode)', (tester) async {
         await pumpSmall(tester, const EditProfilePage(), textScale: scale, dark: dark, profile: _patient);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Alexandra'), findsOneWidget);
         await scrollToEnd(tester);
         expect(find.text('Save'), findsOneWidget);
@@ -249,12 +254,14 @@ void main() {
       testWidgets('body measurements fits, metric and imperial ($mode)', (tester) async {
         await pumpSmall(tester, const GeneralSettingsScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('172'), findsOneWidget);
         await scrollToEnd(tester);
 
         await pumpSmall(tester, const GeneralSettingsScreen(),
             textScale: scale, dark: dark, weightUnit: 'lbs', heightUnit: 'in.');
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('5'), findsOneWidget);
         expect(find.text('8'), findsOneWidget);
         expect(find.text('151.0'), findsOneWidget);
@@ -264,6 +271,7 @@ void main() {
       testWidgets('units fits ($mode)', (tester) async {
         await pumpSmall(tester, const ClinicalUnitsScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Weight'), findsOneWidget);
         expect(find.textContaining('Temperature'), findsNothing);
         await scrollToEnd(tester);
@@ -272,10 +280,12 @@ void main() {
       testWidgets('reminders list and empty state fit ($mode)', (tester) async {
         await pumpSmall(tester, const RemindersScreen(), textScale: scale, dark: dark, reminders: _reminders);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Every day'), findsOneWidget);
 
         await pumpSmall(tester, const RemindersScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('No reminders yet'), findsOneWidget);
       });
 
@@ -284,6 +294,7 @@ void main() {
         await tester.tap(find.text('Blood pressure'));
         await tester.pump(const Duration(milliseconds: 800));
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Edit reminder'), findsOneWidget);
         expect(find.text('Wed'), findsOneWidget); // "pick days" restored from Mon,Wed,Fri
         await scrollToEnd(tester);
@@ -292,6 +303,7 @@ void main() {
       testWidgets('alert limits fits ($mode)', (tester) async {
         await pumpSmall(tester, const AlertLimitsScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Heart rate', skipOffstage: false), findsOneWidget);
         await scrollToEnd(tester);
         expect(find.text('Save limits'), findsOneWidget);

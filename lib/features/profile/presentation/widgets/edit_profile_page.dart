@@ -4,6 +4,7 @@ import 'package:phia_flutter/core/theme/app_tokens.dart';
 import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/form_feedback.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
@@ -118,7 +119,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
+    if (_saving || !validateForm(context, _formKey)) return;
     FocusScope.of(context).unfocus();
     final profileVM = context.read<ProfileViewModel>();
     final activityVM = context.read<ActivityViewModel>();

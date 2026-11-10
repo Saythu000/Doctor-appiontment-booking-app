@@ -13,6 +13,7 @@ import 'package:phia_flutter/features/booking/presentation/select_date_time_scre
 import 'package:phia_flutter/features/booking/presentation/select_specialist_screen.dart';
 import 'package:provider/provider.dart';
 
+import '../../helpers/accessibility.dart';
 import '../booking/booking_viewmodel_failures_test.dart' show FakeHealthRepository, FakeProfileRepository;
 
 final _doctor = PractitionerRoleBooking(
@@ -146,6 +147,7 @@ void main() {
       testWidgets('doctors list fits ($mode)', (tester) async {
         await pumpBooking(tester, const SelectSpecialistScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Book a visit'), findsOneWidget);
         expect(find.text('Dr. Asha Venkataraman-Krishnamurthy'), findsOneWidget);
         expect(find.text('Cardiology'), findsWidgets);
@@ -154,12 +156,14 @@ void main() {
       testWidgets('doctors list error state ($mode)', (tester) async {
         await pumpBooking(tester, const SelectSpecialistScreen(), textScale: scale, dark: dark, doctorsFail: true);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text("Couldn't load doctors"), findsOneWidget);
       });
 
       testWidgets('choose a time fits ($mode)', (tester) async {
         await pumpBooking(tester, const SelectDateTimeScreen(), extra: _timeArgs, textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Choose a time'), findsOneWidget);
         expect(find.text('Pick a time to continue'), findsOneWidget);
 
@@ -169,6 +173,7 @@ void main() {
         await tester.tap(slot);
         await tester.pump(const Duration(milliseconds: 300));
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.textContaining('at 09:00 AM'), findsOneWidget);
       });
 
@@ -181,6 +186,7 @@ void main() {
           dark: dark,
         );
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Move your visit'), findsOneWidget);
       });
 
@@ -202,6 +208,7 @@ void main() {
           dark: dark,
         );
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Confirm appointment'), findsOneWidget);
         expect(find.text('Will be shared with your doctor'), findsOneWidget);
       });
@@ -221,6 +228,7 @@ void main() {
           dark: dark,
         );
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('Your visit is booked'), findsOneWidget);
         expect(find.text('Go to Home'), findsOneWidget);
       });
@@ -228,6 +236,7 @@ void main() {
       testWidgets('my appointments fits ($mode)', (tester) async {
         await pumpBooking(tester, const AppointmentHistoryScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('My appointments'), findsOneWidget);
         expect(find.text("Couldn't refresh your appointments. Showing the last saved list."), findsWidgets);
         await tester.scrollUntilVisible(find.text('Cancel'), 150, scrollable: find.byType(Scrollable).at(1));
@@ -238,6 +247,7 @@ void main() {
           await tester.pump(const Duration(milliseconds: 200));
         }
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         await tester.scrollUntilVisible(find.text('Dr. Ravi Kumar'), 150, scrollable: find.byType(Scrollable).at(1));
         expect(find.text('Dr. Ravi Kumar'), findsOneWidget);
         expect(find.text('Specialist Care', skipOffstage: false), findsNothing);

@@ -19,6 +19,7 @@ import 'package:phia_flutter/features/profile/domain/patient_profile.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:provider/provider.dart';
 
+import '../../helpers/accessibility.dart';
 import '../intake/intake_viewmodel_save_test.dart' show FakeChatIntakeService;
 import '../intake/voice_intake_viewmodel_test.dart' show FakeVoiceService, FakeIntakeService;
 
@@ -117,6 +118,7 @@ void main() {
       testWidgets('chat intro and conversation fit ($label)', (tester) async {
         await pumpSmall(tester, const IntakeChatScreen(), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('How are you feeling?'), findsOneWidget);
         expect(find.byTooltip('Send'), findsOneWidget);
 
@@ -126,6 +128,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('How long have you had it?'), findsOneWidget);
         expect(find.text('Finish'), findsOneWidget);
       });
@@ -135,10 +138,12 @@ void main() {
         final voice = VoiceIntakeViewModel(voiceService: service, intakeService: FakeIntakeService());
         await pumpSmall(tester, const VoiceIntakeScreen(), textScale: scale, dark: dark, voice: voice);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
 
         service.emit(VoiceAgentEvent(type: 'assistant_text', text: 'Hello, how can I help you today?'));
         await tester.pump(const Duration(milliseconds: 500));
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         // At 200% the orb scrolls with the transcript; scroll to the greeting.
         await tester.scrollUntilVisible(
           find.text('Hello, how can I help you today?'),
@@ -146,6 +151,7 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         if (voice.isCallActive) {
           expect(find.byTooltip('End call and save'), findsOneWidget);
           expect(find.byTooltip('Turn microphone off'), findsOneWidget);
@@ -173,6 +179,7 @@ void main() {
         );
         await pumpSmall(tester, IntakeCompletionScreen(args: args), textScale: scale, dark: dark);
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.text('High priority'), findsOneWidget);
         expect(find.textContaining('Reference number: 128'), findsOneWidget);
         expect(find.textContaining('Intake #'), findsNothing);
@@ -188,6 +195,7 @@ void main() {
           dark: dark,
         );
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         expect(find.textContaining('Reference number'), findsNothing);
         expect(find.text('Book a doctor'), findsOneWidget);
       });

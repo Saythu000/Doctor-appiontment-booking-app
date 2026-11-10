@@ -5,6 +5,7 @@ import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_card.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/form_feedback.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
@@ -65,7 +66,7 @@ class _AlertLimitsScreenState extends State<AlertLimitsScreen> {
       };
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
+    if (_saving || !validateForm(context, _formKey)) return;
 
     final steps = double.parse(_stepsController.text.trim());
     final sysMax = double.parse(_sysMaxController.text.trim());
@@ -172,6 +173,7 @@ class _LimitField extends StatelessWidget {
       controller: controller,
       validator: validator,
       keyboardType: TextInputType.number,
+      textInputAction: TextInputAction.next,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       decoration: InputDecoration(labelText: label, suffixText: suffix),
     );

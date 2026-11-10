@@ -4,6 +4,7 @@ import 'package:phia_flutter/core/theme/app_tokens.dart';
 import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/form_feedback.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/domain/body_units.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
@@ -76,7 +77,7 @@ class _BodyMetricsSheetState extends State<BodyMetricsSheet> {
   }
 
   Future<void> _save() async {
-    if (_saving || !(_form.currentState?.validate() ?? false)) return;
+    if (_saving || !validateForm(context, _form)) return;
     setState(() => _saving = true);
     final vm = context.read<ActivityViewModel>();
     final serverOk = await vm.saveBioData(

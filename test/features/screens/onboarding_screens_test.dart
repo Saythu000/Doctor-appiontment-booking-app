@@ -12,6 +12,7 @@ import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dar
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
 import 'package:provider/provider.dart';
+import '../../helpers/accessibility.dart';
 
 // In-memory stand-ins: no database, network or timers.
 class FakeProfileVM extends ChangeNotifier implements ProfileViewModel {
@@ -113,6 +114,7 @@ void main() {
         testWidgets('${entry.key} fits 320dp at ${scale}x text (${dark ? 'dark' : 'light'})', (tester) async {
           await pumpSmall(tester, entry.value, textScale: scale, dark: dark);
           expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
         });
       }
     }

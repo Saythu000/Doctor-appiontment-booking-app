@@ -8,6 +8,7 @@ import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/auth/presentation/login_screen.dart';
 import 'package:phia_flutter/features/onboarding/welcome_screen.dart';
 import 'package:provider/provider.dart';
+import '../../helpers/accessibility.dart';
 
 /// Renders a screen on a small phone with large text: any overflow or layout
 /// error fails the test.
@@ -40,6 +41,7 @@ void main() {
     testWidgets('welcome fits a small phone with large text ($mode)', (tester) async {
       await pumpSmall(tester, const WelcomeScreen(), dark: dark);
       expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
       expect(find.text('See a doctor, without the wait'), findsOneWidget);
 
       // Swipe through all slides.
@@ -47,6 +49,7 @@ void main() {
         await tester.drag(find.byType(PageView), const Offset(-300, 0));
         await tester.pump(const Duration(milliseconds: 600));
         expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
       }
       expect(find.text('Get started'), findsOneWidget);
     });
@@ -54,6 +57,7 @@ void main() {
     testWidgets('login fits a small phone with large text ($mode)', (tester) async {
       await pumpSmall(tester, const LoginScreen(), dark: dark);
       expect(tester.takeException(), isNull);
+        await expectAccessible(tester);
       expect(find.text('Continue with DrGodly account'), findsOneWidget);
     });
   }

@@ -9,6 +9,7 @@ import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_card.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/form_feedback.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
 import 'package:phia_flutter/features/onboarding/widgets/choice_chip_group.dart';
 import 'package:phia_flutter/features/onboarding/widgets/onboarding_scaffold.dart';
@@ -141,7 +142,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
-    final formOk = _formKey.currentState!.validate();
+    final formOk = validateForm(context, _formKey);
     setState(() => _showGenderError = _gender == null);
     if (!formOk || _gender == null) {
       showAppMessage(context, 'Please check the highlighted fields.', type: FeedbackType.error);
@@ -258,6 +259,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 TextFormField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.telephoneNumber],
                   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d+\s\-()]'))],
                   decoration: const InputDecoration(labelText: 'Phone number (optional)'),
@@ -275,6 +277,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _height,
+                        textInputAction: TextInputAction.next,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
                         decoration: const InputDecoration(labelText: 'Height', suffixText: 'cm'),
@@ -285,6 +288,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _weight,
+                        textInputAction: TextInputAction.done,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
                         decoration: const InputDecoration(labelText: 'Weight', suffixText: 'kg'),

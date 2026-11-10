@@ -104,28 +104,44 @@ class SyncStatusStrip extends StatelessWidget {
       container: true,
       liveRegion: true,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.xs, AppSpacing.xs),
+        padding: const EdgeInsets.only(right: AppSpacing.xs),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: tone.background,
           borderRadius: AppRadius.mdAll,
         ),
         child: Row(
           children: [
-            if (vm.isSyncing)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: tone.foreground),
-              )
-            else
-              Icon(status.icon, size: 18, color: tone.foreground),
-            const SizedBox(width: AppSpacing.sm),
+            // Status and icon together form one 48dp-high target that opens
+            // the device sheet.
             Expanded(
-              child: GestureDetector(
+              child: InkWell(
                 onTap: onManage,
-                child: Text(
-                  status.title,
-                  style: context.text.labelMedium!.copyWith(color: tone.foreground),
+                borderRadius: AppRadius.mdAll,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        if (vm.isSyncing)
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: tone.foreground),
+                          )
+                        else
+                          Icon(status.icon, size: 18, color: tone.foreground),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            status.title,
+                            style: context.text.labelMedium!.copyWith(color: tone.foreground),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

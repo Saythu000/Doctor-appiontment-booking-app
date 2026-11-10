@@ -3,6 +3,7 @@ import 'package:phia_flutter/core/theme/app_tokens.dart';
 import 'package:phia_flutter/core/theme/theme_extensions.dart';
 import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
+import 'package:phia_flutter/core/widgets/form_feedback.dart';
 import 'package:phia_flutter/features/settings/presentation/settings_viewmodel.dart';
 import 'package:provider/provider.dart';
 
@@ -99,7 +100,7 @@ class _ReminderEditorSheetState extends State<ReminderEditorSheet> {
   }
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
+    if (_saving || !validateForm(context, _formKey)) return;
     final timeStr = '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}';
     final daysStr = _daily ? '' : reminderDayOrder.where(_days.contains).join(',');
     final updated = <String, dynamic>{
