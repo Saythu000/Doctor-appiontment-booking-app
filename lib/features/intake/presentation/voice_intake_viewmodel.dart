@@ -167,11 +167,13 @@ class VoiceIntakeViewModel extends ChangeNotifier {
         : null;
 
     try {
-      await _voiceService.connect(
-        authToken: authToken,
-        patientContext: patientContextString,
-        wsUrlOverride: wsUrlOverride,
-      );
+      await _voiceService
+          .connect(
+            authToken: authToken,
+            patientContext: patientContextString,
+            wsUrlOverride: wsUrlOverride,
+          )
+          .timeout(const Duration(seconds: 10));
 
       _callState = VoiceCallState.connected;
       _statusLabel = 'Online';

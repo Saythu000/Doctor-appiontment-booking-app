@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:phia_flutter/core/config/api_constants.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/core/network/fhir_api_client.dart';
 import 'package:phia_flutter/core/utils/app_logging.dart';
+import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/features/vitals/data/open_wearables_service.dart';
 import 'package:phia_flutter/features/vitals/data/vitals_repository.dart';
 import 'package:workmanager/workmanager.dart';
@@ -25,6 +28,22 @@ void backgroundSyncCallbackDispatcher() {
         final orgId = await healthRepo.getSetting('iam_org_id') ?? '';
         // Signed out: nothing to upload (never fall back to a demo account).
         if (userId.isEmpty || orgId.isEmpty) return true;
+
+        // This isolate has no AuthViewModel. The stored JWT lives only
+        // minutes, so on a 401 mint a fresh one with the stored IAM session
+        // cookie, as AuthViewModel.refreshToken does in the app.
+        FhirApiClient().setTokenRefresher(() async {
+          final cookie = await healthRepo.getSetting('iam_session_token');
+          if (cookie == null || cookie.isEmpty) return null;
+          try {
+            final jwt = await AuthRepository().mintBetterAuthJwt(sessionCookie: cookie);
+            await healthRepo.saveSetting('iam_jwt_token', jwt);
+            FhirApiClient().configure(baseUrl: ApiConstants.fhirGqlUrl, token: jwt);
+            return jwt;
+          } catch (_) {
+            return null;
+          }
+        });
 
         final openWearablesService = OpenWearablesService();
         final vitals = await openWearablesService.fetchLatestVitals(

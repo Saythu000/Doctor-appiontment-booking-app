@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:phia_flutter/core/data/local/health_repository.dart';
+import 'package:phia_flutter/core/network/native_http_adapter.dart';
 
 class FhirApiClient {
   // Singleton pattern
@@ -16,6 +18,9 @@ class FhirApiClient {
         'Accept': 'application/json',
       },
     ));
+    if (!kIsWeb && Platform.isAndroid) {
+      _dio.httpClientAdapter = NativeHttpAdapter();
+    }
 
     // Offline / Mock mode interceptor to bypass external FHIR server requests.
     // Debug builds only: in release a fake backend would report fake successes
@@ -178,7 +183,12 @@ class FhirApiClient {
           if (_token != null && _token!.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
-          debugPrint('[FHIR API] REQUEST: ${options.method} ${options.baseUrl}${options.path}');
+          final authH = options.headers['Authorization']?.toString();
+          debugPrint('[FHIR API] REQUEST: ${options.method} ${options.baseUrl}${options.path} (tokenLen: ${_token?.length}, authHeaderLen: ${authH?.length})');
+          options.headers.forEach((k, v) {
+            final valStr = v.toString();
+            debugPrint('[FHIR API]   Header $k: len=${valStr.length}');
+          });
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -186,7 +196,7 @@ class FhirApiClient {
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
-          debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.type.name}');
+          debugPrint('[FHIR API] ERROR [${e.response?.statusCode}] ${e.requestOptions.path}: ${e.type.name} - ${e.message} - data: ${e.response?.data}');
 
           // On 401: refresh the token (shared across concurrent requests) and
           // retry the request exactly once. A retried request that fails again

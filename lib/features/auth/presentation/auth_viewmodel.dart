@@ -11,6 +11,7 @@ import 'package:phia_flutter/features/auth/data/auth_repository.dart';
 import 'package:phia_flutter/features/auth/domain/auth_models.dart';
 import 'package:phia_flutter/features/notifications/data/notification_service.dart';
 import 'package:phia_flutter/features/vitals/data/background_sync_service.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository authRepository;
@@ -20,6 +21,9 @@ class AuthViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? _refreshToken;
   String? _jwtToken;
+
+  /// IAM session cookie (`name=value`), used only to mint [_jwtToken].
+  String? _sessionCookie;
   String? _idToken;
   String? _userId;
   String? _orgId;
@@ -108,45 +112,37 @@ class AuthViewModel extends ChangeNotifier {
     return null;
   }
 
-  /// Refresh an expired JWT transparently using the OAuth 2.0 refresh_token.
+  /// Mints a fresh Better Auth JWT with the stored IAM session cookie
+  /// (patient guide §1 step 2). The JWT lives only minutes; FhirApiClient
+  /// calls this on a 401, and [validJwt] calls it once the JWT has expired.
+  ///
+  /// Returns null when the IAM session has ended or IAM can't be reached.
   Future<String?> refreshToken() async {
     final generation = _sessionGeneration;
-    bool signedOutMeanwhile() => generation != _sessionGeneration;
-
-    // Login is OAuth 2.0 PKCE only, so the refresh token is the one way to
-    // renew the session.
-    final storedRefreshToken = _refreshToken ?? await healthRepository.getSetting('iam_refresh_token');
-    if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
-      try {
-        final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
-        if (signedOutMeanwhile()) return null;
-        // Re-mint the short-lived Better Auth JWT (patient guide §1 step 2).
-        final minted = await authRepository.mintBetterAuthJwt(accessToken: tokenResponse.accessToken);
-        if (signedOutMeanwhile()) return null;
-        _jwtToken = _pickApiToken(minted: minted, tokens: tokenResponse);
-        if (tokenResponse.idToken != null) {
-          _idToken = tokenResponse.idToken;
-          await healthRepository.saveSetting('iam_id_token', _idToken!);
-        }
-        if (tokenResponse.refreshToken != null && tokenResponse.refreshToken!.isNotEmpty) {
-          _refreshToken = tokenResponse.refreshToken;
-          await healthRepository.saveSetting('iam_refresh_token', _refreshToken!);
-        }
-        await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
-        FhirApiClient().configure(
-          baseUrl: ApiConstants.fhirGqlUrl,
-          token: _jwtToken,
-        );
-        return _jwtToken;
-      } catch (e) {
-        if (kDebugMode) {
-          print('[AuthViewModel] OAuth 2.0 refresh token failed: $e');
-        }
-      }
+    final cookie = _sessionCookie ?? await healthRepository.getSetting('iam_session_token');
+    if (cookie == null || cookie.isEmpty) return null;
+    try {
+      final jwt = await authRepository.mintBetterAuthJwt(sessionCookie: cookie);
+      // A sign-out while this was running wins: never bring the session back.
+      if (generation != _sessionGeneration) return null;
+      _sessionCookie = cookie;
+      _jwtToken = jwt;
+      await healthRepository.saveSetting('iam_jwt_token', jwt);
+      FhirApiClient().configure(
+        baseUrl: ApiConstants.fhirGqlUrl,
+        token: jwt,
+      );
+      return jwt;
+    } catch (e, st) {
+      debugPrint('[AuthViewModel] Could not mint a fresh JWT: $e\n$st');
+      return null;
     }
-
-    return null;
   }
+
+  /// The current JWT while it is unexpired, otherwise a freshly minted one.
+  /// Use this (not [jwtToken]) for calls made outside FhirApiClient, such as
+  /// the AI agents and /api/intake/*.
+  Future<String?> validJwt() async => isJwtValid(_jwtToken) ? _jwtToken : await refreshToken();
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -157,23 +153,26 @@ class AuthViewModel extends ChangeNotifier {
   User? get user => _user;
   bool get isAuthenticated => _jwtToken != null && _jwtToken!.isNotEmpty;
 
-  /// Sign in with OAuth 2.0 + PKCE in a Chrome Custom Tab (system browser),
-  /// then fetch user info and configure FhirApiClient.
+  /// Sign in with OAuth 2.0 + PKCE on the IAM page shown by [openLoginPage]
+  /// (the in-app WebView), then fetch user info and configure FhirApiClient.
   ///
-  /// The password is typed into the browser, never into this app, and the
-  /// app never sees the IAM session cookie (RFC 8252).
-  Future<bool> loginWithPKCE() async {
+  /// The WebView is a stopgap: it is the only way to get the IAM session
+  /// cookie that the Better Auth JWT is minted with. See
+  /// docs/backend_request_option_b.md for the planned return to Custom Tabs.
+  Future<bool> loginWithPKCE({
+    required Future<WebLoginResult?> Function(Uri authorizeUrl) openLoginPage,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       // Step 1: Perform OAuth 2.0 PKCE Authorization Code flow
-      final OAuth2AuthResult authResult = await authRepository.signInWithPKCE();
+      final OAuth2AuthResult authResult = await authRepository.signInWithPKCE(openLoginPage: openLoginPage);
 
-      // Step 2: The API token is the Better Auth JWT (patient guide §1 step 2),
-      // falling back to the OpenID id_token if IAM did not issue one.
-      _jwtToken = _pickApiToken(minted: authResult.sessionJwt, tokens: authResult.tokens);
+      // Step 2: The API token is the Better Auth JWT (patient guide §1 step 2).
+      _jwtToken = authResult.sessionJwt;
+      _sessionCookie = authResult.sessionCookie;
       _refreshToken = authResult.tokens.refreshToken;
       _idToken = authResult.tokens.idToken;
       _user = authResult.user;
@@ -213,6 +212,7 @@ class AuthViewModel extends ChangeNotifier {
         baseUrl: ApiConstants.fhirGqlUrl,
         token: _jwtToken,
       );
+      debugPrint('[AuthViewModel] Logged in successfully: user=$_userId, org=$_orgId, jwtLen=${_jwtToken?.length}');
 
       // Step 7: Start the hourly background vitals upload for this user
       unawaited(BackgroundSyncService.schedulePeriodicSync());
@@ -226,14 +226,6 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-  }
-
-  /// Token sent as `Authorization: Bearer` to every backend: the Better Auth
-  /// JWT when IAM issued one, else the id_token, else the access token.
-  static String _pickApiToken({String? minted, required OAuth2TokenResponse tokens}) {
-    if (isJwtValid(minted)) return minted!;
-    if (isJwtValid(tokens.idToken)) return tokens.idToken!;
-    return tokens.accessToken;
   }
 
   /// A user-facing message that never echoes raw exception text (which can
@@ -265,134 +257,63 @@ class AuthViewModel extends ChangeNotifier {
   Future<bool> checkAutoLogin() async {
     _autoLoginFailedOffline = false;
     try {
-      final storedRefreshToken = await healthRepository.getSetting('iam_refresh_token');
+      final storedCookie = await healthRepository.getSetting('iam_session_token');
       final storedJwtToken = await healthRepository.getSetting('iam_jwt_token');
+      final storedRefreshToken = await healthRepository.getSetting('iam_refresh_token');
       final storedIdToken = await healthRepository.getSetting('iam_id_token');
-      if (storedIdToken != null && storedIdToken.isNotEmpty) {
-        _idToken = storedIdToken;
-      }
+      final savedUserId = await healthRepository.getSetting('iam_user_id');
 
-      // Case 1: Renew the session with the OAuth 2.0 refresh token
-      if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
-        try {
-          final tokenResponse = await authRepository.refreshOAuth2Token(refreshToken: storedRefreshToken);
-          _refreshToken = tokenResponse.refreshToken ?? storedRefreshToken;
-          if (tokenResponse.idToken != null && tokenResponse.idToken!.isNotEmpty) {
-            _idToken = tokenResponse.idToken;
-          }
-          if (tokenResponse.refreshToken != null) {
-            await healthRepository.saveSetting('iam_refresh_token', _refreshToken!);
-          }
-          if (_idToken != null) {
-            await healthRepository.saveSetting('iam_id_token', _idToken!);
-          }
+      // Sessions from the Custom Tabs build have no IAM session cookie, so
+      // they can never get a JWT the backend accepts: sign in again.
+      if (storedCookie == null || storedCookie.isEmpty) return false;
+      if (savedUserId == null || savedUserId.isEmpty) return false;
 
-          // FHIR, the AI agents and /api/intake/* expect the Better Auth JWT.
-          // It is short-lived, so re-mint it (patient guide §1 step 2).
-          final minted = await authRepository.mintBetterAuthJwt(accessToken: tokenResponse.accessToken);
-          _jwtToken = _pickApiToken(minted: minted, tokens: tokenResponse);
-          await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
-
-          try {
-            final user = await authRepository.getUserInfo(accessToken: tokenResponse.accessToken);
-            _user = user;
-            _userId = user.id;
-          } catch (userErr) {
-            final savedUserId = await healthRepository.getSetting('iam_user_id');
-            final savedUserName = await healthRepository.getSetting('user_name');
-            final savedUserEmail = await healthRepository.getSetting('user_email');
-            if (savedUserId != null && savedUserId.isNotEmpty) {
-              _userId = savedUserId;
-              _user = User(
-                id: savedUserId,
-                email: savedUserEmail ?? '',
-                name: savedUserName ?? 'User',
-              );
-            }
-          }
-
-          _orgId = _extractOrgIdFromJwt(_jwtToken ?? tokenResponse.idToken ?? tokenResponse.accessToken);
-          if (_orgId == null || _orgId!.isEmpty) {
-            final savedOrg = await healthRepository.getSetting('iam_org_id');
-            if (savedOrg != null && savedOrg.isNotEmpty) {
-              _orgId = savedOrg;
-            }
-          }
-          if (_orgId == null || _orgId!.isEmpty) {
-            _orgId = ApiConstants.defaultOrganizationId;
-          }
-
-          await _saveCredentials();
-
-          FhirApiClient().configure(
-            baseUrl: ApiConstants.fhirGqlUrl,
-            token: _jwtToken,
-          );
-
-          notifyListeners();
-          return true;
-        } catch (pkceErr) {
-          if (kDebugMode) {
-            print('[AuthViewModel] PKCE token refresh during auto-login failed: $pkceErr');
-          }
-          // Only when the server could not be reached (offline) may we keep
-          // using a stored JWT, and only while it is unexpired. A server
-          // rejection (revoked/expired refresh token) must end the session.
-          if (_isNetworkError(pkceErr) && isJwtValid(storedJwtToken)) {
-            final savedUserId = await healthRepository.getSetting('iam_user_id');
-            final savedUserName = await healthRepository.getSetting('user_name');
-            final savedUserEmail = await healthRepository.getSetting('user_email');
-            final savedOrg = await healthRepository.getSetting('iam_org_id');
-            if (savedUserId != null && savedUserId.isNotEmpty) {
-              _jwtToken = storedJwtToken;
-              _refreshToken = storedRefreshToken;
-              _userId = savedUserId;
-              _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
-              _user = User(
-                id: savedUserId,
-                email: savedUserEmail ?? '',
-                name: savedUserName ?? 'User',
-              );
-              FhirApiClient().configure(
-                baseUrl: ApiConstants.fhirGqlUrl,
-                token: _jwtToken,
-              );
-              notifyListeners();
-              return true;
-            }
-          }
-          if (_isNetworkError(pkceErr)) {
-            _autoLoginFailedOffline = true;
-            return false;
-          }
+      // Renew the short-lived Better Auth JWT with the session cookie.
+      String jwt;
+      try {
+        jwt = await authRepository.mintBetterAuthJwt(sessionCookie: storedCookie);
+      } on SessionExpiredException {
+        // IAM ended the session (expired, revoked, signed out elsewhere).
+        return false;
+      } catch (e) {
+        if (kDebugMode) {
+          print('[AuthViewModel] Auto-login could not mint a JWT: ${e.runtimeType}');
         }
-      }
-
-      // Case 2: Fall back to a stored JWT, only while it is still unexpired.
-      if (isJwtValid(storedJwtToken)) {
-        final savedUserId = await healthRepository.getSetting('iam_user_id');
-        final savedUserName = await healthRepository.getSetting('user_name');
-        final savedUserEmail = await healthRepository.getSetting('user_email');
-        final savedOrg = await healthRepository.getSetting('iam_org_id');
-        if (savedUserId != null && savedUserId.isNotEmpty) {
-          _jwtToken = storedJwtToken;
-          _userId = savedUserId;
-          _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
-          _user = User(
-            id: savedUserId,
-            email: savedUserEmail ?? '',
-            name: savedUserName ?? 'User',
-          );
-          FhirApiClient().configure(
-            baseUrl: ApiConstants.fhirGqlUrl,
-            token: _jwtToken,
-          );
-          notifyListeners();
-          return true;
+        if (!_isNetworkError(e)) return false;
+        // Offline: keep using the stored JWT, but only while it is unexpired.
+        if (!isJwtValid(storedJwtToken)) {
+          _autoLoginFailedOffline = true;
+          return false;
         }
+        jwt = storedJwtToken!;
       }
 
-      return false;
+      final savedUserName = await healthRepository.getSetting('user_name');
+      final savedUserEmail = await healthRepository.getSetting('user_email');
+      final savedOrg = await healthRepository.getSetting('iam_org_id');
+
+      _sessionCookie = storedCookie;
+      _jwtToken = jwt;
+      if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) _refreshToken = storedRefreshToken;
+      if (storedIdToken != null && storedIdToken.isNotEmpty) _idToken = storedIdToken;
+      _userId = savedUserId;
+      _user = User(
+        id: savedUserId,
+        email: savedUserEmail ?? '',
+        name: (savedUserName != null && savedUserName.isNotEmpty) ? savedUserName : 'User',
+      );
+      _orgId = _extractOrgIdFromJwt(jwt);
+      if (_orgId == null || _orgId!.isEmpty) {
+        _orgId = (savedOrg != null && savedOrg.isNotEmpty) ? savedOrg : ApiConstants.defaultOrganizationId;
+      }
+
+      await _saveCredentials();
+      FhirApiClient().configure(
+        baseUrl: ApiConstants.fhirGqlUrl,
+        token: _jwtToken,
+      );
+      notifyListeners();
+      return true;
     } catch (e) {
       if (kDebugMode) {
         print('[AuthViewModel] Auto-login verification failed: $e');
@@ -415,11 +336,17 @@ class AuthViewModel extends ChangeNotifier {
 
     // Keep what the server needs to revoke before clearing memory.
     final refreshTokenToRevoke = _refreshToken;
+    String? sessionCookieToEnd = _sessionCookie;
+
+    try {
+      sessionCookieToEnd ??= await healthRepository.getSetting('iam_session_token');
+    } catch (_) {}
 
     try {
       // 1. Clear in-memory session state
       _refreshToken = null;
       _jwtToken = null;
+      _sessionCookie = null;
       _idToken = null;
       _userId = null;
       _orgId = null;
@@ -437,18 +364,26 @@ class AuthViewModel extends ChangeNotifier {
 
       // 4. Wipe stored credentials and per-user data
       await _wipeLocalUserData();
+
+      // 5. Empty the sign-in WebView's cookie store, so the IAM session
+      //    cookie is gone from the device too.
+      try {
+        await WebViewCookieManager().clearCookies().timeout(const Duration(seconds: 3));
+      } catch (_) {}
     } finally {
       _isSigningOut = false;
       notifyListeners();
     }
 
-    // 5. Best-effort server-side sign-out (local state is already clean)
+    // 6. Best-effort server-side sign-out (local state is already clean):
+    //    end the IAM session and revoke the OAuth refresh token.
     try {
-      if (refreshTokenToRevoke != null && refreshTokenToRevoke.isNotEmpty) {
-        await authRepository
-            .revokeToken(token: refreshTokenToRevoke)
-            .timeout(const Duration(seconds: 5));
-      }
+      await Future.wait([
+        if (sessionCookieToEnd != null && sessionCookieToEnd.isNotEmpty)
+          authRepository.signOutSession(sessionCookie: sessionCookieToEnd),
+        if (refreshTokenToRevoke != null && refreshTokenToRevoke.isNotEmpty)
+          authRepository.revokeToken(token: refreshTokenToRevoke),
+      ]).timeout(const Duration(seconds: 5));
     } catch (_) {
       // Ignore: the session is already gone from this device.
     }
@@ -508,6 +443,9 @@ class AuthViewModel extends ChangeNotifier {
     }
     if (_jwtToken != null) {
       await healthRepository.saveSetting('iam_jwt_token', _jwtToken!);
+    }
+    if (_sessionCookie != null) {
+      await healthRepository.saveSetting('iam_session_token', _sessionCookie!);
     }
     if (_idToken != null) {
       await healthRepository.saveSetting('iam_id_token', _idToken!);

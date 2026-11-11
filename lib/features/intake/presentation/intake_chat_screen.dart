@@ -77,15 +77,19 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     });
   }
 
-  void _handleSend() {
+  Future<void> _handleSend() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
+    // Clear first, so a second tap while the token renews can't resend it.
+    _textController.clear();
 
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
     final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? '';
+    // The Better Auth JWT lives only minutes: renew it if it has expired.
+    final token = await authVm.validJwt() ?? '';
+    if (!mounted) return;
 
     // Extract patient details for first-turn context header (text guide §2.0)
     // 1. name: Better Auth display name or fallback to Patient.name / cached name
@@ -106,7 +110,6 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
       phone = null;
     }
 
-    _textController.clear();
     intakeVm.sendMessage(
       text: text,
       authToken: token,
@@ -120,12 +123,13 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
     _scrollToBottom();
   }
 
-  void _handleRetry() {
+  Future<void> _handleRetry() async {
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
     final intakeVm = Provider.of<IntakeViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? '';
+    final token = await authVm.validJwt() ?? '';
+    if (!mounted) return;
     final patientProfile = profileVm.currentProfile;
     final displayName = authVm.user?.name ??
         (patientProfile?.primaryName.isNotEmpty == true ? patientProfile!.primaryName : null);
@@ -163,7 +167,6 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
       return;
     }
 
-    final token = authVm.jwtToken ?? '';
     final confirmed = await confirmAction(
       context,
       title: 'Finish and save?',
@@ -172,6 +175,8 @@ class _IntakeChatScreenState extends State<IntakeChatScreen> {
       cancelLabel: 'Keep chatting',
     );
     if (!confirmed || !mounted) return;
+    final token = await authVm.validJwt() ?? '';
+    if (!mounted) return;
     intakeVm.finishIntake(
       authToken: token,
       patientFhirId: profileVm.patientFhirId,

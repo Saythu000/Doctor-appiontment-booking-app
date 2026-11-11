@@ -146,10 +146,8 @@ class ProfileViewModel extends ChangeNotifier {
         if (addr.postalCode != null) await healthRepository.saveProfileValue('zip', addr.postalCode!);
         if (addr.country != null) await healthRepository.saveProfileValue('country', addr.country!);
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[ProfileViewModel] Failed to fetch/init patient profile: $e');
-      }
+    } catch (e, st) {
+      debugPrint('[ProfileViewModel] Failed to fetch/init patient profile: $e\n$st');
       // Load offline fallback profile from authentic credentials / SQLite cache
       final String? cachedGiven = await healthRepository.getProfileValue('given_name');
       final String? cachedFamily = await healthRepository.getProfileValue('family_name');

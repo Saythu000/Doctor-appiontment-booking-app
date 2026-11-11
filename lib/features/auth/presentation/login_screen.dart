@@ -8,6 +8,7 @@ import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/brand.dart';
 import 'package:phia_flutter/core/widgets/motion.dart';
 import 'package:phia_flutter/features/auth/presentation/auth_viewmodel.dart';
+import 'package:phia_flutter/features/auth/presentation/oauth_webview_screen.dart';
 import 'package:phia_flutter/features/booking/presentation/booking_viewmodel.dart';
 import 'package:phia_flutter/features/profile/presentation/profile_viewmodel.dart';
 import 'package:phia_flutter/features/vitals/presentation/activity_viewmodel.dart';
@@ -21,7 +22,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Sign-in is OAuth 2.0 + PKCE in a Chrome Custom Tab only (see AuthViewModel.loginWithPKCE).
+  // Sign-in is OAuth 2.0 + PKCE on the IAM page in an in-app WebView (see
+  // AuthViewModel.loginWithPKCE and OAuthWebViewScreen).
 
   /// True from the tap until we navigate away (covers loading the user's data
   /// after sign-in too), so the button can't start a second sign-in.
@@ -39,7 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final bookingVM = Provider.of<BookingViewModel>(context, listen: false);
     final router = GoRouter.of(context);
 
-    final success = await authVM.loginWithPKCE();
+    final success = await authVM.loginWithPKCE(
+      openLoginPage: (url) => OAuthWebViewScreen.open(context, url),
+    );
     if (!mounted) return;
     if (!success) setState(() => _busy = false);
 
@@ -151,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _loadingAccount
                                       ? 'Signed in. Setting up your account…'
                                       : busy
-                                          ? 'Finish signing in on the secure page that opened.'
+                                          ? 'Finish signing in on the DrGodly sign-in page.'
                                           : '',
                                   key: ValueKey('$_loadingAccount$busy'),
                                   textAlign: TextAlign.center,
@@ -232,8 +236,8 @@ class _TrustNote extends StatelessWidget {
       ),
       child: Column(
         children: [
-          row(Icons.verified_user_rounded, 'Sign-in happens on a secure DrGodly page in your browser.'),
-          row(Icons.password_rounded, 'This app never sees your password.'),
+          row(Icons.verified_user_rounded, 'Sign-in happens on the secure DrGodly sign-in page.'),
+          row(Icons.password_rounded, 'Your password goes only to DrGodly and is never stored on this phone.'),
           row(Icons.https_rounded, 'Your health data travels over encrypted connections.'),
         ],
       ),

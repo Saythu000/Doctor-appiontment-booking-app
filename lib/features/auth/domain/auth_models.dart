@@ -126,14 +126,35 @@ class OAuth2TokenResponse {
 class OAuth2AuthResult {
   final OAuth2TokenResponse tokens;
   final User user;
-  final String? sessionJwt;
-  final String? cookies;
+
+  /// The Better Auth JWT: the token the FHIR API and the AI agents accept.
+  final String sessionJwt;
+
+  /// The IAM session cookie (`name=value`) that [sessionJwt] was minted
+  /// with. It is kept (in secure storage) to mint fresh JWTs later.
+  final String sessionCookie;
 
   OAuth2AuthResult({
     required this.tokens,
     required this.user,
-    this.sessionJwt,
-    this.cookies,
+    required this.sessionJwt,
+    required this.sessionCookie,
   });
+}
+
+/// What the in-app sign-in page hands back: the OAuth redirect and the IAM
+/// session cookie (null if IAM did not set one).
+class WebLoginResult {
+  final String callbackUrl;
+  final String? sessionCookie;
+
+  const WebLoginResult({required this.callbackUrl, this.sessionCookie});
+}
+
+/// IAM rejected the stored session (expired, revoked or signed out
+/// elsewhere): the user has to sign in again.
+class SessionExpiredException implements Exception {
+  @override
+  String toString() => 'Your session has ended. Please sign in again.';
 }
 

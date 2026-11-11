@@ -159,7 +159,7 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
 
-    final token = authVm.jwtToken ?? '';
+    final token = await authVm.validJwt() ?? '';
 
     await voiceVm.endCall(
       authToken: token,
@@ -202,8 +202,10 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
     final authVm = Provider.of<AuthViewModel>(context, listen: false);
     final profileVm = Provider.of<ProfileViewModel>(context, listen: false);
     final profile = profileVm.currentProfile;
+    final token = await authVm.validJwt();
+    if (!mounted) return;
     voiceVm.restartCall(
-      authToken: authVm.jwtToken ?? '',
+      authToken: token ?? '',
       patientFhirId: profileVm.patientFhirId,
       orgId: authVm.orgId,
       patientName: authVm.user?.name ?? profile?.primaryName,
@@ -363,9 +365,10 @@ class _VoiceIntakeScreenState extends State<VoiceIntakeScreen>
                 onEnd: _handleEndCall,
                 onRestart: _handleRestart,
                 onStart: _handleStartCall,
-                onRetrySave: () => voiceVm.retrySave(
-                  authToken: Provider.of<AuthViewModel>(context, listen: false).jwtToken ?? '',
-                ),
+                onRetrySave: () async {
+                  final token = await Provider.of<AuthViewModel>(context, listen: false).validJwt();
+                  await voiceVm.retrySave(authToken: token ?? '');
+                },
                 onDiscard: () async {
                   if (await _confirmDiscardConversation()) _handleStartCall();
                 },

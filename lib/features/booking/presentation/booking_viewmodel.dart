@@ -128,10 +128,8 @@ class BookingViewModel extends ChangeNotifier {
       } else if (specialists.isEmpty) {
         await _loadCachedSpecialists();
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[BookingViewModel] Failed to load specialists: $e');
-      }
+    } catch (e, st) {
+      debugPrint('[BookingViewModel] Failed to load specialists: $e\n$st');
       specialistsError = "Couldn't load doctors. Check your connection and try again.";
       if (specialists.isEmpty) {
         await _loadCachedSpecialists();

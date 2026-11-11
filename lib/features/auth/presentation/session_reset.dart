@@ -24,7 +24,9 @@ Future<void> signOutAndResetSession(BuildContext context) async {
   final authVm = context.read<AuthViewModel>();
 
   activityVm.pauseAutoSync();
-  await voiceVm.abortCall();
+  try {
+    await voiceVm.abortCall().timeout(const Duration(seconds: 2));
+  } catch (_) {}
   voiceVm.reset();
   intakeVm.reset();
   bookingVm.reset();
@@ -33,7 +35,11 @@ Future<void> signOutAndResetSession(BuildContext context) async {
   settingsVm.resetState();
 
   // The profile photo file belongs to this user too.
-  await ProfilePhotoStore.deleteAll();
+  try {
+    await ProfilePhotoStore.deleteAll().timeout(const Duration(seconds: 2));
+  } catch (_) {}
 
-  await authVm.signOut();
+  try {
+    await authVm.signOut().timeout(const Duration(seconds: 4));
+  } catch (_) {}
 }

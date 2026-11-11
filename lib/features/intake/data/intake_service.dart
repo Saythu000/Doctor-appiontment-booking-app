@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
+import 'package:phia_flutter/core/network/native_http_adapter.dart';
 import 'package:phia_flutter/features/intake/domain/intake_models.dart';
 
 /// Result packet emitted during live streaming conversation turn
@@ -30,7 +32,11 @@ class IntakeService {
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 30),
-            ));
+            )) {
+    if (!kIsWeb && Platform.isAndroid) {
+      _dio.httpClientAdapter = NativeHttpAdapter();
+    }
+  }
 
   /// Configure service URLs dynamically if environment requires
   void configure({
@@ -71,6 +77,7 @@ class IntakeService {
 
     Response<ResponseBody> response;
     try {
+      debugPrint('[IntakeService] POST $_intakeAgentUrl (tokenLen: ${authToken.length})');
       response = await _dio.post<ResponseBody>(
         _intakeAgentUrl,
         data: payload,
@@ -84,9 +91,7 @@ class IntakeService {
         ),
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('[IntakeService] Network error initiating stream: $e');
-      }
+      debugPrint('[IntakeService] Network error initiating stream: $e, data: ${(e is DioException) ? e.response?.data : null}');
       rethrow;
     }
 

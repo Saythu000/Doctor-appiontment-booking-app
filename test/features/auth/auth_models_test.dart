@@ -94,13 +94,13 @@ void main() {
         tokens: tokens,
         user: user,
         sessionJwt: 'jwt_signed_eddsa_token',
-        cookies: '__Secure-better-auth.session_token=xyz',
+        sessionCookie: '__Secure-better-auth.session_token=xyz',
       );
 
       expect(result.tokens.accessToken, equals('atk_123'));
       expect(result.user.name, equals('alex rivera'));
       expect(result.sessionJwt, equals('jwt_signed_eddsa_token'));
-      expect(result.cookies, contains('__Secure-better-auth.session_token'));
+      expect(result.sessionCookie, contains('__Secure-better-auth.session_token'));
     });
   });
 }

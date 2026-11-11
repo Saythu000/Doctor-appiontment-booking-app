@@ -100,7 +100,7 @@ class _ReviewBookingScreenState extends State<ReviewBookingScreen> {
           intakeShared = await intakeVM.linkToAppointment(
             intakeRecordId: args['intakeId'] as int?,
             fhirAppointmentId: aptId,
-            authToken: authVM.jwtToken ?? '',
+            authToken: await authVM.validJwt() ?? '',
             orgId:
                 (authVM.orgId != null && authVM.orgId!.isNotEmpty) ? authVM.orgId : ApiConstants.defaultOrganizationId,
           );

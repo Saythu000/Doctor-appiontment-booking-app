@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:phia_flutter/core/network/native_http_adapter.dart';
 import 'package:phia_flutter/features/auth/data/pkce_helper.dart';
 import 'package:phia_flutter/features/auth/domain/auth_models.dart';
 
@@ -11,29 +13,43 @@ class AuthRepository {
   static const String oauthScope = 'openid profile email offline_access';
   static const String oauthAuthorizeUrl = 'https://iam.drgodly.com/api/auth/oauth2/authorize';
 
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://iam.drgodly.com/api/auth',
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 30),
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Origin': 'https://iam.drgodly.com',
-      'Referer': 'https://iam.drgodly.com/',
-    },
-  ));
+  final Dio _dio;
+
+  AuthRepository({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: 'https://iam.drgodly.com/api/auth',
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 30),
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Origin': 'https://iam.drgodly.com',
+                'Referer': 'https://iam.drgodly.com/',
+              },
+            )) {
+    if (!kIsWeb && Platform.isAndroid) {
+      _dio.httpClientAdapter = NativeHttpAdapter();
+    }
+  }
 
   /// Performs OAuth 2.0 Authorization Code Flow with PKCE (RFC 7636).
-  /// Opens a secure Chrome Custom Tab / system browser to authenticate,
-  /// intercepts the redirect callback com.drgodly.app://callback?code=...,
-  /// validates state, exchanges authorization code for tokens, and fetches user profile.
-  Future<OAuth2AuthResult> signInWithPKCE() async {
+  ///
+  /// [openLoginPage] shows the IAM sign-in page (the in-app WebView, see
+  /// OAuthWebViewScreen) and returns the redirect plus the IAM session
+  /// cookie, or null if the user closed it. Then: validate state, exchange
+  /// the code for OAuth tokens, fetch the user, and mint the Better Auth JWT
+  /// with the session cookie (mobile-patient-api-guide.md §1 step 2).
+  Future<OAuth2AuthResult> signInWithPKCE({
+    required Future<WebLoginResult?> Function(Uri authorizeUrl) openLoginPage,
+  }) async {
     // 1. Generate high-entropy code_verifier and S256 code_challenge
     final codeVerifier = PkceHelper.generateCodeVerifier();
     final codeChallenge = PkceHelper.generateCodeChallenge(codeVerifier);
     final state = PkceHelper.generateState();
 
-    // 2. Build authorization URL
+    // 2. Build authorization URL. Never add prompt=login: Better Auth then
+    //    loops back to the login form after a successful sign-in.
     final authUri = Uri.parse(oauthAuthorizeUrl).replace(
       queryParameters: {
         'client_id': oauthClientId,
@@ -46,18 +62,15 @@ class AuthRepository {
       },
     );
 
-    // 3. Launch secure browser authentication session
-    final callbackResult = await FlutterWebAuth2.authenticate(
-      url: authUri.toString(),
-      callbackUrlScheme: oauthCallbackScheme,
-      options: const FlutterWebAuth2Options(
-        preferEphemeral: true,
-        intentFlags: ephemeralIntentFlags,
-      ),
-    );
+    // 3. Show the sign-in page
+    final loginResult = await openLoginPage(authUri);
+    if (loginResult == null) {
+      throw Exception('Sign-in was cancelled.');
+    }
+    final sessionCookie = loginResult.sessionCookie;
 
     // 4. Parse redirect URI and validate parameters
-    final callbackUri = Uri.parse(callbackResult);
+    final callbackUri = Uri.parse(loginResult.callbackUrl);
     final error = callbackUri.queryParameters['error'];
     if (error != null) {
       final description = callbackUri.queryParameters['error_description'] ?? error;
@@ -83,37 +96,64 @@ class AuthRepository {
     // 6. Fetch user profile from OpenID userinfo endpoint
     final user = await getUserInfo(accessToken: tokens.accessToken);
 
-    // 7. Exchange for the Better Auth JWT (mobile-patient-api-guide.md §1
-    //    step 2). This is the token the FHIR API, AI agents and /api/intake/*
-    //    expect, and it carries `activeOrganizationId` (guide §2).
-    final betterAuthJwt = await mintBetterAuthJwt(accessToken: tokens.accessToken);
+    // 7. Exchange the session for the Better Auth JWT (mobile-patient-api-
+    //    guide.md §1 step 2). This is the only token the FHIR API, the AI
+    //    agents and /api/intake/* accept; it carries `activeOrganizationId`.
+    //    Without it nothing works, so sign-in fails instead of continuing
+    //    with a token every backend rejects.
+    if (sessionCookie == null || sessionCookie.isEmpty) {
+      throw Exception('Sign-in could not be completed: no session was created.');
+    }
+    final betterAuthJwt = await mintBetterAuthJwt(sessionCookie: sessionCookie);
 
-    return OAuth2AuthResult(tokens: tokens, user: user, sessionJwt: betterAuthJwt);
+    return OAuth2AuthResult(
+      tokens: tokens,
+      user: user,
+      sessionJwt: betterAuthJwt,
+      sessionCookie: sessionCookie,
+    );
   }
 
   /// `GET {BETTER_AUTH_URL}/api/auth/token` (mobile-patient-api-guide.md §1
-  /// step 2), authenticated with the OAuth access token.
+  /// step 2), authenticated with the IAM session cookie.
   ///
-  /// The guide documents the response key as `token`, `jwt` or
-  /// `access_token`. Returns null when IAM does not issue a JWT for this
-  /// credential; the caller then falls back to the OpenID id_token.
-  Future<String?> mintBetterAuthJwt({required String accessToken}) async {
+  /// IAM rejects this call with an OAuth access token (verified on a device,
+  /// 2026-11-11), so the session cookie is required. The guide documents the
+  /// response key as `token`, `jwt` or `access_token`.
+  ///
+  /// Throws [SessionExpiredException] when IAM rejects the session, and the
+  /// original error when the server could not be reached.
+  Future<String> mintBetterAuthJwt({required String sessionCookie}) async {
     try {
       final response = await _dio.get(
         '/token',
-        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+        options: Options(headers: {'Cookie': sessionCookie}),
       );
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = response.data as Map;
+      final data = response.data;
+      if (response.statusCode == 200 && data is Map) {
         final token = data['token'] ?? data['jwt'] ?? data['access_token'];
         if (token is String && token.isNotEmpty) return token;
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[AuthRepository] Better Auth JWT exchange not available for this token');
-      }
+      throw Exception('IAM returned no JWT.');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 401 || status == 403) throw SessionExpiredException();
+      rethrow;
     }
-    return null;
+  }
+
+  /// Ends the IAM session on the server (`POST /api/auth/sign-out`), so the
+  /// stored session cookie can no longer mint JWTs. Best effort.
+  Future<void> signOutSession({required String sessionCookie}) async {
+    try {
+      await _dio.post(
+        '/sign-out',
+        data: const <String, dynamic>{},
+        options: Options(headers: {'Cookie': sessionCookie}),
+      );
+    } catch (_) {
+      // The local session is already gone; nothing else to do.
+    }
   }
 
   /// Exchanges authorization code and code_verifier for access and refresh tokens.

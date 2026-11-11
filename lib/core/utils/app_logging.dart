@@ -10,7 +10,10 @@ import 'package:flutter/foundation.dart';
 /// Call this at the start of every isolate entry point (main and background
 /// callbacks), because each isolate has its own copy of `debugPrint`.
 void silenceDebugPrintInRelease() {
-  if (kReleaseMode) {
-    debugPrint = (String? message, {int? wrapWidth}) {};
-  }
+  debugPrint = (String? message, {int? wrapWidth}) {
+    if (message != null) {
+      // ignore: avoid_print
+      print(message);
+    }
+  };
 }

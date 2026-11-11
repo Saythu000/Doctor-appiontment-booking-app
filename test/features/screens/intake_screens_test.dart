@@ -43,6 +43,8 @@ class FakeAuthVM extends ChangeNotifier implements AuthViewModel {
   String? get orgId => 'org1';
   @override
   Future<String?> refreshToken() async => token;
+  @override
+  Future<String?> validJwt() async => token;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
