@@ -58,7 +58,9 @@ class BookingRepository {
       return [];
     } catch (e) {
       debugPrint('[BookingRepository] Failed to fetch practitioner roles from /api/v1/practitioner-roles/booking: $e');
-      return [];
+      // A failure is not "no doctors": let the view model show an error
+      // with Try again (it falls back to the cached list).
+      rethrow;
     }
   }
 
