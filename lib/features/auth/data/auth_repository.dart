@@ -1,8 +1,5 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'package:phia_flutter/core/network/native_http_adapter.dart';
 import 'package:phia_flutter/features/auth/data/pkce_helper.dart';
 import 'package:phia_flutter/features/auth/domain/auth_models.dart';
 
@@ -27,11 +24,7 @@ class AuthRepository {
                 'Origin': 'https://iam.drgodly.com',
                 'Referer': 'https://iam.drgodly.com/',
               },
-            )) {
-    if (!kIsWeb && Platform.isAndroid) {
-      _dio.httpClientAdapter = NativeHttpAdapter();
-    }
-  }
+            ));
 
   /// Performs OAuth 2.0 Authorization Code Flow with PKCE (RFC 7636).
   ///

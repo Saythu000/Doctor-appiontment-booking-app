@@ -36,7 +36,23 @@ class NativeHttpAdapter implements HttpClientAdapter {
         bodyBytes = Uint8List.fromList(options.data as List<int>);
       } else if (options.data is String) {
         bodyBytes = Uint8List.fromList(utf8.encode(options.data as String));
-      } else if (options.data is Map || options.data is List) {
+      } else if (options.data is Map) {
+        final contentType = (options.contentType ??
+                options.headers[Headers.contentTypeHeader]?.toString() ??
+                '')
+            .toLowerCase();
+        if (contentType.contains(Headers.formUrlEncodedContentType)) {
+          final map = options.data as Map;
+          final formStr = map.entries.map((e) {
+            final k = Uri.encodeQueryComponent(e.key.toString());
+            final v = Uri.encodeQueryComponent(e.value?.toString() ?? '');
+            return '$k=$v';
+          }).join('&');
+          bodyBytes = Uint8List.fromList(utf8.encode(formStr));
+        } else {
+          bodyBytes = Uint8List.fromList(utf8.encode(jsonEncode(options.data)));
+        }
+      } else if (options.data is List) {
         bodyBytes = Uint8List.fromList(utf8.encode(jsonEncode(options.data)));
       }
     } else if (requestStream != null) {
@@ -51,6 +67,10 @@ class NativeHttpAdapter implements HttpClientAdapter {
     options.headers.forEach((k, v) {
       if (v != null) headers[k] = v.toString();
     });
+    if (options.contentType != null &&
+        !headers.keys.any((k) => k.toLowerCase() == 'content-type')) {
+      headers['content-type'] = options.contentType!;
+    }
 
     final url = options.uri.toString();
 
