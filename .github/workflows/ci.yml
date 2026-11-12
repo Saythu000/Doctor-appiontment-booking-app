@@ -53,10 +53,13 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release --verbose 2>&1 | tee build.log || {
-            echo "### Build Failure Log" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 120 build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "=== BUILD FAILED ==="
+            grep -E "FAILURE|Error|error|exception|Exception" build.log | tail -n 15 | while IFS= read -r line; do
+              echo "::error title=BuildError::$line"
+            done
+            tail -n 20 build.log | while IFS= read -r line; do
+              echo "::error title=Log::$line"
+            done
             exit 1
           }
 
