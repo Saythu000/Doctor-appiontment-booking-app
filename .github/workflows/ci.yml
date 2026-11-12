@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -42,10 +42,15 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Configure Android SDK & licenses
+        run: |
+          flutter config --android-sdk $ANDROID_HOME
+          yes | flutter doctor --android-licenses || true
+
       # Without android/key.properties (never committed) the APK is signed
       # with the debug key: fine for testing, not for the Play Store.
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --verbose
 
       - uses: actions/upload-artifact@v4
         with:
