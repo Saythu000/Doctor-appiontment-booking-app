@@ -50,24 +50,7 @@ jobs:
       # Without android/key.properties (never committed) the APK is signed
       # with the debug key: fine for testing, not for the Play Store.
       - name: Build release APK
-        run: |
-          set -o pipefail
-          flutter build apk --release --verbose 2>&1 | tee build.log || {
-            echo "=== BUILD FAILED ==="
-            grep -E "FAILURE|Error|error|exception|Exception" build.log | tail -n 15 | while IFS= read -r line; do
-              echo "::error title=BuildError::$line"
-            done
-            tail -n 20 build.log | while IFS= read -r line; do
-              echo "::error title=Log::$line"
-            done
-            exit 1
-          }
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build-log
-          path: build.log
+        run: flutter build apk --release
 
       - uses: actions/upload-artifact@v4
         with:
