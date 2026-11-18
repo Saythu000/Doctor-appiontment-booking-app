@@ -88,6 +88,11 @@
                 <data android:scheme="com.drgodly.app" android:host="callback" />
             </intent-filter>
         </activity>
+        <!-- Opt out of Impeller on Android to prevent blank screen crashes on
+             certain Mali/MediaTek Vulkan gralloc4 drivers. Uses OpenGL ES / Skia. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
