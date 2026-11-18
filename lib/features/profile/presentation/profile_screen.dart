@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phia_flutter/app/app_routes.dart';
 import 'package:phia_flutter/core/theme/app_tokens.dart';
-import 'package:phia_flutter/core/widgets/app_button.dart';
 import 'package:phia_flutter/core/widgets/app_card.dart';
 import 'package:phia_flutter/core/widgets/app_feedback.dart';
 import 'package:phia_flutter/core/widgets/motion.dart';
@@ -64,7 +63,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final authUser = context.watch<AuthViewModel>().user;
     final profileVM = context.watch<ProfileViewModel>();
-    final appointments = context.watch<BookingViewModel>().appointmentsList.length;
+    final bookingVM = context.watch<BookingViewModel>();
+    final appointments = bookingVM.appointmentsList.length;
+    final appointmentsError = bookingVM.appointmentsError;
     final activity = context.watch<ActivityViewModel>();
     final settings = context.watch<SettingsViewModel>();
     final activeReminders = settings.remindersList.where((r) => r['is_active'] == 1).length;
@@ -129,21 +130,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       SettingsGroup(
-        title: 'Account',
+        title: 'My care',
         children: [
           SettingsTile(
             icon: Icons.event_note_outlined,
             title: 'Appointments',
-            value: appointments == 0 ? 'None yet' : '$appointments',
+            value: appointmentsError != null
+                ? "Couldn't load"
+                : (appointments == 0 ? 'None yet' : '$appointments'),
             onTap: () => context.push(AppRoutes.appointments),
           ),
         ],
       ),
-      AppButton.secondary(
-        label: 'Sign out',
-        icon: Icons.logout_rounded,
-        isLoading: _signingOut,
-        onPressed: _signOut,
+      SettingsGroup(
+        title: 'Account',
+        children: [
+          SettingsTile(
+            icon: Icons.logout_rounded,
+            title: 'Sign out',
+            destructive: true,
+            showChevron: false,
+            trailing: _signingOut
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            onTap: _signingOut ? null : _signOut,
+          ),
+        ],
       ),
     ];
 

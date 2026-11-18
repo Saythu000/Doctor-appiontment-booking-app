@@ -65,6 +65,9 @@ class FakeBookingVM extends ChangeNotifier implements BookingViewModel {
   ];
 
   @override
+  String? appointmentsError;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -141,6 +144,7 @@ Future<FakeSettingsVM> pumpSmall(
   List<Map<String, dynamic>> reminders = const [],
   String weightUnit = 'kg',
   String heightUnit = 'cm',
+  BookingViewModel? booking,
 }) async {
   tester.view.physicalSize = const Size(320, 640);
   tester.view.devicePixelRatio = 1;
@@ -149,6 +153,7 @@ Future<FakeSettingsVM> pumpSmall(
     ..remindersList = List.of(reminders)
     ..weightUnit = weightUnit
     ..heightUnit = heightUnit;
+  final bookingVm = booking ?? FakeBookingVM();
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -159,7 +164,7 @@ Future<FakeSettingsVM> pumpSmall(
         ),
         ChangeNotifierProvider<ActivityViewModel>.value(value: FakeActivityVM()),
         ChangeNotifierProvider<AuthViewModel>.value(value: FakeAuthVM()),
-        ChangeNotifierProvider<BookingViewModel>.value(value: FakeBookingVM()),
+        ChangeNotifierProvider<BookingViewModel>.value(value: bookingVm),
         ChangeNotifierProvider<SettingsViewModel>.value(value: settings),
       ],
       child: MaterialApp(
@@ -330,5 +335,34 @@ void main() {
     await tester.pump();
     expect(find.text('Please enter your first name', skipOffstage: false), findsOneWidget);
     expect(find.text('Enter a valid email address', skipOffstage: false), findsOneWidget);
+  });
+
+  group('My care and Account groups in ProfileScreen', () {
+    testWidgets('shows Appointments under My care and Sign out under Account', (tester) async {
+      final booking = FakeBookingVM()..appointmentsList = [{'id': '1'}];
+      await pumpSmall(tester, const ProfileScreen(isTab: true), textScale: 1.0, dark: false, booking: booking);
+      await scrollToEnd(tester);
+      expect(find.text('My care'), findsOneWidget);
+      expect(find.text('Appointments'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('Account'), findsOneWidget);
+      expect(find.text('Sign out'), findsOneWidget);
+    });
+
+    testWidgets('shows Couldn\'t load when appointmentsError is set', (tester) async {
+      final booking = FakeBookingVM()..appointmentsError = 'Network failure';
+      await pumpSmall(tester, const ProfileScreen(isTab: true), textScale: 1.0, dark: false, booking: booking);
+      await scrollToEnd(tester);
+      expect(find.text('Appointments'), findsOneWidget);
+      expect(find.text("Couldn't load"), findsOneWidget);
+    });
+
+    testWidgets('shows None yet when appointments list is empty and no error', (tester) async {
+      final booking = FakeBookingVM()..appointmentsList = [];
+      await pumpSmall(tester, const ProfileScreen(isTab: true), textScale: 1.0, dark: false, booking: booking);
+      await scrollToEnd(tester);
+      expect(find.text('Appointments'), findsOneWidget);
+      expect(find.text('None yet'), findsOneWidget);
+    });
   });
 }
