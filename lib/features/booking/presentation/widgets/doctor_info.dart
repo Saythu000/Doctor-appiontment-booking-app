@@ -65,12 +65,73 @@ Set<String> availableDayCodes(PractitionerRoleBooking? pr) {
   return days;
 }
 
-/// "Mon, Wed, Fri" or "Every day", or null when unknown.
+String _formatTimePart(String timeStr) {
+  final parts = timeStr.trim().split(':');
+  if (parts.isEmpty) return timeStr;
+  final hour = int.tryParse(parts[0]);
+  if (hour == null) return timeStr;
+  final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final h = hour % 12 == 0 ? 12 : hour % 12;
+  final minStr = minute.toString().padLeft(2, '0');
+  return '$h:$minStr $period';
+}
+
+String? _availableHoursString(PractitionerRoleBooking pr) {
+  for (final a in pr.availability) {
+    for (final t in a.availableTimes) {
+      final start = t.availableStartTime?.trim();
+      final end = t.availableEndTime?.trim();
+      if ((start != null && start.isNotEmpty) || (end != null && end.isNotEmpty)) {
+        if (start != null && start.isNotEmpty && end != null && end.isNotEmpty) {
+          return '${_formatTimePart(start)}–${_formatTimePart(end)}';
+        } else if (start != null && start.isNotEmpty) {
+          return _formatTimePart(start);
+        } else {
+          return _formatTimePart(end!);
+        }
+      }
+    }
+  }
+  return null;
+}
+
+String _formatDayRange(Set<String> days) {
+  final indices = <int>[];
+  for (int i = 0; i < _dayOrder.length; i++) {
+    if (days.contains(_dayOrder[i])) {
+      indices.add(i);
+    }
+  }
+  if (indices.isEmpty) return '';
+  if (indices.length == 1) {
+    return _dayLabels[_dayOrder[indices.first]]!;
+  }
+  // Check if contiguous range
+  bool isContiguous = true;
+  for (int i = 0; i < indices.length - 1; i++) {
+    if (indices[i + 1] != indices[i] + 1) {
+      isContiguous = false;
+      break;
+    }
+  }
+  if (isContiguous) {
+    return '${_dayLabels[_dayOrder[indices.first]]}–${_dayLabels[_dayOrder[indices.last]]}';
+  }
+  return indices.map((i) => _dayLabels[_dayOrder[i]]!).join(', ');
+}
+
+/// "Mon–Fri · 9:00 AM–5:00 PM" or "Mon–Sun · 9:00 AM–10:00 PM", or days only when hours unknown, or null when unknown.
 String? availabilityLabel(PractitionerRoleBooking pr) {
   final days = availableDayCodes(pr);
   if (days.isEmpty) return null;
-  if (_dayOrder.every(days.contains)) return 'Every day';
-  return _dayOrder.where(days.contains).map((d) => _dayLabels[d]).join(', ');
+  final daysText = _formatDayRange(days);
+  if (daysText.isEmpty) return null;
+  final hours = _availableHoursString(pr);
+  if (hours != null && hours.isNotEmpty) {
+    return '$daysText · $hours';
+  }
+  return daysText;
 }
 
 /// True when [day] is one of the doctor's working days (or the server did not
