@@ -28,13 +28,40 @@ import 'package:phia_flutter/features/vitals/presentation/vitals_screen.dart';
 /// The splash screen decides where a user goes (welcome, onboarding or home)
 /// after checking the stored session, so there is no global redirect here.
 GoRouter buildRouter() {
+  Page<dynamic> buildPage(GoRouterState state, Widget child) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 250),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   GoRoute page(String path, Widget Function(GoRouterState state) build) =>
-      GoRoute(path: path, builder: (context, state) => build(state));
+      GoRoute(
+        path: path,
+        pageBuilder: (context, state) => buildPage(state, build(state)),
+      );
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     routes: [
-      page(AppRoutes.splash, (_) => const SplashScreen()),
+      GoRoute(
+        path: AppRoutes.splash,
+        pageBuilder: (context, state) => NoTransitionPage<void>(
+          key: state.pageKey,
+          child: const SplashScreen(),
+        ),
+      ),
       page(AppRoutes.welcome, (_) => const WelcomeScreen()),
       page(AppRoutes.login, (_) => const LoginScreen()),
       page(AppRoutes.profileSetup, (_) => const ProfileSetupScreen()),

@@ -13,7 +13,7 @@ import 'package:provider/provider.dart';
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  testWidgets('signed-out start: the brand intro plays in full (4.5 s) before Welcome', (tester) async {
+  testWidgets('signed-out start: the brand intro plays in full (2.5 s) before Welcome', (tester) async {
     final router = GoRouter(
       routes: [
         GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),
@@ -31,8 +31,8 @@ void main() {
 
     // The sign-in check finishes almost at once (nothing stored)...
     await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(seconds: 3));
-    // ...but at 4 s the intro is still showing.
+    await tester.pump(const Duration(seconds: 1));
+    // ...but at 2 s the intro is still showing.
     expect(find.text('WELCOME'), findsNothing);
     expect(find.text('DrGodly'), findsOneWidget);
 

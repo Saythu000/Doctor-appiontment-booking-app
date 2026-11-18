@@ -26,16 +26,15 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   /// Length of the brand intro. Navigation waits for it (and for the login
   /// check, whichever takes longer), so the intro always plays in full.
-  static const _introLength = Duration(milliseconds: 4500);
-
-  /// With "Remove animations" on there is nothing to watch: shorter hold.
-  static const _reducedIntroLength = Duration(milliseconds: 1500);
+  static const _introLength = Duration(milliseconds: 2500);
 
   late final AnimationController _intro =
       AnimationController(vsync: this, duration: _introLength);
-  Future<void> _introDone = Future<void>.value();
+  final Completer<void> _introCompleter = Completer<void>();
+  Future<void> get _introDone => _introCompleter.future;
   bool _introStarted = false;
 
+  Timer? _holdTimer;
   Timer? _slowTimer;
 
   /// Shown when loading runs well past the intro, so it doesn't look frozen.
@@ -46,14 +45,23 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/app_logo.jpeg'), context);
     if (_introStarted) return;
     _introStarted = true;
     final reduced = AppMotion.reduced(context);
+    _holdTimer = Timer(_introLength, () {
+      if (!_introCompleter.isCompleted) {
+        _introCompleter.complete();
+      }
+    });
     if (reduced) {
       _intro.value = 1;
-      _introDone = Future<void>.delayed(_reducedIntroLength);
     } else {
-      _introDone = _intro.forward().orCancel.catchError((_) {});
+      _intro.forward().then((_) {
+        if (!_introCompleter.isCompleted) {
+          _introCompleter.complete();
+        }
+      }).catchError((_) {});
     }
     _startSlowTimer();
     _checkAuthAndRedirect();
@@ -139,6 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     _slowTimer?.cancel();
     _intro.dispose();
     super.dispose();
@@ -150,13 +159,13 @@ class _SplashScreenState extends State<SplashScreen>
     _checkAuthAndRedirect();
   }
 
-  /// Progress of the intro between [begin] and [end] (fractions of 4.5 s).
+  /// Progress of the intro between [begin] and [end] (fractions of 2.5 s).
   double _phase(double begin, double end, [Curve curve = Curves.linear]) =>
       curve.transform(((_intro.value - begin) / (end - begin)).clamp(0.0, 1.0));
 
-  /// Two heartbeat pulses ("lub-dub, lub-dub") between 0.2 s and 1.2 s.
+  /// Two heartbeat pulses ("lub-dub, lub-dub") between 0.1 s and 0.8 s.
   double get _beatScale {
-    final t = _phase(0.04, 0.27);
+    final t = _phase(0.05, 0.35);
     if (t <= 0 || t >= 1) return 1;
     // Two bumps, the second softer.
     final beat1 =
@@ -183,21 +192,25 @@ class _SplashScreenState extends State<SplashScreen>
             return AnimatedBuilder(
               animation: _intro,
               builder: (context, _) {
-                final settle = _phase(0.24, 0.42, AppMotion.emphasized);
+                final settle = _phase(0.12, 0.36, AppMotion.emphasized);
                 final logoCentre = centreY - settledLift * settle;
                 final scale =
                     (startScale + (1 - startScale) * settle) * _beatScale;
                 final nameIn =
-                    _phase(0.38, 0.52, AppMotion.emphasizedDecelerate);
+                    _phase(0.18, 0.38, AppMotion.emphasizedDecelerate);
                 final taglineIn =
-                    _phase(0.45, 0.60, AppMotion.emphasizedDecelerate);
-                final lineIn = _phase(0.29, 0.40);
+                    _phase(0.26, 0.48, AppMotion.emphasizedDecelerate);
+                final lineIn = _phase(0.15, 0.35);
 
-                return Stack(
-                  children: [
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
                     // Ripples spreading from the logo with each heartbeat.
                     for (final (begin, end) in const [
-                      (0.04, 0.34),
+                      (0.05, 0.35),
                       (0.15, 0.45)
                     ])
                       _Ripple(
@@ -257,7 +270,8 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ],
-                );
+                ),
+              );
               },
             );
           },
