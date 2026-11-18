@@ -30,6 +30,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   String _statusLabel = 'Offline';
   String _statusDotColor = 'grey'; // 'grey', 'amber', 'green'
   bool _isMuted = false;
+  bool _isSpeakerOn = true;
   String? _errorMessage;
 
   // Turn-Commit Buffers (§4.1)
@@ -52,6 +53,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   String get statusLabel => _statusLabel;
   String get statusDotColor => _statusDotColor;
   bool get isMuted => _isMuted;
+  bool get isSpeakerOn => _isSpeakerOn;
   String? get errorMessage => _errorMessage;
   List<IntakeChatMessage> get committedMessages =>
       List.unmodifiable(_committedMessages);
@@ -84,6 +86,7 @@ class VoiceIntakeViewModel extends ChangeNotifier {
     _statusLabel = 'Offline';
     _statusDotColor = 'grey';
     _isMuted = false;
+    _isSpeakerOn = true;
     _errorMessage = null;
     _committedMessages.clear();
     _pendingUser = '';
@@ -346,6 +349,13 @@ class VoiceIntakeViewModel extends ChangeNotifier {
   void toggleMute() {
     _isMuted = !_isMuted;
     _voiceService.setMuted(_isMuted);
+    notifyListeners();
+  }
+
+  /// Toggle Speaker on / off (earpiece routing)
+  Future<void> toggleSpeaker() async {
+    _isSpeakerOn = !_isSpeakerOn;
+    await _voiceService.setSpeakerphone(_isSpeakerOn);
     notifyListeners();
   }
 

@@ -27,8 +27,13 @@ class FakeVoiceService implements VoiceIntakeService {
   @override
   Future<void> disconnect() async => disconnectCalls++;
 
+  bool lastSpeakerphoneState = true;
+
   @override
   void setMuted(bool muted) {}
+
+  @override
+  Future<void> setSpeakerphone(bool enabled) async => lastSpeakerphoneState = enabled;
 
   @override
   void dispose() {}
@@ -172,5 +177,17 @@ void main() {
 
     await vm.retrySave(authToken: 't');
     expect(vm.callState, VoiceCallState.completed);
+  });
+
+  test('toggleSpeaker toggles speaker state and updates voice service', () async {
+    expect(vm.isSpeakerOn, isTrue);
+
+    await vm.toggleSpeaker();
+    expect(vm.isSpeakerOn, isFalse);
+    expect(voice.lastSpeakerphoneState, isFalse);
+
+    await vm.toggleSpeaker();
+    expect(vm.isSpeakerOn, isTrue);
+    expect(voice.lastSpeakerphoneState, isTrue);
   });
 }

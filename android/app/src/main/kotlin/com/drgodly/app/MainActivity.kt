@@ -1,5 +1,9 @@
 package com.drgodly.app
 
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
 import android.webkit.CookieManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -130,11 +134,64 @@ class MainActivity : FlutterFragmentActivity() {
                     result.notImplemented()
                 }
             }
+
+        // Audio Routing Channel (speakerphone vs earpiece routing for voice intake)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUDIO_ROUTING_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                when (call.method) {
+                    "setSpeakerphoneOn" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: true
+                        try {
+                            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                if (enabled) {
+                                    val speakerDevice = audioManager.availableCommunicationDevices.firstOrNull {
+                                        it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                                    }
+                                    if (speakerDevice != null) {
+                                        audioManager.setCommunicationDevice(speakerDevice)
+                                    }
+                                } else {
+                                    val earpieceDevice = audioManager.availableCommunicationDevices.firstOrNull {
+                                        it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                                    }
+                                    if (earpieceDevice != null) {
+                                        audioManager.setCommunicationDevice(earpieceDevice)
+                                    } else {
+                                        audioManager.clearCommunicationDevice()
+                                    }
+                                }
+                            }
+                            audioManager.isSpeakerphoneOn = enabled
+                            result.success(true)
+                        } catch (e: Exception) {
+                            android.util.Log.e("DrGodlyAudio", "Failed to set speakerphone: $enabled", e)
+                            result.error("AUDIO_ERROR", e.message ?: e.toString(), null)
+                        }
+                    }
+                    "resetAudioMode" -> {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                audioManager.clearCommunicationDevice()
+                            }
+                            audioManager.isSpeakerphoneOn = false
+                            audioManager.mode = AudioManager.MODE_NORMAL
+                            result.success(true)
+                        } catch (e: Exception) {
+                            android.util.Log.e("DrGodlyAudio", "Failed to reset audio mode", e)
+                            result.error("AUDIO_ERROR", e.message ?: e.toString(), null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     companion object {
         private const val IAM_SESSION_CHANNEL = "com.drgodly.app/iam_session"
         private const val NATIVE_HTTP_CHANNEL = "com.drgodly.app/native_http"
+        private const val AUDIO_ROUTING_CHANNEL = "com.drgodly.app/audio_routing"
         private const val IAM_ORIGIN = "https://iam.drgodly.com"
         private val SESSION_COOKIE_NAMES = listOf(
             "__Secure-better-auth.session_token",

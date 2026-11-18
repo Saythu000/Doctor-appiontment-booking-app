@@ -13,8 +13,10 @@ class VoiceCallDock extends StatelessWidget {
   final bool inCall;
   final bool busy;
   final bool muted;
+  final bool speakerOn;
   final bool canRetrySave;
   final VoidCallback onToggleMute;
+  final VoidCallback onToggleSpeaker;
   final VoidCallback onEnd;
   final VoidCallback onRestart;
   final VoidCallback onStart;
@@ -26,8 +28,10 @@ class VoiceCallDock extends StatelessWidget {
     required this.inCall,
     required this.busy,
     required this.muted,
+    this.speakerOn = true,
     required this.canRetrySave,
     required this.onToggleMute,
+    required this.onToggleSpeaker,
     required this.onEnd,
     required this.onRestart,
     required this.onStart,
@@ -50,6 +54,13 @@ class VoiceCallDock extends StatelessWidget {
             tooltip: muted ? 'Turn microphone on' : 'Turn microphone off',
             selected: muted,
             onPressed: busy ? null : onToggleMute,
+          ),
+          _RoundControl(
+            icon: speakerOn ? Icons.volume_up_rounded : Icons.phone_in_talk_rounded,
+            label: speakerOn ? 'Speaker' : 'Earpiece',
+            tooltip: speakerOn ? 'Switch to earpiece' : 'Switch to loudspeaker',
+            selected: speakerOn,
+            onPressed: busy ? null : onToggleSpeaker,
           ),
           _RoundControl(
             icon: Icons.call_end_rounded,

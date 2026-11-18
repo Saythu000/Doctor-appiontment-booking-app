@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:phia_flutter/core/config/api_constants.dart';
 import 'package:record/record.dart';
@@ -49,8 +50,12 @@ class VoiceIntakeService {
   final _eventController = StreamController<VoiceAgentEvent>.broadcast();
   Stream<VoiceAgentEvent> get events => _eventController.stream;
 
+  static const _audioRoutingChannel = MethodChannel('com.drgodly.app/audio_routing');
+  bool _isSpeakerOn = true;
+
   bool get isConnected => _isConnected;
   bool get isMuted => _isMuted;
+  bool get isSpeakerOn => _isSpeakerOn;
 
   // Audio buffering engine for gapless playback
   final BytesBuilder _turnPcmBuilder = BytesBuilder();
@@ -75,6 +80,47 @@ class VoiceIntakeService {
 
   void setMuted(bool muted) {
     _isMuted = muted;
+  }
+
+  /// Switch audio routing between speakerphone and earpiece
+  Future<void> setSpeakerphone(bool enabled) async {
+    _isSpeakerOn = enabled;
+    try {
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: enabled,
+            stayAwake: true,
+            contentType: AndroidContentType.speech,
+            usageType: AndroidUsageType.voiceCommunication,
+            audioFocus: AndroidAudioFocus.none,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playAndRecord,
+            options: enabled
+                ? const {AVAudioSessionOptions.defaultToSpeaker, AVAudioSessionOptions.allowBluetooth}
+                : const {AVAudioSessionOptions.allowBluetooth},
+          ),
+        ),
+      );
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _audioRoutingChannel.invokeMethod('setSpeakerphoneOn', {'enabled': enabled});
+      }
+    } catch (e) {
+      debugPrint('[VoiceIntakeService] Error setting speakerphone: $e');
+    }
+  }
+
+  /// Reset audio routing and communication mode on disconnect
+  Future<void> resetAudioRouting() async {
+    _isSpeakerOn = true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _audioRoutingChannel.invokeMethod('resetAudioMode');
+      }
+    } catch (e) {
+      debugPrint('[VoiceIntakeService] Error resetting audio routing: $e');
+    }
   }
 
   /// Open WebSocket connection (§2.1)
@@ -116,29 +162,9 @@ class VoiceIntakeService {
     // Never log the full URI: its query string carries the JWT and patient details.
     debugPrint('[VoiceIntakeService] Connecting to WebSocket: ${uri.host}${uri.path}');
 
-    // Configure global AudioContext for voice communication so AudioPlayer never steals focus from recorder
-    try {
-      await AudioPlayer.global.setAudioContext(
-        AudioContext(
-          android: const AudioContextAndroid(
-            isSpeakerphoneOn: true,
-            stayAwake: true,
-            contentType: AndroidContentType.speech,
-            usageType: AndroidUsageType.voiceCommunication,
-            audioFocus: AndroidAudioFocus.none,
-          ),
-          iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.playAndRecord,
-            options: const {
-              AVAudioSessionOptions.defaultToSpeaker,
-              AVAudioSessionOptions.allowBluetooth,
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('[VoiceIntakeService] Error configuring AudioContext: $e');
-    }
+    // Configure global AudioContext for voice communication and route audio (default to speakerphone)
+    _isSpeakerOn = true;
+    await setSpeakerphone(true);
 
     try {
       _channel = WebSocketChannel.connect(uri);
@@ -220,7 +246,7 @@ class VoiceIntakeService {
       }
 
       // Configure 16 kHz mono PCM stream with voiceCommunication audio source and no focus pause
-      const config = RecordConfig(
+      final config = RecordConfig(
         encoder: AudioEncoder.pcm16bits,
         sampleRate: 16000,
         numChannels: 1,
@@ -231,7 +257,7 @@ class VoiceIntakeService {
         androidConfig: AndroidRecordConfig(
           audioSource: AndroidAudioSource.voiceCommunication,
           audioManagerMode: AudioManagerMode.modeInCommunication,
-          speakerphone: true,
+          speakerphone: _isSpeakerOn,
         ),
       );
 
@@ -437,9 +463,13 @@ class VoiceIntakeService {
     } catch (_) {}
 
     try {
+      await resetAudioRouting();
+    } catch (_) {}
+
+    try {
       await _socketSubscription?.cancel();
       _socketSubscription = null;
-      await _channel?.sink.close();
+      await _channel?.sink.close().timeout(const Duration(seconds: 2), onTimeout: () {});
       _channel = null;
     } catch (_) {}
   }
