@@ -132,4 +132,40 @@ void main() {
     expect(vm.slotsError, isNotNull);
     expect(vm.isSlotsLoading, isFalse);
   });
+
+  test('rescheduleAppointment succeeds and refreshes appointments', () async {
+    final reschedRepo = _RescheduleBookingRepo();
+    final reschedVm = BookingViewModel(
+      bookingRepository: reschedRepo,
+      healthRepository: health,
+      profileRepository: FakeProfileRepository(),
+    );
+    final ok = await reschedVm.rescheduleAppointment('appt-1', 42);
+    expect(ok, isTrue);
+    expect(reschedRepo.calledSlotId, 42);
+  });
+}
+
+class _RescheduleBookingRepo extends BookingRepository {
+  int? calledSlotId;
+
+  @override
+  Future<Map<String, dynamic>> rescheduleAppointmentServer({
+    required String appointmentId,
+    required int newSlotId,
+  }) async {
+    calledSlotId = newSlotId;
+    return {
+      'id': 100,
+      'status': 'booked',
+      'start': '2026-12-05T14:30:00Z',
+      'end': '2026-12-05T15:00:00Z',
+    };
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getUserAppointments({
+    required String userId,
+    required String orgId,
+  }) async => [];
 }

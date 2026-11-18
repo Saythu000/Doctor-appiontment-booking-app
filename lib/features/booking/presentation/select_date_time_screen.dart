@@ -89,7 +89,11 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
     final vm = context.read<BookingViewModel>();
     final router = GoRouter.of(context);
     setState(() => _rescheduling = true);
-    final ok = await vm.rescheduleAppointment(_args['reschedule_appointment_id'].toString(), slotId);
+    final ok = await vm.rescheduleAppointment(
+      _args['reschedule_appointment_id'].toString(),
+      slotId,
+      newSlotTime: _slot?.startDateTime,
+    );
     if (!mounted) return;
     if (ok) {
       showAppMessage(context, 'Your visit was moved.', type: FeedbackType.success);

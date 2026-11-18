@@ -412,26 +412,57 @@ class BookingViewModel extends ChangeNotifier {
 
   /// Reschedule an appointment to a new slot
   Future<bool> rescheduleAppointment(
-      String appointmentId, int newSlotId) async {
+      String appointmentId, int newSlotId, {DateTime? newSlotTime}) async {
     try {
       // Look up appointment doctor name if available
       String doctorName = 'Doctor';
+      Map<String, dynamic>? foundAppt;
       try {
-        final found =
+        foundAppt =
             appointmentsList.firstWhere((a) => a['id'] == appointmentId);
-        doctorName = found['practitioner_name'] ?? 'Doctor';
+        doctorName = foundAppt['practitioner_name'] ?? 'Doctor';
       } catch (_) {}
 
-      await bookingRepository.rescheduleAppointmentServer(
+      final res = await bookingRepository.rescheduleAppointmentServer(
         appointmentId: appointmentId,
         newSlotId: newSlotId,
       );
 
-      await NotificationService.instance.showAppointmentStatusAlert(
-        title: 'Appointment Rescheduled 📅',
-        body:
-            'Your consultation with $doctorName has been rescheduled successfully.',
-      );
+      final dynamic rawStart = res['start'] ?? (res['data'] is Map ? res['data']['start'] : null);
+      DateTime? parsed;
+      if (rawStart is String && rawStart.isNotEmpty) {
+        parsed = DateTime.tryParse(rawStart);
+      }
+      parsed ??= newSlotTime;
+
+      String dateSuffix = '';
+      if (parsed != null) {
+        final formattedDate =
+            DateFormat('EEE, MMM d @ h:mm a').format(parsed.toLocal());
+        dateSuffix = ' on $formattedDate';
+      }
+
+      try {
+        await NotificationService.instance.showAppointmentStatusAlert(
+          title: 'Appointment Rescheduled 📅',
+          body:
+              'Your consultation with $doctorName$dateSuffix has been rescheduled successfully.',
+        );
+
+        if (parsed != null && appointmentId.isNotEmpty) {
+          await NotificationService.instance.scheduleAppointmentReminders(
+            appointmentId: appointmentId,
+            doctorName: doctorName,
+            specialty: (foundAppt?['practitioner_role'] ?? '').toString(),
+            appointmentTime: parsed,
+            isVirtual: (foundAppt?['is_virtual'] == 1 || foundAppt?['is_virtual'] == true),
+          );
+        }
+      } catch (notifErr) {
+        if (kDebugMode) {
+          print('[BookingViewModel] Reschedule notification error: $notifErr');
+        }
+      }
 
       await fetchAppointments();
       return true;
